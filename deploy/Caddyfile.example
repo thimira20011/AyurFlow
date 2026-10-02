@@ -1,0 +1,10 @@
+# Template for the HTTPS pilot host. See docs/operations.md before deployment.
+# Caddy must join the application's Docker network to resolve service names.
+{$AYURFLOW_DOMAIN} {
+  handle /api/v1/* {
+    reverse_proxy backend:8080
+  }
+  handle {
+    reverse_proxy frontend:3000
+  }
+}

@@ -1,0 +1,27 @@
+# Local settings and secrets
+.env
+.env.*
+!.env.example
+!**/.env.example
+*.pem
+*.key
+
+# Generated dependencies, caches and builds
+node_modules/
+.next/
+out/
+dist/
+bin/
+coverage/
+*.tsbuildinfo
+.tools/
+.cache/
+tmp/
+backups/
+*.log
+
+# Editor and OS files
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

@@ -1,0 +1,58 @@
+openapi: 3.0.3
+info:
+  title: AyurFlow starter API
+  version: 0.1.0
+  description: Only operational endpoints are implemented. Protected staff endpoints are pending shared contract and authorization review.
+servers:
+  - url: /api/v1
+paths:
+  /health:
+    get:
+      operationId: getHealth
+      summary: Process liveness
+      responses:
+        '200':
+          description: The API process is responding.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Status'
+  /ready:
+    get:
+      operationId: getReadiness
+      summary: Database connectivity readiness
+      description: Confirms database connectivity only; does not certify schema or business-feature readiness.
+      responses:
+        '200':
+          description: Database connection is available.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Status'
+        '503':
+          description: Database is unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+components:
+  schemas:
+    Status:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: [ok, ready]
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+            message:
+              type: string
