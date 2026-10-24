@@ -28,6 +28,7 @@ func NewRouter(db DatabaseChecker, authRoutes ...AuthRoutes) *gin.Engine {
 	router.Use(gin.CustomRecoveryWithWriter(io.Discard, func(c *gin.Context, _ any) {
 		c.AbortWithStatusJSON(http.StatusInternalServerError, failure("internal_error", "The request could not be completed."))
 	}))
+	router.Use(requestDeadline(requestTimeout))
 	router.NoRoute(func(c *gin.Context) {
 		c.JSON(http.StatusNotFound, failure("not_found", "The requested resource was not found."))
 	})
@@ -46,6 +47,11 @@ func NewRouter(db DatabaseChecker, authRoutes ...AuthRoutes) *gin.Engine {
 	})
 	if len(authRoutes) > 0 && authRoutes[0].Service != nil {
 		registerAuth(api, authRoutes[0])
+		if authRoutes[0].Patients != nil {
+			protected := api.Group("")
+			protected.Use(RequireSession(authRoutes[0].Service, authRoutes[0].AllowedOrigin))
+			registerPatients(protected, authRoutes[0].Patients)
+		}
 	}
 	// Register business routes only after authentication, CSRF and record access exist.
 	return router

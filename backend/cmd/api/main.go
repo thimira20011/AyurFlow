@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -10,7 +11,9 @@ import (
 	"time"
 
 	"ayurflow/backend/internal/auth"
+	"ayurflow/backend/internal/authorization"
 	"ayurflow/backend/internal/config"
+	"ayurflow/backend/internal/patients"
 	"ayurflow/backend/internal/platform/database"
 	transport "ayurflow/backend/internal/transport/http"
 
@@ -38,10 +41,14 @@ func run() error {
 		return err
 	}
 	defer pool.Close()
+	// Keep requests alive during the graceful drain, then cancel any stragglers.
+	requests, cancelRequests := context.WithCancel(context.Background())
+	defer cancelRequests()
 	var router *gin.Engine
 	if cfg.Auth.Enabled {
 		router = transport.NewRouter(pool, transport.AuthRoutes{
 			Service: auth.NewService(pool, cfg.Auth), AllowedOrigin: cfg.Auth.AllowedOrigin,
+			Patients: patients.NewService(pool, &authorization.PatientPolicy{}),
 		})
 	} else {
 		router = transport.NewRouter(pool)
@@ -54,6 +61,7 @@ func run() error {
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second, WriteTimeout: 15 * time.Second,
 		IdleTimeout: 60 * time.Second,
+		BaseContext: func(net.Listener) context.Context { return requests },
 	}
 	errors := make(chan error, 1)
 	go func() {
@@ -68,7 +76,7 @@ func run() error {
 	case <-ctx.Done():
 		shutdown, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
-		return server.Shutdown(shutdown)
+		return shutdownServer(shutdown, server, cancelRequests)
 	}
 	return nil
 }
