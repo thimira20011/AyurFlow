@@ -7,7 +7,7 @@ import (
 )
 
 // These checks implement the provisional synthetic-development rule in DEC02.
-// HTTP registration remains unavailable until shared auth and CSRF work.
+// HTTP registration uses the shared AUTH-03 session, CSRF and role/record policy.
 var ErrInvalidPatient = errors.New("patients: invalid patient fields")
 
 type IdentityInput struct {

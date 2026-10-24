@@ -2,7 +2,7 @@ openapi: 3.0.3
 info:
   title: AyurFlow starter API
   version: 0.1.0
-  description: Only operational endpoints are implemented. Protected staff endpoints are pending shared contract and authorization review.
+  description: Published operational contract. Optional auth and protected patient endpoints are implemented with explicit auth configuration; their review packet is in auth-03-contract.md and shared-contract.md. Publication of those paths awaits DEC07 and reviewer approval.
 servers:
   - url: /api/v1
 paths:

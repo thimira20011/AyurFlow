@@ -2,7 +2,7 @@
 
 Initial project scaffold for the single-clinic Ayurvedic pilot described in the supplied proposal, SRS v1.0 and team task plan (1 October 2026).
 
-**Status:** starter infrastructure and module pages only. Authentication, patient registration and the clinical-to-receipt workflow are not implemented. No real patient data or default staff passwords are included.
+**Status:** shared infrastructure, optional staff sessions and protected patient-demographics APIs exist. UI integration and the complete clinical-to-receipt workflow remain pending. Auth/patient APIs require explicit configuration; see [the AUTH-03 review contract](docs/api/auth-03-contract.md). No real patient data or default staff passwords are included.
 
 ## Project layout
 
@@ -40,7 +40,7 @@ AyurFlow/
 └── compose.yaml                Development database, migration, API and UI
 ```
 
-The backend uses handlers, services and repositories within each module as features are introduced. Go owns business rules and transactions. Next.js calls `/api/v1`; it has no database connection. Argon2id password hashing and an explicit development-only synthetic staff seed command are available; login and authorization are not yet implemented. See [seed instructions](backend/db/seeds/README.md).
+The backend uses handlers, services and repositories within each module. Go owns business rules and transactions. Next.js calls `/api/v1`; it has no database connection. Argon2id, explicit synthetic staff seeds, optional sessions and shared authorization are implemented. Clinical/therapist access needs module-owned assignment checks; missing checks deny access. See [seed instructions](backend/db/seeds/README.md) and [authorization handoff](backend/internal/authorization/README.md).
 
 ## Start with Docker
 

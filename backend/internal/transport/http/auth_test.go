@@ -33,6 +33,14 @@ func (f *fakeSessions) Validate(context.Context, string) (auth.Session, error) {
 	return auth.Session{StaffID: "synthetic-staff", Roles: []string{}, CSRFToken: "rotated"}, nil
 }
 
+func (f *fakeSessions) Authenticate(ctx context.Context, token string) (auth.Session, error) {
+	return f.Validate(ctx, token)
+}
+
+func (f *fakeSessions) AuthenticateCSRF(ctx context.Context, token, _ string) (auth.Session, error) {
+	return f.Validate(ctx, token)
+}
+
 func (f *fakeSessions) Logout(_ context.Context, token, csrf string) error {
 	f.lastToken, f.lastCSRF = token, csrf
 	return f.logoutError
