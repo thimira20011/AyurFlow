@@ -46,6 +46,11 @@ func NewRouter(db DatabaseChecker, authRoutes ...AuthRoutes) *gin.Engine {
 	})
 	if len(authRoutes) > 0 && authRoutes[0].Service != nil {
 		registerAuth(api, authRoutes[0])
+		if authRoutes[0].Patients != nil {
+			protected := api.Group("")
+			protected.Use(RequireSession(authRoutes[0].Service, authRoutes[0].AllowedOrigin))
+			registerPatients(protected, authRoutes[0].Patients)
+		}
 	}
 	// Register business routes only after authentication, CSRF and record access exist.
 	return router

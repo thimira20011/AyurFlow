@@ -11,11 +11,14 @@ import (
 
 func readPatient(ctx context.Context, tx pgx.Tx, id string) (Patient, error) {
 	var patient Patient
-	var phone pgtype.Text
-	err := tx.QueryRow(ctx, `SELECT id::text, display_name, phone, record_version, created_at, updated_at
-		FROM patients WHERE id = $1`, id).Scan(
+	var phone, identityType, identityValue pgtype.Text
+	// Read demographics and optional identity from one committed statement snapshot.
+	err := tx.QueryRow(ctx, `SELECT p.id::text, p.display_name, p.phone, p.record_version,
+		p.created_at, p.updated_at, i.identity_type, i.original_value
+		FROM patients p LEFT JOIN patient_identities i ON i.patient_id = p.id
+		WHERE p.id = $1`, id).Scan(
 		&patient.ID, &patient.DisplayName, &phone, &patient.Version,
-		&patient.CreatedAt, &patient.UpdatedAt,
+		&patient.CreatedAt, &patient.UpdatedAt, &identityType, &identityValue,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
 		return Patient{}, ErrNotFound
@@ -26,13 +29,8 @@ func readPatient(ctx context.Context, tx pgx.Tx, id string) (Patient, error) {
 	if phone.Valid {
 		patient.Phone = &phone.String
 	}
-	var identity IdentityInput
-	err = tx.QueryRow(ctx, `SELECT identity_type, original_value FROM patient_identities
-		WHERE patient_id = $1`, id).Scan(&identity.Type, &identity.Value)
-	if err == nil {
-		patient.Identity = &identity
-	} else if !errors.Is(err, pgx.ErrNoRows) {
-		return Patient{}, err
+	if identityType.Valid {
+		patient.Identity = &IdentityInput{Type: identityType.String, Value: identityValue.String}
 	}
 	return patient, nil
 }

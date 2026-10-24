@@ -21,4 +21,10 @@ Provisional API prefix: `/api/v1`. Error envelope: `{"error":{"code":"not_found"
 
 ## DEC07 review packet
 
+### AUTH-03 synthetic-development authorization (24 October 2026)
+
+The user (Member A) explicitly approved the provisional access rules for this implementation: reception can register/search/read/edit demographics; clinical access requires a clinician plus explicit patient assignment; therapist access requires a session assignment; administrator alone has no clinical access. Missing assignment adapters deny access. No assignment-management permission, billing projection or generic audit/report/export permission is approved by this decision. See [the implemented review contract](api/auth-03-contract.md) and [authorization module instructions](../backend/internal/authorization/README.md). This is development authorization with synthetic data only, not clinic approval or closure of DEC02/05.
+
+The user chose to **keep session expiry/throttling settings explicitly configured** rather than adopt draft defaults. DEC07 remains pending team/F review; the auth feature remains disabled unless every existing policy setting is supplied. No recovery policy or production timeout was silently selected.
+
 Member A's [shared API and security contract draft](api/shared-contract.md) lists candidate session, throttling, recovery, CSRF, error and retry conventions with examples and a reviewer table. All DEC07 choices remain **pending** until A and the team record selected values, reviewer names and date here. No auth route or acceptance test may treat the candidate values as approved configuration.

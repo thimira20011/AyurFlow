@@ -14,6 +14,7 @@ import (
 const sessionCookie = "__Host-ayurflow_session"
 
 type SessionService interface {
+	SessionAuthenticator
 	Login(context.Context, string, string, string) (auth.Session, string, error)
 	Validate(context.Context, string) (auth.Session, error)
 	Logout(context.Context, string, string) error
@@ -22,6 +23,7 @@ type SessionService interface {
 type AuthRoutes struct {
 	Service       SessionService
 	AllowedOrigin string
+	Patients      PatientService
 }
 
 func registerAuth(api *gin.RouterGroup, routes AuthRoutes) {
