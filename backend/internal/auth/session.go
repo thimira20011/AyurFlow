@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/base64"
 	"errors"
 	"strings"
@@ -73,6 +74,7 @@ func (s *Service) Login(ctx context.Context, identifier, password, previousToken
 	if err != nil {
 		return Session{}, "", err
 	}
+	now = s.clock().UTC()
 	if blockedUntil != nil && now.Before(*blockedUntil) {
 		return Session{}, "", ErrCredentials
 	}
@@ -97,6 +99,8 @@ func (s *Service) Login(ctx context.Context, identifier, password, previousToken
 	} else {
 		burnPasswordWork(password)
 	}
+	// Password verification can be expensive; never backdate a block or new session.
+	now = s.clock().UTC()
 	if !active || !valid {
 		failures++
 		var nextBlock *time.Time
@@ -176,24 +180,26 @@ func (s *Service) Validate(ctx context.Context, token string) (Session, error) {
 	if !ok {
 		return Session{}, ErrSession
 	}
-	now := s.clock().UTC()
 	csrf, csrfHash, err := newSecret()
 	if err != nil {
 		return Session{}, err
 	}
 	var session Session
-	err = s.pool.QueryRow(ctx, `UPDATE staff_sessions AS sess SET last_seen_at=$2, csrf_token_hash=$4
-		FROM staff_accounts AS staff
-		WHERE sess.token_hash=$1 AND sess.staff_id=staff.id AND staff.active
-		AND sess.revoked_at IS NULL AND sess.expires_at > $2
-		AND sess.last_seen_at > $2 - $3::bigint * interval '1 microsecond'
-		RETURNING staff.id::text, sess.expires_at`, hash[:], now,
-		s.policy.IdleTimeout.Microseconds(), csrfHash[:]).Scan(
-		&session.StaffID, &session.ExpiresAt,
-	)
-	if errors.Is(err, pgx.ErrNoRows) {
-		return Session{}, ErrSession
-	}
+	err = pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		state, err := s.lockSession(ctx, tx, hash)
+		if err != nil {
+			return err
+		}
+		session = state.Session
+		_, err = tx.Exec(
+			ctx,
+			`UPDATE staff_sessions SET last_seen_at=$2,csrf_token_hash=$3 WHERE token_hash=$1`,
+			hash[:],
+			state.checkedAt,
+			csrfHash[:],
+		)
+		return err
+	})
 	if err != nil {
 		return Session{}, err
 	}
@@ -211,22 +217,17 @@ func (s *Service) Logout(ctx context.Context, token, csrf string) error {
 	if !ok {
 		return ErrSession
 	}
-	now := s.clock().UTC()
-	command, err := s.pool.Exec(ctx, `UPDATE staff_sessions AS sess SET revoked_at=$3
-		FROM staff_accounts AS staff
-		WHERE sess.token_hash=$1 AND sess.csrf_token_hash=$2
-		AND sess.staff_id=staff.id AND staff.active AND sess.revoked_at IS NULL
-		AND sess.expires_at > $3
-		AND sess.last_seen_at > $3 - $4::bigint * interval '1 microsecond'`,
-		tokenHash[:], csrfHash[:], now, s.policy.IdleTimeout.Microseconds(),
-	)
-	if err != nil {
+	return pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		state, err := s.lockSession(ctx, tx, tokenHash)
+		if err != nil {
+			return err
+		}
+		if subtle.ConstantTimeCompare(csrfHash[:], state.csrfHash) != 1 {
+			return ErrSession
+		}
+		_, err = tx.Exec(ctx, `UPDATE staff_sessions SET revoked_at=$2 WHERE token_hash=$1`, tokenHash[:], state.checkedAt)
 		return err
-	}
-	if command.RowsAffected() != 1 {
-		return ErrSession
-	}
-	return nil
+	})
 }
 
 // RevokeStaffSessions is called in the same transaction as an account disable.

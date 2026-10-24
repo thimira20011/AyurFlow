@@ -10,7 +10,9 @@ import (
 	"time"
 
 	"ayurflow/backend/internal/auth"
+	"ayurflow/backend/internal/authorization"
 	"ayurflow/backend/internal/config"
+	"ayurflow/backend/internal/patients"
 	"ayurflow/backend/internal/platform/database"
 	transport "ayurflow/backend/internal/transport/http"
 
@@ -42,6 +44,7 @@ func run() error {
 	if cfg.Auth.Enabled {
 		router = transport.NewRouter(pool, transport.AuthRoutes{
 			Service: auth.NewService(pool, cfg.Auth), AllowedOrigin: cfg.Auth.AllowedOrigin,
+			Patients: patients.NewService(pool, &authorization.PatientPolicy{}),
 		})
 	} else {
 		router = transport.NewRouter(pool)
