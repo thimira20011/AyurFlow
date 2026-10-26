@@ -224,8 +224,10 @@ export default function DashboardPage() {
 
           <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 shrink-0">
             <Link
-              href="/patients"
+              href="/patients?action=register"
+              id="dashboard-register-patient-btn"
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#23745b] to-[#10b981] hover:from-[#2d9170] hover:to-[#34d399] text-white text-xs sm:text-sm font-semibold shadow-md shadow-emerald-950/40 transition-all transform hover:-translate-y-0.5 active:translate-y-0"
+              title="Open patient registration form"
             >
               <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
@@ -278,9 +280,13 @@ export default function DashboardPage() {
       {/* ── 4 KPI Stat Cards ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
         {/* 1. Today's Consultations */}
-        <div className="rounded-2xl bg-white p-5 border border-green-900/10 shadow-xs hover:shadow-md transition-shadow relative overflow-hidden group">
+        <Link
+          href="/patients"
+          className="rounded-2xl bg-white p-5 border border-green-900/10 shadow-xs hover:shadow-md transition-shadow relative overflow-hidden group block"
+          title="View all patient records in registry"
+        >
           <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">
+            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider group-hover:text-emerald-700 transition-colors">
               Today&apos;s Consultations
             </span>
             <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center group-hover:scale-105 transition-transform">
@@ -305,7 +311,11 @@ export default function DashboardPage() {
           <div className="mt-3 w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
             <div className="bg-emerald-600 h-1.5 rounded-full" style={{ width: "75%" }} />
           </div>
-        </div>
+          <div className="mt-2.5 pt-2 border-t border-slate-100 flex items-center justify-between text-[11px] text-emerald-800 font-semibold">
+            <span>View patient registry</span>
+            <span>→</span>
+          </div>
+        </Link>
 
         {/* 2. Active Treatment Pathways */}
         <div className="rounded-2xl bg-white p-5 border border-green-900/10 shadow-xs hover:shadow-md transition-shadow relative overflow-hidden group">
@@ -486,10 +496,20 @@ export default function DashboardPage() {
 
                       <div>
                         <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-bold text-sm text-[#183a2d]">{apt.name}</span>
-                          <span className="font-mono text-[11px] text-slate-500 bg-slate-100 px-1.5 py-0.5 rounded">
+                          <Link
+                            href={`/patients?search=${encodeURIComponent(apt.name)}`}
+                            className="font-bold text-sm text-[#183a2d] hover:text-emerald-700 hover:underline transition-colors"
+                            title={`Search patient records for ${apt.name}`}
+                          >
+                            {apt.name}
+                          </Link>
+                          <Link
+                            href={`/patients?search=${encodeURIComponent(apt.patientId)}`}
+                            className="font-mono text-[11px] text-slate-600 bg-slate-100 hover:bg-emerald-100 hover:text-emerald-800 px-1.5 py-0.5 rounded transition-colors"
+                            title={`Find ${apt.patientId} in patient directory`}
+                          >
                             {apt.patientId}
-                          </span>
+                          </Link>
                           <span
                             className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
                               apt.dosha === "Vata-Pitta"
@@ -562,8 +582,17 @@ export default function DashboardPage() {
               )}
             </div>
 
-            <div className="p-4 bg-[#fbfcf9] border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-              <span>Room concurrency strictly enforced via PostgreSQL transactions (AT06).</span>
+            <div className="p-4 bg-[#fbfcf9] border-t border-slate-100 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-500">
+              <div className="flex items-center gap-2">
+                <span>Room concurrency strictly enforced (AT06).</span>
+                <span>•</span>
+                <Link
+                  href="/patients?action=register"
+                  className="font-semibold text-emerald-800 hover:underline inline-flex items-center gap-1"
+                >
+                  <span>+ Register new patient</span>
+                </Link>
+              </div>
               <Link href="/scheduling" className="font-semibold text-emerald-800 hover:text-emerald-900">
                 Open full schedule view →
               </Link>
@@ -799,6 +828,7 @@ export default function DashboardPage() {
                   time: "10:14 AM",
                   user: "Dr. Senanayake",
                   action: "Signed addendum for AYUR-2026-0142",
+                  patientId: "AYUR-2026-0142",
                 },
                 {
                   time: "09:42 AM",
@@ -809,6 +839,7 @@ export default function DashboardPage() {
                   time: "09:05 AM",
                   user: "Reception Desk",
                   action: "Registered patient AYUR-2026-0150",
+                  patientId: "AYUR-2026-0150",
                 },
                 {
                   time: "08:30 AM",
@@ -821,6 +852,15 @@ export default function DashboardPage() {
                   <div>
                     <span className="font-semibold text-white">{log.user}: </span>
                     <span>{log.action}</span>
+                    {log.patientId && (
+                      <Link
+                        href={`/patients?search=${encodeURIComponent(log.patientId)}`}
+                        className="ml-1.5 text-emerald-300 hover:text-white underline text-[10px]"
+                        title="View patient record"
+                      >
+                        [view record]
+                      </Link>
+                    )}
                   </div>
                 </div>
               ))}

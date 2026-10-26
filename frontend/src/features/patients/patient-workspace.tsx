@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { APIRequestError } from "@/lib/api-client";
 import {
@@ -91,14 +91,22 @@ function requestNotice(error: unknown, action: "search" | "create" | "read" | "u
   };
 }
 
-export default function PatientWorkspace({ preview = false }: { preview?: boolean }) {
+export default function PatientWorkspace({
+  preview = false,
+  initialPanel = "detail",
+  initialSearch = "",
+}: {
+  preview?: boolean;
+  initialPanel?: "detail" | "register";
+  initialSearch?: string;
+}) {
   const previewStore = useRef<Patient[]>(previewPatients.map((patient) => ({ ...patient })));
   const [access, setAccess] = useState<Access>(preview ? "ready" : "checking");
-  const [query, setQuery] = useState(preview ? "Demo" : "");
-  const [searched, setSearched] = useState(preview);
+  const [query, setQuery] = useState(initialSearch || (preview ? "Demo" : ""));
+  const [searched, setSearched] = useState(preview || Boolean(initialSearch));
   const [results, setResults] = useState<Patient[]>(preview ? previewPatients : []);
   const [selected, setSelected] = useState<Patient | null>(preview ? previewPatients[0] : null);
-  const [panel, setPanel] = useState<"detail" | "register">("detail");
+  const [panel, setPanel] = useState<"detail" | "register">(initialPanel);
   const [editing, setEditing] = useState(false);
   const [registerForm, setRegisterForm] = useState<FormValues>(emptyForm);
   const [editForm, setEditForm] = useState<FormValues>(emptyForm);
@@ -121,6 +129,74 @@ export default function PatientWorkspace({ preview = false }: { preview?: boolea
     return () => { active = false; };
   }, [preview]);
 
+  const executeSearch = useCallback(async (term: string) => {
+    const trimmed = term.trim();
+    if (!trimmed || byteLength(trimmed) > 128) {
+      setNotice({ tone: "error", text: "Enter a search term of up to 128 bytes." });
+      return;
+    }
+    setBusy(true);
+    setNotice(null);
+    try {
+      const items = preview
+        ? previewStore.current.filter((patient) => [patient.id, patient.displayName, patient.phone ?? "", patient.identity?.value ?? ""].some((value) => value.toLocaleLowerCase().includes(trimmed.toLocaleLowerCase()))).slice(0, 25)
+        : await searchPatients(trimmed);
+      setResults(items);
+      setSearched(true);
+      if (items.length > 0) {
+        setSelected(items[0]);
+        setEditForm(formFromPatient(items[0]));
+      } else {
+        setSelected(null);
+      }
+      setPanel("detail");
+      setEditing(false);
+    } catch (error) {
+      setNotice(requestNotice(error, "search"));
+    } finally {
+      setBusy(false);
+    }
+  }, [preview]);
+
+  useEffect(() => {
+    if (!initialSearch) return;
+    let active = true;
+    if (preview) {
+      const term = initialSearch.trim().toLocaleLowerCase();
+      const items = previewStore.current.filter((patient) =>
+        [patient.id, patient.displayName, patient.phone ?? "", patient.identity?.value ?? ""].some((value) =>
+          value.toLocaleLowerCase().includes(term)
+        )
+      ).slice(0, 25);
+      Promise.resolve().then(() => {
+        if (!active) return;
+        setResults(items);
+        setSearched(true);
+        if (items.length > 0) {
+          setSelected(items[0]);
+          setEditForm(formFromPatient(items[0]));
+        }
+      });
+      return () => { active = false; };
+    }
+
+    searchPatients(initialSearch.trim())
+      .then((items) => {
+        if (!active) return;
+        setResults(items);
+        setSearched(true);
+        if (items.length > 0) {
+          setSelected(items[0]);
+          setEditForm(formFromPatient(items[0]));
+        }
+      })
+      .catch((error: unknown) => {
+        if (!active) return;
+        setNotice(requestNotice(error, "search"));
+      });
+    return () => { active = false; };
+  }, [initialSearch, preview]);
+
   function showRegister() {
     setPanel("register");
     setEditing(false);
@@ -136,27 +212,7 @@ export default function PatientWorkspace({ preview = false }: { preview?: boolea
 
   async function handleSearch(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const term = query.trim();
-    if (!term || byteLength(term) > 128) {
-      setNotice({ tone: "error", text: "Enter a search term of up to 128 bytes." });
-      return;
-    }
-    setBusy(true);
-    setNotice(null);
-    try {
-      const items = preview
-        ? previewStore.current.filter((patient) => [patient.id, patient.displayName, patient.phone ?? "", patient.identity?.value ?? ""].some((value) => value.toLocaleLowerCase().includes(term.toLocaleLowerCase()))).slice(0, 25)
-        : await searchPatients(term);
-      setResults(items);
-      setSearched(true);
-      setSelected(null);
-      setPanel("detail");
-      setEditing(false);
-    } catch (error) {
-      setNotice(requestNotice(error, "search"));
-    } finally {
-      setBusy(false);
-    }
+    await executeSearch(query);
   }
 
   async function handleSelect(id: string) {
@@ -257,6 +313,11 @@ export default function PatientWorkspace({ preview = false }: { preview?: boolea
       {preview && <div className={styles.previewNotice} role="status"><strong>Synthetic screen preview</strong><span>Try search, registration and edits here. Changes stay in this browser tab and disappear on refresh. No patient API or database is used.</span><Link href="/patients" className={styles.textLink}>Return to live records</Link></div>}
       <div className={styles.headingRow}>
         <div>
+          <div style={{ marginBottom: "0.5rem" }}>
+            <Link href="/dashboard" className={styles.textLink}>
+              ← Back to Dashboard
+            </Link>
+          </div>
           <p className={styles.kicker}>Patient registry</p>
           <h1 className={styles.title}>Patient records</h1>
           <p className={styles.subtitle}>Register a patient, find a record, or correct demographics.</p>

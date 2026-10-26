@@ -6,6 +6,13 @@ export const metadata: Metadata = {
   description: "Register, search and review permitted patient demographics.",
 };
 
-export default function Page() {
-  return <PatientWorkspace />;
+export default async function Page({
+  searchParams,
+}: {
+  searchParams?: Promise<{ action?: string; search?: string; register?: string }>;
+}) {
+  const resolved = await searchParams;
+  const initialPanel = resolved?.action === "register" || resolved?.register === "true" ? "register" : "detail";
+  const initialSearch = resolved?.search ?? "";
+  return <PatientWorkspace initialPanel={initialPanel} initialSearch={initialSearch} />;
 }

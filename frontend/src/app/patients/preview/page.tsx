@@ -7,7 +7,14 @@ export const metadata: Metadata = {
   description: "Synthetic development preview of patient screens.",
 };
 
-export default function Page() {
+export default async function Page({
+  searchParams,
+}: {
+  searchParams?: Promise<{ action?: string; search?: string; register?: string }>;
+}) {
   if (process.env.NODE_ENV !== "development") notFound();
-  return <PatientWorkspace preview />;
+  const resolved = await searchParams;
+  const initialPanel = resolved?.action === "register" || resolved?.register === "true" ? "register" : "detail";
+  const initialSearch = resolved?.search ?? "";
+  return <PatientWorkspace preview initialPanel={initialPanel} initialSearch={initialSearch} />;
 }
