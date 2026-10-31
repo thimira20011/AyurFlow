@@ -69,7 +69,7 @@ Status values: **Pending** = not started; **In progress** = work underway but co
 | Task | Deliverable | Owner slot | Peer reviewer | Status | Evidence |
 | --- | --- | --- | --- | --- | --- |
 | TASK-CLN-01 | One pathway and ordered plan/stage schema | B | C | In progress | `member-b/cln-01-pathway-schema` adds schema and PostgreSQL test; A migration number, DEC02 labels/checklist and C review pending |
-| TASK-CLN-02 | Plan, approval and guarded advancement | B | C | Pending | — |
+| TASK-CLN-02 | Plan, approval and guarded advancement | B | C | In progress | `member-b/cln-02-plan-approval` adds transactional service/tests; DEC02 completion evidence, C session integration, protected HTTP and AT04 pending |
 | TASK-CLN-03 | Hold, resume, cancel and history | B with C | C | Pending | — |
 | TASK-CLN-04 | Shared clearance and plan/start concurrency | B with C | C | Pending | — |
 | TASK-CLN-05 | Plan timeline and clinician actions UI | B | C | Pending | — |
