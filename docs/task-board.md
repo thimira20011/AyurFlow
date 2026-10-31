@@ -27,7 +27,7 @@ Status values: **Pending** = not started; **In progress** = work underway but co
 | TASK-SET-03 | Availability, recipe/expiry and billing examples | C coordinates D/E | B; clinic review | In progress | D's [DEC03 inventory/recipe/expiry review record](inventory-rules-review.md) and [AT08–11 examples](qa/member-d-examples.md) on `member-d/task-set-03-inventory-rules`, plus E's [DEC04 billing review record](billing-rules-review.md); C availability examples and clinic review pending |
 | TASK-SET-04 | IDs, units, errors, sessions and retry conventions | A | F; all owners review | Pending | — |
 | TASK-SET-05 | Working repo, migrations, synthetic seed and checks | A | F | In progress | Scaffold exists; member startup pending |
-| TASK-SET-06 | Shared schema and OpenAPI module boundaries | A coordinates B–E | F; all owners review | In progress | B's [patient/clinical draft](api/member-b-contract.md) on `member-b/schema-api-contracts`; A/C/F review, other modules and migration sequence pending |
+| TASK-SET-06 | Shared schema and OpenAPI module boundaries | A coordinates B–E | F; all owners review | In progress | B's [patient/clinical draft](api/member-b-contract.md), D's [inventory/preparation draft](api/member-d-contract.md) on `member-d/task-set-06-inventory-contract`, and E's [billing draft](api/member-e-contract.md); A/C/F review and final migration sequence pending |
 
 ## 2. UI and interaction design (weeks 1–6)
 
