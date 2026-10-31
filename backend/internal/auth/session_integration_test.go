@@ -4,34 +4,19 @@ package auth
 
 import (
 	"context"
-	"crypto/sha256"
 	"errors"
-	"os"
 	"testing"
 	"time"
 
-	"ayurflow/backend/db"
 	"ayurflow/backend/internal/config"
-
-	"github.com/jackc/pgx/v5/pgxpool"
+	"ayurflow/backend/internal/testutil"
 )
 
 // AUTH_TEST_DATABASE_URL must name a disposable PostgreSQL database.
 func TestSessionLifecycleIntegration(t *testing.T) {
-	url := os.Getenv("AUTH_TEST_DATABASE_URL")
-	if url == "" {
-		t.Skip("AUTH_TEST_DATABASE_URL is not set")
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Minute)
+	pool := testutil.Postgres(t, "AUTH_TEST_DATABASE_URL")
+	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Minute)
 	defer cancel()
-	pool, err := pgxpool.New(ctx, url)
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer pool.Close()
-	if err := db.Migrate(ctx, pool); err != nil {
-		t.Fatal(err)
-	}
 	password := "synthetic-password-123"
 	hash, err := HashPassword(password)
 	if err != nil {
@@ -44,14 +29,6 @@ func TestSessionLifecycleIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer func() {
-		cleanup, stop := context.WithTimeout(context.Background(), 10*time.Second)
-		defer stop()
-		key := sha256.Sum256([]byte(login))
-		pool.Exec(cleanup, `DELETE FROM staff_sessions WHERE staff_id=$1`, staffID)
-		pool.Exec(cleanup, `DELETE FROM auth_login_attempts WHERE identifier_hash=$1`, key[:])
-		pool.Exec(cleanup, `DELETE FROM staff_accounts WHERE id=$1`, staffID)
-	}()
 	policy := config.AuthPolicy{
 		Enabled: true, IdleTimeout: 15 * time.Minute, AbsoluteTimeout: time.Hour,
 		AttemptLimit: 2, AttemptWindow: 10 * time.Minute, BlockDuration: 5 * time.Minute,
@@ -85,7 +62,7 @@ func TestSessionLifecycleIntegration(t *testing.T) {
 	if err != nil || session.CSRFToken == "" {
 		t.Fatalf("valid session: %v", err)
 	}
-	if err := service.Logout(ctx, token, "wrong"); !errors.Is(err, ErrSession) {
+	if err := service.Logout(ctx, token, "wrong"); !errors.Is(err, ErrCSRF) {
 		t.Fatalf("wrong CSRF: %v", err)
 	}
 	if err := service.Logout(ctx, token, session.CSRFToken); err != nil {

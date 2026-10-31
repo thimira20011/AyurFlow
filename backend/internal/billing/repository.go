@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 
+	"ayurflow/backend/internal/audit"
+
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -212,6 +214,13 @@ func (r *Repository) FindReceiptByOperationID(ctx context.Context, tx pgx.Tx, op
 	return rec, err
 }
 
+// LockReceiptOperation serializes retries across all invoices before invoice-row
+// locking. A hash collision only serializes unrelated operations; it grants no access.
+func (r *Repository) LockReceiptOperation(ctx context.Context, tx pgx.Tx, operationID string) error {
+	_, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1, 771204))`, operationID)
+	return err
+}
+
 // SumReceipts returns the total amount posted against an invoice so far.
 func (r *Repository) SumReceipts(ctx context.Context, tx pgx.Tx, invoiceID string) (int64, error) {
 	var total int64
@@ -315,11 +324,13 @@ func (r *Repository) OutstandingInvoices(ctx context.Context) ([]OutstandingRepo
 // A failed write must cause the caller's transaction to roll back (the caller
 // defers tx.Rollback, so returning an error achieves this automatically).
 func (r *Repository) RecordAuditEvent(ctx context.Context, tx pgx.Tx, actorID, action, objectType, objectID, reason string) error {
-	_, err := tx.Exec(ctx, `
-		INSERT INTO audit_events (actor_id, action, object_type, object_id, reason)
-		VALUES ($1, $2, $3, $4, NULLIF($5, ''))`,
-		actorID, action, objectType, objectID, reason)
-	return err
+	return audit.Write(ctx, tx, audit.Event{
+		ActorID:       actorID,
+		Action:        action,
+		Object:        audit.Object{Type: objectType, ID: objectID},
+		ReasonCode:    reason,
+		ChangedFields: []string{},
+	})
 }
 
 // ---------------------------------------------------------------------------

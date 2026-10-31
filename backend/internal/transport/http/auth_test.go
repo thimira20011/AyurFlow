@@ -33,6 +33,14 @@ func (f *fakeSessions) Validate(context.Context, string) (auth.Session, error) {
 	return auth.Session{StaffID: "synthetic-staff", Roles: []string{}, CSRFToken: "rotated"}, nil
 }
 
+func (f *fakeSessions) Authenticate(ctx context.Context, token string) (auth.Session, error) {
+	return f.Validate(ctx, token)
+}
+
+func (f *fakeSessions) AuthenticateCSRF(ctx context.Context, token, _ string) (auth.Session, error) {
+	return f.Validate(ctx, token)
+}
+
 func (f *fakeSessions) Logout(_ context.Context, token, csrf string) error {
 	f.lastToken, f.lastCSRF = token, csrf
 	return f.logoutError
@@ -88,6 +96,42 @@ func TestLoginFailureIsGeneric(t *testing.T) {
 	}
 }
 
+func TestAuthFailuresArePrivateAndUncacheable(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	const secret = "synthetic-private-error-canary"
+	for _, tc := range []struct {
+		name, path, body string
+		service          *fakeSessions
+		want             int
+	}{
+		{name: "credentials", path: "login", body: `{"loginIdentifier":"` + secret + `","password":"` + secret + `"}`,
+			service: &fakeSessions{loginError: auth.ErrCredentials}, want: http.StatusUnauthorized},
+		{name: "login infrastructure", path: "login", body: `{"loginIdentifier":"staff","password":"` + secret + `"}`,
+			service: &fakeSessions{loginError: errors.New(secret)}, want: http.StatusServiceUnavailable},
+		{name: "malformed login", path: "login", body: `{"password":"` + secret,
+			service: &fakeSessions{}, want: http.StatusBadRequest},
+		{name: "logout infrastructure", path: "logout", service: &fakeSessions{logoutError: errors.New(secret)},
+			want: http.StatusServiceUnavailable},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			router := NewRouter(nil, AuthRoutes{Service: tc.service, AllowedOrigin: "https://clinic.example"})
+			request := httptest.NewRequest(http.MethodPost, "/api/v1/auth/"+tc.path, strings.NewReader(tc.body))
+			request.Header.Set("Origin", "https://clinic.example")
+			request.Header.Set("Content-Type", "application/json")
+			request.Header.Set("X-CSRF-Token", secret)
+			request.AddCookie(&http.Cookie{Name: sessionCookie, Value: secret})
+			response := httptest.NewRecorder()
+			router.ServeHTTP(response, request)
+			if response.Code != tc.want || response.Header().Get("Cache-Control") != "no-store" {
+				t.Fatalf("status=%d cache=%q", response.Code, response.Header().Get("Cache-Control"))
+			}
+			if strings.Contains(response.Body.String(), secret) || response.Header().Get("Set-Cookie") != "" {
+				t.Fatal("failed authentication exposed secrets or changed the session cookie")
+			}
+		})
+	}
+}
+
 func TestLogoutRequiresCSRF(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	service := &fakeSessions{}
@@ -111,5 +155,11 @@ func TestLogoutRequiresCSRF(t *testing.T) {
 	router.ServeHTTP(response, request)
 	if response.Code != http.StatusServiceUnavailable || strings.Contains(response.Body.String(), "private") {
 		t.Fatalf("database detail leaked: %d %s", response.Code, response.Body.String())
+	}
+	service.logoutError = auth.ErrCSRF
+	response = httptest.NewRecorder()
+	router.ServeHTTP(response, request)
+	if response.Code != http.StatusForbidden || response.Header().Get("Set-Cookie") != "" {
+		t.Fatal("CSRF rejection must not clear a valid session cookie or claim successful logout")
 	}
 }

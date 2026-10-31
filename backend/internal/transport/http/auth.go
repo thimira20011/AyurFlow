@@ -14,14 +14,20 @@ import (
 const sessionCookie = "__Host-ayurflow_session"
 
 type SessionService interface {
+	SessionAuthenticator
 	Login(context.Context, string, string, string) (auth.Session, string, error)
 	Validate(context.Context, string) (auth.Session, error)
 	Logout(context.Context, string, string) error
 }
 
 type AuthRoutes struct {
-	Service       SessionService
-	AllowedOrigin string
+	Service        SessionService
+	AllowedOrigin  string
+	Patients       PatientService
+	Consultations  ConsultationDraftService
+	Signing        ConsultationSigningService
+	Administration AdministrationService
+	Billing        BillingService
 }
 
 func registerAuth(api *gin.RouterGroup, routes AuthRoutes) {
@@ -94,6 +100,10 @@ func registerAuth(api *gin.RouterGroup, routes AuthRoutes) {
 			return
 		}
 		err = routes.Service.Logout(c.Request.Context(), token, csrf)
+		if errors.Is(err, auth.ErrCSRF) {
+			c.JSON(http.StatusForbidden, failure("csrf_failed", "Refresh your session and retry."))
+			return
+		}
 		if errors.Is(err, auth.ErrSession) {
 			clearSessionCookie(c)
 			c.JSON(http.StatusUnauthorized, failure("unauthenticated", "Sign in is required."))

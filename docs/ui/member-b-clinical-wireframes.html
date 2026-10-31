@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TASK-UI-02 · Patient and clinical wireframes</title>
+  <style>
+    :root { color-scheme: light; --ink:#183b32; --muted:#526b62; --line:#bfcec6; --soft:#eef3ef; --paper:#fff; --accent:#26745b; --warn:#fff3d5; --danger:#8f3434; font:16px/1.45 Arial,sans-serif; }
+    * { box-sizing:border-box; }
+    body { margin:0; color:var(--ink); background:#e8eeea; }
+    a { color:var(--accent); }
+    .wrap { max-width:1366px; margin:auto; padding:20px; }
+    .intro { background:var(--paper); border:1px solid var(--line); padding:20px 24px; margin-bottom:24px; }
+    .intro h1 { margin:0 0 8px; font:700 28px Georgia,serif; }
+    .intro p { margin:6px 0; }
+    .intro nav { display:flex; flex-wrap:wrap; gap:16px; margin-top:12px; }
+    .frame { background:var(--paper); border:2px solid #92a99c; margin:0 0 28px; min-height:640px; }
+    .frame-label { background:#d8e4dc; padding:8px 20px; font-weight:700; font-size:14px; }
+    .app-head { display:flex; align-items:center; justify-content:space-between; gap:16px; border-bottom:1px solid var(--line); padding:14px 24px; }
+    .brand { font:700 22px Georgia,serif; }
+    .app-head .right { color:var(--muted); font-size:14px; }
+    .app-nav { display:flex; gap:24px; flex-wrap:wrap; padding:8px 24px; border-bottom:1px solid var(--line); font-size:14px; }
+    .app-nav strong { border-bottom:3px solid var(--accent); }
+    .content { padding:24px; }
+    .eyebrow { margin:0; color:var(--accent); font-size:12px; letter-spacing:.12em; font-weight:700; text-transform:uppercase; }
+    h2 { margin:3px 0 5px; font:700 32px Georgia,serif; }
+    h3 { margin:0 0 12px; font:700 21px Georgia,serif; }
+    h4 { margin:0 0 8px; font-size:16px; }
+    .sub { margin:0 0 22px; color:var(--muted); }
+    .row { display:flex; justify-content:space-between; align-items:start; gap:16px; flex-wrap:wrap; }
+    .grid { display:grid; grid-template-columns:minmax(250px, 1fr) minmax(0, 1.65fr); gap:18px; }
+    .box { border:1px solid var(--line); padding:20px; background:var(--paper); min-width:0; }
+    .box.soft { background:var(--soft); }
+    .field { display:block; border:1px solid #a9bdb1; background:white; padding:10px 12px; margin:6px 0 12px; color:#435b50; min-height:44px; }
+    .label { display:block; font-size:13px; font-weight:700; }
+    .button { display:inline-block; border:1px solid var(--accent); background:var(--accent); color:white; padding:10px 16px; min-height:44px; font-weight:700; }
+    .button.alt { background:white; color:var(--accent); }
+    .button.quiet { border-color:var(--line); background:white; color:var(--ink); }
+    .button.disabled { background:#dbe3dd; border-color:#dbe3dd; color:#516159; }
+    .actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:16px; }
+    .note { padding:10px 12px; background:var(--soft); border-left:4px solid var(--accent); margin:12px 0; }
+    .warning { padding:10px 12px; background:var(--warn); border-left:4px solid #a8781e; margin:12px 0; }
+    .danger { color:var(--danger); }
+    .meta { font-size:13px; color:var(--muted); }
+    .list { list-style:none; padding:0; margin:12px 0 0; }
+    .list li { padding:12px 0; border-top:1px solid var(--line); }
+    .list li.selected { background:var(--soft); margin:0 -12px; padding:12px; }
+    .list small { display:block; color:var(--muted); }
+    .pill { display:inline-block; border:1px solid var(--line); background:var(--soft); padding:3px 9px; font-size:12px; font-weight:700; }
+    .pill.hold { background:var(--warn); }
+    .panel-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+    .timeline { padding:0; margin:16px 0; list-style:none; }
+    .timeline li { border-left:3px solid var(--line); padding:0 0 20px 18px; margin-left:7px; position:relative; }
+    .timeline li:before { content:""; position:absolute; width:13px; height:13px; border:2px solid var(--accent); background:white; border-radius:50%; left:-9px; top:2px; }
+    .timeline li.current { border-color:var(--accent); }
+    .timeline li:last-child { padding-bottom:0; }
+    .detail { display:grid; grid-template-columns:140px 1fr; gap:8px; margin:8px 0; }
+    .detail dt { color:var(--muted); }
+    .detail dd { margin:0; font-weight:600; }
+    .scope { margin-top:20px; padding-top:12px; border-top:1px dashed var(--line); color:var(--muted); font-size:13px; }
+    @media (max-width:800px) { .grid,.panel-grid { grid-template-columns:1fr; } .content { padding:18px; } .app-head { padding:12px 18px; } h2 { font-size:27px; } }
+    @media print { body { background:white; } .wrap { padding:0; } .frame { break-after:page; margin:0; } }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <header class="intro">
+    <h1>Patient and clinical wireframes</h1>
+    <p>TASK-UI-02 · Member B proposal for F and A review · 26 October 2026</p>
+    <p><strong>Illustrative only:</strong> synthetic labels, no working actions, no patient API calls. Clinical fields, pathway labels and hold rules await DEC02/08.</p>
+    <nav aria-label="Wireframe sections"><a href="#patient">Patient registry</a><a href="#consultation">Consultation</a><a href="#plan">Care plan</a><a href="member-b-clinical-wireframes.md">Review notes</a></nav>
+  </header>
+
+  <section class="frame" id="patient" aria-labelledby="patient-heading">
+    <div class="frame-label">01 · Reception · existing patient screen pattern</div>
+    <div class="app-head"><span class="brand">AyurFlow</span><span class="right">Reception workspace · synthetic example</span></div>
+    <div class="app-nav"><strong>Patients</strong><span>Scheduling</span><span>Other permitted areas</span></div>
+    <div class="content">
+      <div class="row"><div><p class="eyebrow">Patient registry</p><h2 id="patient-heading">Find a patient</h2><p class="sub">Search before creating a record.</p></div><span class="button">Register patient</span></div>
+      <div class="grid">
+        <div class="box"><h3>Search records</h3><span class="label">Name, internal ID, or supplied identity</span><div class="field">Synthetic Patient</div><span class="button">Search</span><p class="meta">Up to 25 permitted results. No consultation text.</p><ul class="list"><li class="selected"><strong>Synthetic Patient A</strong><small>Patient ID · …A01</small></li><li><strong>නම පරීක්ෂාව</strong><small>Patient ID · …A02</small></li></ul></div>
+        <div class="box"><div class="row"><div><p class="eyebrow">Selected record</p><h3>Synthetic Patient A</h3></div><span class="button alt">Edit demographics</span></div><dl class="detail"><dt>Internal ID</dt><dd>…A01</dd><dt>Identity</dt><dd>None supplied</dd><dt>Phone</dt><dd>Not provided</dd><dt>Registered</dt><dd>26 Oct 2026, 10:00 · Asia/Colombo</dd></dl><div class="note">If identity already exists, show a safe conflict message and suggest searching. Do not reveal another patient's ID.</div><p class="scope">Reception projection only. Clinical notes, plan approvals and assignment details are absent.</p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="frame" id="consultation" aria-labelledby="consultation-heading">
+    <div class="frame-label">02 · Assigned clinician · proposed consultation screen</div>
+    <div class="app-head"><span class="brand">AyurFlow</span><span class="right">Clinical workspace · synthetic example</span></div>
+    <div class="app-nav"><span>Patients</span><strong>Consultations</strong><span>Care plans</span></div>
+    <div class="content">
+      <p class="eyebrow">Patient · Synthetic Patient A · ID …A01</p><div class="row"><div><h2 id="consultation-heading">Consultations</h2><p class="sub">A draft can be saved before any care plan exists.</p></div><span class="button">New draft</span></div>
+      <div class="grid">
+        <div class="box"><h3>History</h3><ul class="list"><li class="selected"><strong>Draft · 26 Oct 2026</strong><small>Author · Assigned clinician · Version 2</small></li><li><strong>Signed · 24 Oct 2026</strong><small>Signer and time recorded · 1 addendum</small></li></ul><p class="scope">List summaries contain status, actor and dates; note text only appears in authorized detail.</p></div>
+        <div><div class="box"><div class="row"><h3>Draft consultation</h3><span class="pill">Draft · editable</span></div><span class="label">Clinical note</span><div class="field" style="min-height:125px">Synthetic draft note text for layout review.</div><p class="meta">Required signing fields await DEC02. Current version: 2.</p><div class="actions"><span class="button">Save draft</span><span class="button alt">Review and sign…</span></div><div class="warning">Signing freezes the original. A stale edit or competing signature requires reload and review.</div></div>
+        <div class="box" style="margin-top:14px"><div class="row"><h3>Signed history example</h3><span class="pill">Signed · read-only</span></div><p class="meta">Signed by assigned clinician · 24 Oct 2026, 11:30 · Asia/Colombo</p><div class="field">Original signed text · cannot be edited</div><h4>Dated addenda</h4><p><strong>25 Oct 2026, 09:15</strong> · Clinician · Reason: clarification</p><div class="field">Separate synthetic correction text</div><div class="actions"><span class="button alt">Add dated addendum…</span></div></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="frame" id="plan" aria-labelledby="plan-heading">
+    <div class="frame-label">03 · Assigned clinician · proposed care-plan screen</div>
+    <div class="app-head"><span class="brand">AyurFlow</span><span class="right">Clinical workspace · synthetic example</span></div>
+    <div class="app-nav"><span>Patients</span><span>Consultations</span><strong>Care plans</strong></div>
+    <div class="content">
+      <p class="eyebrow">Patient · Synthetic Patient A · ID …A01</p><div class="row"><div><h2 id="plan-heading">Care plan</h2><p class="sub">Plan status and current stage are separate decisions.</p></div><span class="pill hold">Plan held · new starts blocked</span></div>
+      <div class="warning"><strong>Held:</strong> New session starts and advancement are blocked. Prior approvals and completed sessions remain in history. Treatment of an already started session awaits DEC08 confirmation.</div>
+      <div class="grid"><div class="box"><h3>Ordered pathway</h3><ol class="timeline"><li><strong>Stage 1 · Preparatory</strong><br><span class="meta">Completed · approved by clinician, 21 Oct</span></li><li class="current"><strong>Stage 2 · Primary</strong><br><span class="meta">Current · approved by clinician, 24 Oct</span></li><li><strong>Stage 3 · Recovery</strong><br><span class="meta">Future · cannot approve or start yet</span></li></ol><p class="scope">Stage labels are provisional synthetic examples pending DEC02.</p></div>
+      <div><div class="box"><h3>Current stage decisions</h3><div class="panel-grid"><div class="box soft"><h4>Approval</h4><p>Recorded clinician and time. Approval remains visible during hold.</p></div><div class="box soft"><h4>Completion</h4><p>Guarded by required current-stage evidence; no automatic advancement.</p></div></div><div class="actions"><span class="button">Resume plan…</span><span class="button disabled">Advance stage</span><span class="button quiet">Cancel plan…</span></div><p class="meta">Actions are shown only to an authorized clinician. Resume/cancel require review of DEC08 rules.</p></div><div class="box" style="margin-top:14px"><h3>Decision history</h3><ul class="list"><li><strong>Hold · 26 Oct, 14:20</strong><small>Clinician · reason recorded</small></li><li><strong>Stage 2 approved · 24 Oct, 11:45</strong><small>Clinician · decision retained</small></li><li><strong>Stage 1 completed · 23 Oct, 16:10</strong><small>Clinician · history retained</small></li></ul></div></div></div>
+      <p class="scope">C's assigned therapist sees only the minimum session projection. Booking is not clearance. Start must check latest plan status, current approved stage and therapist assignment in one transaction; invoice balance is irrelevant.</p>
+    </div>
+  </section>
+</div>
+</body>
+</html>

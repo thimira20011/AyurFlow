@@ -13,6 +13,8 @@ out/
 dist/
 bin/
 coverage/
+coverage.out
+integration-results.json
 *.tsbuildinfo
 .tools/
 .cache/

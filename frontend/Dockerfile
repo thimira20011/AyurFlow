@@ -1,6 +1,7 @@
 FROM node:22.23.2-alpine AS dependencies
 WORKDIR /app
-COPY package.json package-lock.json ./
+RUN npm install --global npm@10.9.8 --no-audit --no-fund
+COPY package.json package-lock.json .npmrc ./
 RUN npm ci
 
 FROM node:22.23.2-alpine AS build

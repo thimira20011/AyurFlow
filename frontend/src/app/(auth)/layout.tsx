@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { AuthShell } from "@/components/auth-shell";
 
+
 export const metadata: Metadata = {
   title: {
     template: "%s | AyurFlow",

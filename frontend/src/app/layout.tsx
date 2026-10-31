@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import { Inter, Cormorant_Garamond } from "next/font/google";
+import { Navbar } from "@/components/navbar";
+import { MainLayout } from "@/components/main-layout";
+import { StaffSessionProvider } from "@/features/administration/session";
 import "./globals.css";
 
 const inter = Inter({
@@ -30,9 +33,11 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
         <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:bg-white focus:p-3">
           Skip to content
         </a>
-        {children}
+        <StaffSessionProvider>
+          <Navbar />
+          <MainLayout>{children}</MainLayout>
+        </StaffSessionProvider>
       </body>
     </html>
   );
 }
-

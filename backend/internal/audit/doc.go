@@ -1,3 +1,3 @@
-// Package audit defines the implementation boundary for restricted actor/action/object/time/reason events written inside each critical business transaction.
-// Business behavior is pending implementation and review.
+// Package audit writes structured, append-only events in business transactions
+// and provides object-scoped reads guarded by an explicit authorization adapter.
 package audit

@@ -2,7 +2,7 @@
 
 Initial project scaffold for the single-clinic Ayurvedic pilot described in the supplied proposal, SRS v1.0 and team task plan (1 October 2026).
 
-**Status:** starter infrastructure and module pages only. Authentication, patient registration and the clinical-to-receipt workflow are not implemented. No real patient data or default staff passwords are included.
+**Status:** shared infrastructure, optional staff sessions and protected patient-demographics APIs exist. UI integration and the complete clinical-to-receipt workflow remain pending. Auth/patient APIs require explicit configuration; see [the AUTH-03 review contract](docs/api/auth-03-contract.md). No real patient data or default staff passwords are included.
 
 ## Project layout
 
@@ -40,7 +40,7 @@ AyurFlow/
 └── compose.yaml                Development database, migration, API and UI
 ```
 
-The backend uses handlers, services and repositories within each module as features are introduced. Go owns business rules and transactions. Next.js calls `/api/v1`; it has no database connection. Argon2id password hashing and an explicit development-only synthetic staff seed command are available; login and authorization are not yet implemented. See [seed instructions](backend/db/seeds/README.md).
+The backend uses handlers, services and repositories within each module. Go owns business rules and transactions. Next.js calls `/api/v1`; it has no database connection. Argon2id, explicit synthetic staff seeds, optional sessions and shared authorization are implemented. Clinical/therapist access needs module-owned assignment checks; missing checks deny access. See [seed instructions](backend/db/seeds/README.md) and [authorization handoff](backend/internal/authorization/README.md).
 
 ## Start with Docker
 
@@ -55,11 +55,11 @@ docker compose logs migrate backend frontend
 
 Open <http://localhost:3000>. API liveness: <http://localhost:8080/api/v1/health>; database readiness: <http://localhost:8080/api/v1/ready>. Compose waits for the database and migration job before starting the API. Persistent data lives in the `postgres_data` volume.
 
-This Compose file binds application/database ports to localhost for development. The pilot HTTPS proxy is a template, not a completed production deployment. See [operations](docs/operations.md).
+This Compose file binds application/database ports to localhost for development. A separate [pilot configuration](deploy/README.md) supplies HTTPS proxy wiring, restricted database grants and separate file secrets; it still requires operator configuration, live verification and review. See [operations](docs/operations.md).
 
 ## Start Go and Next.js locally
 
-Use Go 1.27.1 and Node.js 22.23.2. Start PostgreSQL using `docker compose up -d db` or your own PostgreSQL 17 installation. Create the `.env` file first if using Compose.
+Use Go 1.27.3, Node.js 22.23.2 and npm 10.9.8. The root `.nvmrc` records Node; `frontend/package.json` and `.npmrc` enforce exact Node/npm versions for installs. See [toolchain setup and lockfile recovery](docs/ci-and-test-guide.md#frontend-toolchain-and-lockfile-recovery). Start PostgreSQL using `docker compose up -d db` or your own PostgreSQL 17 installation. Create the `.env` file first if using Compose.
 
 Backend, in one PowerShell terminal:
 
@@ -85,6 +85,8 @@ Go reads environment variables directly; it does not load `.env` files automatic
 ## Checks and next implementation work
 
 Run `./scripts/check.ps1`, or run Go format/vet/test/build from `backend/` and frontend lint/typecheck/build from `frontend/`. Dependency resolution is captured in `go.sum` and `package-lock.json`.
+
+CI checks all Go packages, including real PostgreSQL tests tagged `integration`, plus static analysis, reachable vulnerability checks and the frontend clean install/build. For local database tests set `TEST_DATABASE_URL` to a disposable database. See [the CI and test guide](docs/ci-and-test-guide.md) before adding a module's tests.
 
 Start Sprint 1 with the pending decision register, authentication/permissions/CSRF, and patient registration. The first exit check is a deployed login-to-registration-to-search journey. Module folders and pages currently establish boundaries; they do not satisfy the SRS acceptance tests.
 

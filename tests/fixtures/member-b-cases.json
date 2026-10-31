@@ -1,0 +1,47 @@
+{
+  "dataset": "member-b-synthetic-v1",
+  "purpose": "Proposed AT02-05 patient and clinical examples; no real patient data",
+  "patients": [
+    {
+      "fixtureId": "b-no-identity",
+      "displayName": "Synthetic Patient No ID",
+      "identity": null,
+      "phone": null
+    },
+    {
+      "fixtureId": "b-unicode",
+      "displayName": "ආදර්ශ රෝගියා",
+      "identity": null,
+      "phone": null
+    },
+    {
+      "fixtureId": "b-nic-first",
+      "displayName": "Synthetic NIC One",
+      "identity": { "type": "NIC", "value": "1999 12345678 V" },
+      "phone": null
+    },
+    {
+      "fixtureId": "b-nic-equivalent-conflict",
+      "displayName": "Synthetic NIC Duplicate",
+      "identity": { "type": "NIC", "value": "1999-12345678v" },
+      "phone": null
+    },
+    {
+      "fixtureId": "b-passport-distinct",
+      "displayName": "Synthetic Passport",
+      "identity": { "type": "PASSPORT", "value": "1999-12345678v" },
+      "phone": null
+    }
+  ],
+  "pathwayExample": {
+    "status": "provisional-dec02",
+    "stages": ["Preparatory", "Primary", "Recovery"]
+  },
+  "actors": [
+    { "fixtureId": "b-reception", "role": "receptionist" },
+    { "fixtureId": "b-clinician-assigned", "role": "clinician", "recordAccess": "assigned" },
+    { "fixtureId": "b-clinician-unassigned", "role": "clinician", "recordAccess": "unassigned" },
+    { "fixtureId": "b-therapist-assigned", "role": "therapist", "sessionAccess": "assigned" },
+    { "fixtureId": "b-admin-only", "role": "administrator", "recordAccess": "none" }
+  ]
+}

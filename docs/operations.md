@@ -1,5 +1,7 @@
 # Operations starter runbook
 
+The [OPS-01 pilot configuration and operator procedure](../deploy/README.md) now supplies a standalone Compose candidate, separate application/migration file secrets and runtime database grants. Use that procedure for pilot preparation; the root Compose file remains development-only. Host selection, live deployment evidence and review are still pending.
+
 Development startup is documented in the root README. `docker compose stop` then `docker compose up -d` preserves the database volume. Use `docker compose logs` and the API health/readiness endpoints to diagnose availability without exposing passwords or records in shared logs. `docker compose down -v` destroys local data and is not a normal restart operation.
 
 The migration container applies numbered SQL before the API starts. After adding migrations run `docker compose up --build -d` and check the migration job's exit status. Never edit previously applied files. Review backup/restore before schema changes.
