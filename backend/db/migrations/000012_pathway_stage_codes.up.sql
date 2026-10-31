@@ -15,7 +15,7 @@ CREATE UNIQUE INDEX plan_stages_plan_code_unique ON plan_stages(plan_id, stage_c
 -- bypasses the service. Lock the parent first, matching the session-start order.
 CREATE FUNCTION reject_terminal_plan_change() RETURNS trigger LANGUAGE plpgsql AS $$
 DECLARE plan_status text;
-DECLARE target_plan uuid;
+        target_plan uuid;
 BEGIN
     IF TG_TABLE_NAME = 'care_plans' THEN
         IF OLD.status IN ('completed', 'cancelled') THEN
