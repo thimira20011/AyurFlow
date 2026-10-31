@@ -13,13 +13,13 @@ import (
 func (s *Service) Update(ctx context.Context, actor, id string, input UpdateInput) (Patient, error) {
 	if !validUUID(actor) || !validUUID(id) || input.Version <= 0 ||
 		(input.DisplayName == nil && !input.BirthDate.Set && !input.Gender.Set &&
-			!input.Phone.Set && !input.Address.Set && !input.Identity.Set) {
+			!input.Phone.Set && !input.Address.Set && !input.PostalCode.Set && !input.Identity.Set) {
 		return Patient{}, ErrInvalidPatient
 	}
 	if input.DisplayName != nil && !validName(*input.DisplayName) {
 		return Patient{}, ErrInvalidPatient
 	}
-	if input.Phone.Set && (input.Phone.Value == nil || !validPhone(*input.Phone.Value)) {
+	if input.Phone.Set && input.Phone.Value != nil && !validPhone(*input.Phone.Value) {
 		return Patient{}, ErrInvalidPatient
 	}
 	if input.BirthDate.Set && (input.BirthDate.Value == nil || !validBirthDate(*input.BirthDate.Value)) {
@@ -31,13 +31,16 @@ func (s *Service) Update(ctx context.Context, actor, id string, input UpdateInpu
 	if input.Address.Set && input.Address.Value != nil && !validOptionalText(*input.Address.Value, 1024) {
 		return Patient{}, ErrInvalidPatient
 	}
+	if input.PostalCode.Set && input.PostalCode.Value != nil && !validPostalCode(*input.PostalCode.Value) {
+		return Patient{}, ErrInvalidPatient
+	}
 	if input.Identity.Set && input.Identity.Value != nil && !validIdentity(*input.Identity.Value) {
 		return Patient{}, ErrInvalidPatient
 	}
 	if s == nil || s.pool == nil || s.access == nil {
 		return Patient{}, ErrForbidden
 	}
-	fields := make([]string, 0, 6)
+	fields := make([]string, 0, 7)
 	if input.DisplayName != nil {
 		fields = append(fields, "display_name")
 	}
@@ -49,11 +52,20 @@ func (s *Service) Update(ctx context.Context, actor, id string, input UpdateInpu
 	}
 	if input.Phone.Set {
 		fields = append(fields, "phone")
-		phone, _ := NormalizePhone(*input.Phone.Value)
-		input.Phone.Value = &phone
+		if input.Phone.Value != nil {
+			phone, _ := NormalizePhone(*input.Phone.Value)
+			input.Phone.Value = &phone
+		}
 	}
 	if input.Address.Set {
 		fields = append(fields, "address")
+	}
+	if input.PostalCode.Set {
+		fields = append(fields, "postal_code")
+		if input.PostalCode.Value != nil {
+			postalCode, _ := NormalizePostalCode(*input.PostalCode.Value)
+			input.PostalCode.Value = &postalCode
+		}
 	}
 	if input.Identity.Set {
 		fields = append(fields, "identity")
@@ -64,11 +76,11 @@ func (s *Service) Update(ctx context.Context, actor, id string, input UpdateInpu
 			return err
 		}
 		var currentName string
-		var currentBirthDate, currentGender, currentPhone, currentAddress pgtype.Text
+		var currentBirthDate, currentGender, currentPhone, currentAddress, currentPostalCode pgtype.Text
 		var version int64
-		err := tx.QueryRow(ctx, `SELECT display_name, birth_date::text, gender, phone, address, record_version FROM patients
+		err := tx.QueryRow(ctx, `SELECT display_name, birth_date::text, gender, phone, address, postal_code, record_version FROM patients
 			WHERE id = $1 FOR UPDATE`, id).Scan(
-			&currentName, &currentBirthDate, &currentGender, &currentPhone, &currentAddress, &version)
+			&currentName, &currentBirthDate, &currentGender, &currentPhone, &currentAddress, &currentPostalCode, &version)
 		if errors.Is(err, pgx.ErrNoRows) {
 			return ErrNotFound
 		}
@@ -93,11 +105,17 @@ func (s *Service) Update(ctx context.Context, actor, id string, input UpdateInpu
 		if input.Address.Set {
 			currentAddress = optionalText(input.Address.Value)
 		}
+		if input.PostalCode.Set {
+			currentPostalCode = optionalText(input.PostalCode.Value)
+		}
+		if !currentPhone.Valid && !currentPostalCode.Valid {
+			return ErrInvalidPatient
+		}
 		_, err = tx.Exec(ctx, `UPDATE patients SET display_name = $2, birth_date = $3::date,
-			gender = $4, phone = $5, address = $6,
-			record_version = record_version + 1, updated_at = clock_timestamp(), updated_by = $7
+			gender = $4, phone = $5, address = $6, postal_code = $7,
+			record_version = record_version + 1, updated_at = clock_timestamp(), updated_by = $8
 			WHERE id = $1`, id, currentName, nullableText(currentBirthDate), currentGender,
-			currentPhone, currentAddress, actor)
+			currentPhone, currentAddress, currentPostalCode, actor)
 		if err != nil {
 			return err
 		}

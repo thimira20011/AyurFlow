@@ -13,6 +13,7 @@
 | B-PAT-05 | Attempt direct GET/PATCH by an unauthenticated caller, unrelated role, and a role with no record access. | 401/403 or privacy-preserving 404 as appropriate; no patient details leak. | A auth/record checks; B |
 | B-PAT-06 | Update permitted demographics as an authorized user; submit a simultaneous stale version and a conflicting normalized identity. | One valid update commits with its critical audit event; stale/conflicting writes fail without changing the previous committed record. | DEC02 editable fields; B, real PostgreSQL |
 | B-PAT-07 | Without NIC/passport, submit full legal name with different case/spacing, exact DOB and local or E.164 primary phone to the protected confirmation route. Change one attribute, then create two visible records with the same three attributes. | One exact permitted record confirms; a partial match returns safe 404; ambiguous matches return 409 without choosing a patient. No records are merged. | DEC02 name/DOB/phone rule; B, real PostgreSQL |
+| B-PAT-08 | Register a synthetic patient with no phone or NIC/passport but with postal code `00500`. Confirm by normalized legal name, exact DOB and postal code; correct the code, then retry the old code. | Exact permitted fallback match succeeds; old code returns 404 after an audited correction. A duplicate triple returns 409 and is never automatically merged. | Member B's postal fallback specification; B, real PostgreSQL |
 
 ## Consultation cases — AT03
 

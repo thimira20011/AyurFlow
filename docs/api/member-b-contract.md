@@ -10,7 +10,7 @@ Use server-generated UUIDs for stored records and UTC `timestamptz` for instants
 
 | Record | Key and links | Invariants / review need |
 | --- | --- | --- |
-| `patients` | `id` UUID PK; unique `registry_number` displayed as `AYUR-PT-XXXXX`; `display_name`, DOB, gender, phone, optional address; created/updated actor and UTC time | New registrations require Unicode name, ISO DOB, one of `MALE`/`FEMALE`/`OTHER`/`UNDISCLOSED`, and a Sri Lankan mobile stored as `+947XXXXXXXX`. Existing rows need a reviewed backfill before database `NOT NULL` constraints. Search is bounded to permitted records. |
+| `patients` | `id` UUID PK; unique `registry_number` displayed as `AYUR-PT-XXXXX`; `display_name`, DOB, gender, phone, postal code, optional address; created/updated actor and UTC time | New registrations require Unicode name, ISO DOB, one of `MALE`/`FEMALE`/`OTHER`/`UNDISCLOSED`, and either a Sri Lankan mobile stored as `+947XXXXXXXX` or a normalized postal code. Existing rows need a reviewed backfill before database `NOT NULL` constraints. Search is bounded to permitted records. |
 | `patient_identities` | `id` UUID PK; `patient_id` FK; `identity_type`, `original_value`, `canonical_value` | A supplied identity has nonempty canonical text and a unique `(identity_type, canonical_value)` constraint. Missing identity creates no row. One or several identities per patient needs DEC02; start with at most one for synthetic work. Preserve the supplied value. Do not merge NIC and passport namespaces. |
 | `patient_clinician_assignments` | `patient_id` FK, `clinician_id` FK to `staff_accounts`; grant/revoke actor and time | Active assigned clinicians have note access. Administrators manage assignments without receiving note access. Historical access after revocation still needs clinic evidence. |
 | `consultations` | `id` UUID PK; `patient_id` FK; author clinician FK; draft/signed state; version; draft text; signed actor/time | A consultation can exist without a plan. Signing freezes the original text. Store no signed-note overwrite path. Version guards edit/sign races. Required clinical fields need DEC02. |
@@ -28,9 +28,9 @@ Every path is under `/api/v1`. A authenticates sessions and supplies CSRF for un
 
 | Proposed method/path | Input and result | Minimum backend access / conflict rule |
 | --- | --- | --- |
-| `POST /patients` | `displayName`, `birthDate`, `gender`, `phone`, optional `address` and `identity: {type, value}` → server `id`, `patientCode` and permitted demographics | Authorised registration role; normalize phone, constrain supplied identity, unique identity conflict 409. Audit create atomically. |
+| `POST /patients` | `displayName`, `birthDate`, `gender`, `phone` or `postalCode`, optional `address` and `identity: {type, value}` → server `id`, `patientCode` and permitted demographics | Authorised registration role; normalize contact, constrain supplied identity, unique identity conflict 409. Audit create atomically. |
 | `GET /patients?q=` | Up to 25 permitted demographic records; no cursor yet | Authorized search role; filter by record permission before returning. Never include notes. Query by UUID, display code, name, supplied identity or phone. |
-| `POST /patient-identity-confirmations` | `displayName`, `birthDate`, `phone` → one permitted patient or safe 404/409 | Receptionist session and CSRF; all three attributes must match after name space/case and phone normalization. No automatic merge. |
+| `POST /patient-identity-confirmations` | `displayName`, `birthDate`, exactly one of `phone` or `postalCode` → one permitted patient or safe 404/409 | Receptionist session and CSRF; all three attributes must match after normalization. Postal fallback applies only when the stored record has no phone or supplied ID. No automatic merge. |
 | `GET /patients/{patientId}` | Permitted demographic detail | Role and patient-record check; hide inaccessible patient with 404. |
 | `PATCH /patients/{patientId}` | Allowed demographic fields plus `version` → updated detail/version | Field-level role/record rule; stale version 409; normalize changed identity and audit in same transaction. |
 | `POST /patients/{patientId}/consultations` | Draft clinical fields → consultation ID/version | Active clinician with patient access; no plan required; audit creation. |
@@ -63,7 +63,7 @@ These payloads fix names for review, not clinic-approved field requirements. Omi
 }
 ```
 
-The registration response is `201` with a server UUID, unique `patientCode` display reference, supplied demographics, `version: 1` and UTC timestamps. Never return `canonical_value` as a patient-facing identity. An absent identity is `null`; a blank supplied identity is 422. A repeated canonical type/value is 409 even under simultaneous requests. Name is nonblank Unicode; the service accepts local `07` mobile input and stores the E.164 `+947` form. The exact three-attribute confirmation route is implemented; the phone-absent postal fallback still needs a structured postal field and reviewed example.
+The registration response is `201` with a server UUID, unique `patientCode` display reference, supplied demographics, `version: 1` and UTC timestamps. Never return `canonical_value` as a patient-facing identity. An absent identity is `null`; a blank supplied identity is 422. A repeated canonical type/value is 409 even under simultaneous requests. Name is nonblank Unicode; the service accepts local `07` mobile input and stores the E.164 `+947` form. The exact three-attribute confirmation route supports phone or a structured postal-code fallback when the stored record has no phone or supplied identity. Its clinic format still needs review.
 
 ```json
 {

@@ -207,3 +207,46 @@ func TestNoIDIdentityConfirmationIntegration(t *testing.T) {
 		t.Fatalf("record access filter failed: %+v %v", confirmed, err)
 	}
 }
+
+func TestPostalFallbackIdentityConfirmationIntegration(t *testing.T) {
+	pool := testutil.Postgres(t)
+	ctx := t.Context()
+	var actor string
+	if err := pool.QueryRow(ctx, `INSERT INTO staff_accounts(login_identifier,password_hash)
+		VALUES ('synthetic-postal-reception','$argon2id$synthetic-test-only') RETURNING id::text`).Scan(&actor); err != nil {
+		t.Fatal(err)
+	}
+	service := NewService(pool, &testAccess{})
+	input := syntheticRegistration("Synthetic Postal Patient")
+	input.Phone = nil
+	postal := " 00 500 "
+	input.PostalCode = &postal
+	first, err := service.Create(ctx, actor, input)
+	if err != nil || first.Phone != nil || first.PostalCode == nil || *first.PostalCode != "00500" {
+		t.Fatalf("postal-only registration: %+v %v", first, err)
+	}
+	match := IdentityConfirmation{DisplayName: " synthetic  postal patient ", BirthDate: "1990-04-12", PostalCode: "00500"}
+	found, err := service.ConfirmNoID(ctx, actor, match)
+	if err != nil || found.ID != first.ID {
+		t.Fatalf("postal fallback did not confirm exact triple: %+v %v", found, err)
+	}
+	match.PostalCode = "00501"
+	if _, err := service.ConfirmNoID(ctx, actor, match); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("wrong postal code confirmed: %v", err)
+	}
+	match.PostalCode = "00500"
+	if _, err := service.Create(ctx, actor, input); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.ConfirmNoID(ctx, actor, match); !errors.Is(err, ErrAmbiguousIdentity) {
+		t.Fatalf("ambiguous postal triple selected a patient: %v", err)
+	}
+	phone := "0770000101"
+	input.Phone = &phone
+	if _, err := service.Create(ctx, actor, input); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.ConfirmNoID(ctx, actor, match); !errors.Is(err, ErrAmbiguousIdentity) {
+		t.Fatalf("phone-bearing record affected postal fallback: %v", err)
+	}
+}
