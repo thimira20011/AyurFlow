@@ -22,14 +22,15 @@ Use server-generated UUIDs for stored records and UTC `timestamptz` for instants
 
 The provisional synthetic identity canonicalization in `clinic-rules-review.md` trims outer whitespace, removes ASCII spaces/hyphens, and uppercases ASCII letters. Validation must reject an empty result. The exact function and identity types require DEC02 before AT02; whichever function is approved must be applied consistently for writes and lookups, with a PostgreSQL uniqueness constraint as the final race guard. A duplicate registration returns a generic 409 without the other patient's ID or name.
 
-## Proposed API surface, not registered
+## Patient and consultation API surface; plan actions proposed
 
-Every path is under `/api/v1`. A authenticates sessions and supplies CSRF for unsafe methods. Each handler validates shape; its service enforces role **and record** access before repository work. Inaccessible records return 404 when existence must be hidden; a known forbidden action can return 403. Use the shared 400/401/403/404/409/422 error envelope and bounded `items`/`nextCursor` lists from [shared-contract.md](shared-contract.md). No path below belongs in `openapi.yaml` until implemented and reviewed.
+Every path is under `/api/v1`. A authenticates sessions and supplies CSRF for unsafe methods. Patient and consultation paths below are registered when authentication is explicitly configured; plan paths remain proposals. Each service enforces role and record access before clinical data is returned. Inaccessible records return 404 when existence must be hidden; a known forbidden action can return 403. Patient lists return at most 25 permitted records; cursor pagination remains a contract review item. Only reviewed endpoints belong in `openapi.yaml`.
 
 | Proposed method/path | Input and result | Minimum backend access / conflict rule |
 | --- | --- | --- |
 | `POST /patients` | `displayName`, `birthDate`, `gender`, `phone`, optional `address` and `identity: {type, value}` → server `id`, `patientCode` and permitted demographics | Authorised registration role; normalize phone, constrain supplied identity, unique identity conflict 409. Audit create atomically. |
 | `GET /patients?q=` | Up to 25 permitted demographic records; no cursor yet | Authorized search role; filter by record permission before returning. Never include notes. Query by UUID, display code, name, supplied identity or phone. |
+| `POST /patient-identity-confirmations` | `displayName`, `birthDate`, `phone` → one permitted patient or safe 404/409 | Receptionist session and CSRF; all three attributes must match after name space/case and phone normalization. No automatic merge. |
 | `GET /patients/{patientId}` | Permitted demographic detail | Role and patient-record check; hide inaccessible patient with 404. |
 | `PATCH /patients/{patientId}` | Allowed demographic fields plus `version` → updated detail/version | Field-level role/record rule; stale version 409; normalize changed identity and audit in same transaction. |
 | `POST /patients/{patientId}/consultations` | Draft clinical fields → consultation ID/version | Active clinician with patient access; no plan required; audit creation. |
@@ -62,7 +63,7 @@ These payloads fix names for review, not clinic-approved field requirements. Omi
 }
 ```
 
-The registration response is `201` with a server UUID, unique `patientCode` display reference, supplied demographics, `version: 1` and UTC timestamps. Never return `canonical_value` as a patient-facing identity. An absent identity is `null`; a blank supplied identity is 422. A repeated canonical type/value is 409 even under simultaneous requests. Name is nonblank Unicode; the service accepts local `07` mobile input and stores the E.164 `+947` form. The exact no-ID three-attribute confirmation workflow and phone-absent postal fallback still need a reviewed interface and evidence.
+The registration response is `201` with a server UUID, unique `patientCode` display reference, supplied demographics, `version: 1` and UTC timestamps. Never return `canonical_value` as a patient-facing identity. An absent identity is `null`; a blank supplied identity is 422. A repeated canonical type/value is 409 even under simultaneous requests. Name is nonblank Unicode; the service accepts local `07` mobile input and stores the E.164 `+947` form. The exact three-attribute confirmation route is implemented; the phone-absent postal fallback still needs a structured postal field and reviewed example.
 
 ```json
 {

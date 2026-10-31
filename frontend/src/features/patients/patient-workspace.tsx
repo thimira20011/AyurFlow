@@ -5,6 +5,7 @@ import Link from "next/link";
 import { APIRequestError } from "@/lib/api-client";
 import {
   getPatient,
+  confirmNoIDIdentity,
   getReceptionSession,
   registerPatient,
   searchPatients,
@@ -111,6 +112,9 @@ export default function PatientWorkspace({ preview = false }: { preview?: boolea
   const previewStore = useRef<Patient[]>(previewPatients.map((patient) => ({ ...patient })));
   const [access, setAccess] = useState<Access>(preview ? "ready" : "checking");
   const [query, setQuery] = useState(preview ? "Demo" : "");
+  const [matchName, setMatchName] = useState("");
+  const [matchBirthDate, setMatchBirthDate] = useState("");
+  const [matchPhone, setMatchPhone] = useState("");
   const [searched, setSearched] = useState(preview);
   const [results, setResults] = useState<Patient[]>(preview ? previewPatients : []);
   const [selected, setSelected] = useState<Patient | null>(preview ? previewPatients[0] : null);
@@ -198,6 +202,41 @@ export default function PatientWorkspace({ preview = false }: { preview?: boolea
       setPanel("detail");
     } catch (error) {
       handleFailure(error, "read");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function handleConfirmIdentity(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!matchName.trim() || !/^\d{4}-\d{2}-\d{2}$/.test(matchBirthDate) ||
+        !/^\+947[0-9]{8}$/.test(normalizedPhone(matchPhone))) {
+      setNotice({ tone: "error", text: "Enter the full name, exact date of birth and mobile phone supplied for identity confirmation." });
+      return;
+    }
+    setBusy(true);
+    setNotice(null);
+    setSelected(null);
+    try {
+      let patient: Patient;
+      if (preview) {
+        const name = matchName.trim().replace(/\s+/g, " ").toLocaleLowerCase();
+        const matches = previewStore.current.filter(item =>
+          item.displayName.trim().replace(/\s+/g, " ").toLocaleLowerCase() === name &&
+          item.birthDate === matchBirthDate && item.phone === normalizedPhone(matchPhone));
+        if (matches.length !== 1) throw new APIRequestError(matches.length ? 409 : 404, "identity_match", "Identity could not be confirmed.");
+        patient = matches[0];
+      } else patient = await confirmNoIDIdentity(matchName, matchBirthDate, matchPhone);
+      setSelected(patient);
+      setResults([patient]);
+      setSearched(false);
+      setPanel("detail");
+      setEditing(false);
+      setNotice({ tone: "success", text: `Identity confirmed with three attributes. Patient code: ${patient.patientCode}.` });
+    } catch (error) {
+      if (error instanceof APIRequestError && error.status === 404) setNotice({ tone: "error", text: "No exact three-attribute match. Check the details and follow the clinic's unresolved-record procedure." });
+      else if (error instanceof APIRequestError && error.status === 409) setNotice({ tone: "error", text: "More than one record matches. Do not choose a patient until the records are reviewed." });
+      else handleFailure(error, "search");
     } finally {
       setBusy(false);
     }
@@ -329,6 +368,17 @@ export default function PatientWorkspace({ preview = false }: { preview?: boolea
                   <button className={styles.searchButton} type="submit" disabled={busy}>{busy ? "Working…" : "Search"}</button>
                 </div>
                 <p className={styles.hint}>Search returns up to 25 permitted records. Refine the term to narrow results.</p>
+              </form>
+              <form onSubmit={(event) => { void handleConfirmIdentity(event); }} className={styles.searchForm}>
+                <h3>Confirm identity without NIC or passport</h3>
+                <p className={styles.hint}>Enter all three details from the authorized handoff. A name-only search does not confirm identity.</p>
+                <label htmlFor="match-name" className={styles.label}>Full legal name</label>
+                <input id="match-name" className={styles.input} value={matchName} onChange={event => setMatchName(event.target.value)} disabled={busy} required />
+                <label htmlFor="match-birth-date" className={styles.label}>Date of birth</label>
+                <input id="match-birth-date" className={styles.input} type="date" value={matchBirthDate} onChange={event => setMatchBirthDate(event.target.value)} disabled={busy} required />
+                <label htmlFor="match-phone" className={styles.label}>Primary mobile phone</label>
+                <input id="match-phone" className={styles.input} type="tel" value={matchPhone} onChange={event => setMatchPhone(event.target.value)} disabled={busy} required />
+                <button className={styles.searchButton} disabled={busy}>Confirm exact match</button>
               </form>
               <div className={styles.results} aria-live="polite">
                 {!searched && results.length === 0 ? (

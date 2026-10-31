@@ -18,10 +18,24 @@ type PatientService interface {
 	Create(context.Context, string, patients.RegistrationInput) (patients.Patient, error)
 	Get(context.Context, string, string) (patients.Patient, error)
 	Search(context.Context, string, string) ([]patients.Patient, error)
+	ConfirmNoID(context.Context, string, patients.IdentityConfirmation) (patients.Patient, error)
 	Update(context.Context, string, string, patients.UpdateInput) (patients.Patient, error)
 }
 
 func registerPatients(group *gin.RouterGroup, service PatientService) {
+	group.POST("/patient-identity-confirmations", func(c *gin.Context) {
+		var input *patients.IdentityConfirmation
+		if !patientJSON(c, &input) || input == nil {
+			badPatientRequest(c)
+			return
+		}
+		patient, err := service.ConfirmNoID(c.Request.Context(), ActorID(c), *input)
+		if err != nil {
+			patientError(c, err, false)
+			return
+		}
+		c.JSON(http.StatusOK, patient)
+	})
 	group.POST("/patients", func(c *gin.Context) {
 		var input *patients.RegistrationInput
 		if !patientJSON(c, &input) || input == nil {
@@ -148,7 +162,7 @@ func patientError(c *gin.Context, err error, hideRecord bool) {
 		c.JSON(http.StatusForbidden, failure("forbidden", "This action is not permitted."))
 	case errors.Is(err, patients.ErrInvalidPatient):
 		c.JSON(http.StatusUnprocessableEntity, failure("validation_failed", "Check the patient fields."))
-	case errors.Is(err, patients.ErrDuplicateIdentity), errors.Is(err, patients.ErrStaleVersion):
+	case errors.Is(err, patients.ErrDuplicateIdentity), errors.Is(err, patients.ErrStaleVersion), errors.Is(err, patients.ErrAmbiguousIdentity):
 		c.JSON(http.StatusConflict, failure("conflict", "This action conflicts with the current record state."))
 	default:
 		c.JSON(http.StatusServiceUnavailable, failure("unavailable", "The request could not be completed."))

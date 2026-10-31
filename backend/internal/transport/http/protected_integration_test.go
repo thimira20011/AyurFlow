@@ -134,6 +134,15 @@ func TestProtectedPatientFlowIntegration(t *testing.T) {
 		t.Fatalf("rejected requests changed state: count=%d err=%v", count, err)
 	}
 	patient := createProtectedPatient(t, f)
+	matchPath := "/api/v1/patient-identity-confirmations"
+	matchBody := `{"displayName":"synthetic ආයු patient","birthDate":"1990-04-12","phone":"0770000101"}`
+	if response := protectedRequest(f.router, "POST", matchPath, f.token, "", matchBody); response.Code != 403 {
+		t.Fatalf("identity confirmation without CSRF status=%d", response.Code)
+	}
+	if response := protectedRequest(f.router, "POST", matchPath, f.token, f.csrf, matchBody); response.Code != 200 ||
+		!strings.Contains(response.Body.String(), patient.PatientCode) {
+		t.Fatalf("identity confirmation status=%d body=%s", response.Code, response.Body.String())
+	}
 	response := protectedRequest(f.router, "GET", "/api/v1/patients/"+patient.ID, f.token, "", "")
 	if response.Code != 200 || !strings.Contains(response.Body.String(), "Synthetic") {
 		t.Fatalf("protected read: %d %s", response.Code, response.Body.String())

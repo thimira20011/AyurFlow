@@ -169,3 +169,41 @@ func TestPatientServiceIntegration(t *testing.T) {
 		t.Fatalf("audit failure altered committed demographics: patient=%+v err=%v", current, err)
 	}
 }
+
+func TestNoIDIdentityConfirmationIntegration(t *testing.T) {
+	pool := testutil.Postgres(t)
+	ctx := t.Context()
+	var actor string
+	if err := pool.QueryRow(ctx, `INSERT INTO staff_accounts(login_identifier,password_hash)
+		VALUES ('synthetic-match-reception','$argon2id$synthetic-test-only') RETURNING id::text`).Scan(&actor); err != nil {
+		t.Fatal(err)
+	}
+	access := &testAccess{}
+	service := NewService(pool, access)
+	first, err := service.Create(ctx, actor, syntheticRegistration("Synthetic  Match Patient"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	input := IdentityConfirmation{DisplayName: "  synthetic match   patient  ", BirthDate: "1990-04-12", Phone: "0770000101"}
+	confirmed, err := service.ConfirmNoID(ctx, actor, input)
+	if err != nil || confirmed.ID != first.ID {
+		t.Fatalf("exact triple did not confirm: %+v %v", confirmed, err)
+	}
+	input.BirthDate = "1990-04-13"
+	if _, err := service.ConfirmNoID(ctx, actor, input); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("partial triple confirmed: %v", err)
+	}
+	input.BirthDate = "1990-04-12"
+	second, err := service.Create(ctx, actor, syntheticRegistration("Synthetic Match Patient"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.ConfirmNoID(ctx, actor, input); !errors.Is(err, ErrAmbiguousIdentity) {
+		t.Fatalf("duplicate triple silently selected a record: %v", err)
+	}
+	access.visible = map[string]bool{first.ID: true, second.ID: false}
+	confirmed, err = service.ConfirmNoID(ctx, actor, input)
+	if err != nil || confirmed.ID != first.ID {
+		t.Fatalf("record access filter failed: %+v %v", confirmed, err)
+	}
+}

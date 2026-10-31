@@ -1,4 +1,4 @@
-import { APIRequestError, apiGet } from "@/lib/api-client";
+import { APIRequestError, apiGet, apiMutation } from "@/lib/api-client";
 
 export type IdentityType = "NIC" | "PASSPORT";
 export type Gender = "MALE" | "FEMALE" | "OTHER" | "UNDISCLOSED";
@@ -58,6 +58,10 @@ export async function searchPatients(query: string): Promise<Patient[]> {
 
 export function getPatient(id: string): Promise<Patient> {
   return apiGet<Patient>(`/patients/${encodeURIComponent(id)}`);
+}
+
+export function confirmNoIDIdentity(displayName: string, birthDate: string, phone: string): Promise<Patient> {
+  return apiMutation<Patient>("/patient-identity-confirmations", { displayName, birthDate, phone });
 }
 
 export function registerPatient(input: PatientDraft): Promise<Patient> {

@@ -14,7 +14,7 @@ The `/patients/preview` and `/clinical/preview` pages are development-only synth
 
 ## Register and find a patient
 
-1. In **Patient records**, search by name, internal patient ID, supplied NIC/passport, or phone before registering. A search returns at most 25 permitted results. If several are plausible, inspect the permitted demographic detail before choosing one.
+1. In **Patient records**, search by name, display code, internal UUID, supplied NIC/passport, or phone before registering. A search returns at most 25 permitted results. When no NIC/passport is available, use **Confirm identity without NIC or passport** with the full legal name, exact DOB and primary phone from the authorized handoff. Name-only search is not identity confirmation. If no unique exact match is found, use the clinic's unresolved-record procedure instead of guessing.
 2. Select **Register patient**. Enter the full name, date of birth, gender and Sri Lankan mobile phone in `+947XXXXXXXX` or local `07XXXXXXXX` form; the system stores `+947XXXXXXXX`. Address and a supplied NIC/passport are optional. If you choose NIC or passport, enter its number too. Review the spelling and identity before selecting **Register patient**.
 3. After a success message, use the displayed `AYUR-PT-XXXXX` code to search and the internal UUID for an authorized clinical handoff. Do not create another record because a screen response is slow.
 4. To correct demographics, open the patient, select **Edit demographics**, change the fields, then **Save changes**. The update is audited. If the record changed while you were editing, use **Reload record**, review the latest values, and enter the correction again.

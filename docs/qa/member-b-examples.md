@@ -12,6 +12,7 @@
 | B-PAT-04 | Register `b-unicode`; search by full and agreed partial Unicode name and retrieve it. | Unicode name round-trips without replacement; results are bounded, stable and restricted to permitted records. | DEC02 search policy; B |
 | B-PAT-05 | Attempt direct GET/PATCH by an unauthenticated caller, unrelated role, and a role with no record access. | 401/403 or privacy-preserving 404 as appropriate; no patient details leak. | A auth/record checks; B |
 | B-PAT-06 | Update permitted demographics as an authorized user; submit a simultaneous stale version and a conflicting normalized identity. | One valid update commits with its critical audit event; stale/conflicting writes fail without changing the previous committed record. | DEC02 editable fields; B, real PostgreSQL |
+| B-PAT-07 | Without NIC/passport, submit full legal name with different case/spacing, exact DOB and local or E.164 primary phone to the protected confirmation route. Change one attribute, then create two visible records with the same three attributes. | One exact permitted record confirms; a partial match returns safe 404; ambiguous matches return 409 without choosing a patient. No records are merged. | DEC02 name/DOB/phone rule; B, real PostgreSQL |
 
 ## Consultation cases — AT03
 
