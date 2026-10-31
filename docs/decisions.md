@@ -2,6 +2,9 @@
 
 All decisions below remain pending; the scaffold makes no clinic approval claim.
 
+On 31 October 2026, Member B supplied the text of `DEC02-AYURFLOW-CLINIC-RULES-REV1.0`, naming M.G.W.M.R.S. Wanasinghe as clinical owner and Dr. Sarah Jenkins as clinic representative, with approval on 2 October and reaffirmation on 15 October 2026. The latest text specifies a mandatory Unicode name, DOB, four-value gender, `+947XXXXXXXX` mobile phone, optional address and NIC/passport, a separate `AYUR-PT-XXXXX` display code, assigned-clinician full-note access, immutable signed consultations, and Preparatory → Primary → Recovery checklists. It supersedes two earlier, conflicting DEC02 descriptions supplied in this conversation. The signed source or clinic meeting record has not been attached, so this is a **user-supplied implementation specification**, not independently verified clinic approval. The exact phone-absent postal fallback remains open for acceptance. Do not represent the matching rule as automatic patient merging.
+Member B subsequently selected **administrator** as the role that grants and revokes patient/clinician assignments. This allows a protected assignment workflow without giving administrator-only accounts clinical-note access. The phone-absent postal fallback still lacks a structured postal-code field and a verified clinic example; new registrations require a mobile phone.
+
 Member B's [DEC01–02 clinic review record](clinic-rules-review.md) lists the questions and evidence needed to close the first two decisions. It contains no clinic approval yet.
 
 Member D's [DEC03 inventory and preparation review record](inventory-rules-review.md) lists the questions, fixed-precision gram and expiry invariants, and synthetic examples needed to close the dispensary decision before inventory UAT.

@@ -14,16 +14,16 @@ The `/patients/preview` and `/clinical/preview` pages are development-only synth
 
 ## Register and find a patient
 
-1. In **Patient records**, search by name, internal patient ID, supplied NIC/passport, or phone before registering. A search returns at most 25 permitted results. If several are plausible, inspect the permitted demographic detail before choosing one.
-2. Select **Register patient**. Enter the patient's name. Phone and one supplied identity are optional under the current development rules. If you choose NIC or passport, enter its number too. Review the spelling and identity before selecting **Register patient**.
-3. After a success message, use the displayed patient record and internal ID for the next authorized handoff. Do not create another record because a screen response is slow.
+1. In **Patient records**, search by name, display code, internal UUID, supplied NIC/passport, or phone before registering. A search returns at most 25 permitted results. When no NIC/passport is available, use **Confirm identity without NIC or passport** with the full legal name, exact DOB and primary phone from the authorized handoff. Name-only search is not identity confirmation. If no unique exact match is found, use the clinic's unresolved-record procedure instead of guessing.
+2. Select **Register patient**. Enter the full name, date of birth, gender and Sri Lankan mobile phone in `+947XXXXXXXX` or local `07XXXXXXXX` form; the system stores `+947XXXXXXXX`. Address and a supplied NIC/passport are optional. If you choose NIC or passport, enter its number too. Review the spelling and identity before selecting **Register patient**.
+3. After a success message, use the displayed `AYUR-PT-XXXXX` code to search and the internal UUID for an authorized clinical handoff. Do not create another record because a screen response is slow.
 4. To correct demographics, open the patient, select **Edit demographics**, change the fields, then **Save changes**. The update is audited. If the record changed while you were editing, use **Reload record**, review the latest values, and enter the correction again.
 
 If registration reports a possible duplicate identity, search for the existing patient and follow the clinic's duplicate-record procedure. Do not change an identity number merely to bypass the conflict. If registration or an update cannot be confirmed because the service is unavailable, search or reload before retrying; the previous request may have succeeded.
 
 ## Consultation drafts, signing, and corrections
 
-The **Consultations** screen is present, but live clinical routes are not registered in the running API while assignment-management authority is awaiting DEC02 review. The steps below describe the implemented screen and protected service behavior for staff review; use the synthetic preview to inspect the interface until the live route and assignment process are approved.
+With authentication explicitly configured, an administrator grants a clinician access using the patient and clinician UUIDs in **Staff administration → Clinician assignments**. This action does not let the administrator read consultation text. The **Consultations** screen then uses protected clinical routes for the assigned clinician. The signed clinic source and AT03 staff walkthrough still need evidence before handover; use the synthetic preview only for screen review.
 
 1. Obtain the internal patient ID through an authorized handoff. In **Consultations**, enter the ID and select **Open patient**. The history list shows status and dates; note text appears only in a permitted record detail.
 2. Select **New draft**, enter the clinical note, and **Save draft**. A draft can exist before a care plan. Open a draft again to edit and save its current version.

@@ -3,6 +3,7 @@ package patients
 import (
 	"context"
 	"errors"
+	"strconv"
 	"strings"
 	"time"
 
@@ -31,8 +32,12 @@ type AccessPolicy interface {
 
 type Patient struct {
 	ID          string         `json:"id"`
+	PatientCode string         `json:"patientCode"`
 	DisplayName string         `json:"displayName"`
+	BirthDate   *string        `json:"birthDate"`
+	Gender      *string        `json:"gender"`
 	Phone       *string        `json:"phone"`
+	Address     *string        `json:"address"`
 	Identity    *IdentityInput `json:"identity"`
 	Version     int64          `json:"version"`
 	CreatedAt   time.Time      `json:"createdAt"`
@@ -53,7 +58,10 @@ type OptionalIdentity struct {
 type UpdateInput struct {
 	Version     int64
 	DisplayName *string
+	BirthDate   OptionalString
+	Gender      OptionalString
 	Phone       OptionalString
+	Address     OptionalString
 	Identity    OptionalIdentity
 }
 
@@ -73,14 +81,16 @@ func (s *Service) Create(ctx context.Context, actor string, input RegistrationIn
 	if s == nil || s.pool == nil || s.access == nil {
 		return Patient{}, ErrForbidden
 	}
+	phone, _ := NormalizePhone(*input.Phone)
 	var created Patient
 	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		if err := s.access.CanRegister(ctx, tx, actor); err != nil {
 			return err
 		}
 		var id string
-		err := tx.QueryRow(ctx, `INSERT INTO patients(display_name, phone, created_by, updated_by)
-			VALUES ($1, $2, $3, $3) RETURNING id::text`, input.DisplayName, input.Phone, actor).Scan(&id)
+		err := tx.QueryRow(ctx, `INSERT INTO patients(display_name, birth_date, gender, phone, address, created_by, updated_by)
+			VALUES ($1, $2::date, $3, $4, $5, $6, $6) RETURNING id::text`,
+			input.DisplayName, input.BirthDate, input.Gender, phone, input.Address, actor).Scan(&id)
 		if err != nil {
 			return err
 		}
@@ -133,6 +143,10 @@ func (s *Service) Search(ctx context.Context, actor, query string) ([]Patient, e
 		return nil, ErrForbidden
 	}
 	canonical, _ := CanonicalIdentity(query)
+	var registryNumber int64
+	if strings.HasPrefix(strings.ToUpper(query), "AYUR-PT-") {
+		registryNumber, _ = strconv.ParseInt(query[len("AYUR-PT-"):], 10, 64)
+	}
 	items := make([]Patient, 0, 25)
 	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		if err := s.access.CanSearch(ctx, tx, actor); err != nil {
@@ -145,8 +159,8 @@ func (s *Service) Search(ctx context.Context, actor, query string) ([]Patient, e
 				WHERE p.id > $3::uuid AND
 				 (p.id::text = $1 OR strpos(lower(p.display_name), lower($1)) > 0
 				 OR strpos(lower(coalesce(p.phone, '')), lower($1)) > 0
-				 OR i.canonical_value = $2)
-				ORDER BY p.id LIMIT 100`, query, canonical, lastID)
+				 OR i.canonical_value = $2 OR p.registry_number = $4)
+				ORDER BY p.id LIMIT 100`, query, canonical, lastID, registryNumber)
 			if err != nil {
 				return err
 			}

@@ -1,11 +1,16 @@
-import { APIRequestError, apiGet } from "@/lib/api-client";
+import { APIRequestError, apiGet, apiMutation } from "@/lib/api-client";
 
 export type IdentityType = "NIC" | "PASSPORT";
+export type Gender = "MALE" | "FEMALE" | "OTHER" | "UNDISCLOSED";
 
 export type Patient = {
   id: string;
+  patientCode: string;
   displayName: string;
+  birthDate: string | null;
+  gender: Gender | null;
   phone: string | null;
+  address: string | null;
   identity: { type: IdentityType; value: string } | null;
   version: number;
   createdAt: string;
@@ -21,14 +26,20 @@ type StaffSession = {
 
 export type PatientDraft = {
   displayName: string;
-  phone: string | null;
+  birthDate: string;
+  gender: Gender;
+  phone: string;
+  address: string | null;
   identity: Patient["identity"];
 };
 
 export type PatientChanges = {
   version: number;
   displayName?: string;
-  phone?: string | null;
+  birthDate?: string | null;
+  gender?: Gender;
+  phone?: string;
+  address?: string | null;
   identity?: Patient["identity"];
 };
 
@@ -47,6 +58,10 @@ export async function searchPatients(query: string): Promise<Patient[]> {
 
 export function getPatient(id: string): Promise<Patient> {
   return apiGet<Patient>(`/patients/${encodeURIComponent(id)}`);
+}
+
+export function confirmNoIDIdentity(displayName: string, birthDate: string, phone: string): Promise<Patient> {
+  return apiMutation<Patient>("/patient-identity-confirmations", { displayName, birthDate, phone });
 }
 
 export function registerPatient(input: PatientDraft): Promise<Patient> {
