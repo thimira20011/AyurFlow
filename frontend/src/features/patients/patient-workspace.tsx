@@ -106,6 +106,17 @@ export default function PatientWorkspace({ preview = false }: { preview?: boolea
   const [notice, setNotice] = useState<Notice | null>(null);
   const [busy, setBusy] = useState(false);
 
+  function handleFailure(error: unknown, action: "search" | "create" | "read" | "update") {
+    if (error instanceof APIRequestError && [401, 403, 404].includes(error.status)) {
+      setResults([]);
+      setSelected(null);
+      setEditing(false);
+      if (error.status === 401) setAccess("signin");
+      if (error.status === 403) setAccess("forbidden");
+    }
+    setNotice(requestNotice(error, action));
+  }
+
   useEffect(() => {
     if (preview) return;
     let active = true;
@@ -153,7 +164,7 @@ export default function PatientWorkspace({ preview = false }: { preview?: boolea
       setPanel("detail");
       setEditing(false);
     } catch (error) {
-      setNotice(requestNotice(error, "search"));
+      handleFailure(error, "search");
     } finally {
       setBusy(false);
     }
@@ -170,7 +181,7 @@ export default function PatientWorkspace({ preview = false }: { preview?: boolea
       setEditing(false);
       setPanel("detail");
     } catch (error) {
-      setNotice(requestNotice(error, "read"));
+      handleFailure(error, "read");
     } finally {
       setBusy(false);
     }
@@ -203,7 +214,7 @@ export default function PatientWorkspace({ preview = false }: { preview?: boolea
       setPanel("detail");
       setNotice({ tone: "success", text: "Patient registered. The record is ready to review." });
     } catch (error) {
-      setNotice(requestNotice(error, "create"));
+      handleFailure(error, "create");
     } finally {
       setBusy(false);
     }
@@ -241,7 +252,7 @@ export default function PatientWorkspace({ preview = false }: { preview?: boolea
       setEditing(false);
       setNotice({ tone: "success", text: "Demographic changes saved." });
     } catch (error) {
-      setNotice(requestNotice(error, "update"));
+      handleFailure(error, "update");
     } finally {
       setBusy(false);
     }
