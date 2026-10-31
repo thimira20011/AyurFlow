@@ -7,6 +7,8 @@ Member B subsequently selected **administrator** as the role that grants and rev
 
 Member B's [DEC01–02 clinic review record](clinic-rules-review.md) lists the questions and evidence needed to close the first two decisions. It contains no clinic approval yet.
 
+Member D's [DEC03 inventory and preparation review record](inventory-rules-review.md) lists the questions, fixed-precision gram and expiry invariants, and synthetic examples needed to close the dispensary decision before inventory UAT.
+
 Member E's [DEC04 billing review record](billing-rules-review.md) lists the questions, synthetic invariants, and evidence needed to close the billing decision before Sprint 3 acceptance.
 
 For `TASK-SET-02`, Member B has recorded a provisional synthetic-development contract in that review record. The current user directed the planning task to proceed without waiting for clinic signoff. DEC01 and DEC02 remain pending clinic/team decisions for their stated UAT/release gates; the provisional rules must not be represented as clinic-approved or used as real-data authorization.
@@ -15,7 +17,7 @@ For `TASK-SET-02`, Member B has recorded a provisional synthetic-development con
 | --- | --- | --- |
 | DEC01 | Team, clinic, supervisor / week 1 | Clinic identity, organization letter, supervisor details, review dates |
 | DEC02 | Clinic clinician, B / weeks 1-2 | Patient/consultation fields, identifier normalization, record access, pathway, stage/session completion checks |
-| DEC03 | Clinic dispensary, D / before inventory UAT | Recipe examples, grams conversion, decimal scale, rounding, expiry inclusivity/missing expiry, discrepancy process |
+| DEC03 | Clinic dispensary, D / before inventory UAT | [Recipe examples, grams conversion, decimal scale, rounding, expiry inclusivity/missing expiry, discrepancy process](inventory-rules-review.md) |
 | DEC04 | Clinic billing, E / before Sprint 3 acceptance | [Tariffs, invoice/deposit timing, rounding, receipt fields, external correction process](billing-rules-review.md) |
 | DEC05 | Clinic and institution / before real-data pilot | Data authorization, retention, report/export permissions and responsibilities |
 | DEC06 | Clinic, A / before handover | Host, funding, backup/key custody, monitoring, restore owner, support contact |
