@@ -90,4 +90,4 @@ CI checks all Go packages, including real PostgreSQL tests tagged `integration`,
 
 Start Sprint 1 with the pending decision register, authentication/permissions/CSRF, and patient registration. The first exit check is a deployed login-to-registration-to-search journey. Module folders and pages currently establish boundaries; they do not satisfy the SRS acceptance tests.
 
-See [architecture](docs/architecture.md), [OpenAPI](docs/api/openapi.yaml), [team allocation](docs/team-plan.md), [decisions](docs/decisions.md), [testing](docs/testing.md) and [contributing](CONTRIBUTING.md).
+See [architecture](docs/architecture.md), [OpenAPI](docs/api/openapi.yaml), [team allocation](docs/team-plan.md), [decisions](docs/decisions.md), [testing](docs/testing.md) and [contributing](CONTRIBUTING.md). Staff access instructions are in [Member A's administration guide](docs/guides/member-a-administration.md); setup, migration and outage/re-entry procedures are in [the operations runbook](docs/operations.md).
