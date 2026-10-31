@@ -192,8 +192,7 @@ func TestPostalFallbackProtectedPatientIntegration(t *testing.T) {
 	}
 	matchPath := "/api/v1/patient-identity-confirmations"
 	matchBody := `{"displayName":"synthetic  postal http","birthDate":"1990-04-12","postalCode":"00500"}`
-	if response := protectedRequest(f.router, "POST", matchPath, f.token, f.csrf, matchBody);
-		response.Code != 200 || !strings.Contains(response.Body.String(), patient.ID) {
+	if response := protectedRequest(f.router, "POST", matchPath, f.token, f.csrf, matchBody); response.Code != 200 || !strings.Contains(response.Body.String(), patient.ID) {
 		t.Fatalf("postal fallback status=%d body=%s", response.Code, response.Body.String())
 	}
 	response = protectedRequest(f.router, "PATCH", "/api/v1/patients/"+patient.ID, f.token, f.csrf,
