@@ -1,17 +1,18 @@
 # Member B synthetic acceptance examples — TASK-QA-01 contribution
 
-**Status:** proposed cases and fixture data, not executed AT evidence. TASK-QA-01 is coordinated by F and reviewed by A; B supplies PAT/CON/CLN examples and C reviews B's feature behavior. Source: SRS v1.0 PAT-01–02, CON-01–03, CLN-01–06 and AT02–05, plus the B/C join in AT06–07. [Fixture values](../../tests/fixtures/member-b-cases.json) are synthetic. DEC02 and DEC08 must replace provisional clinical details before clinic UAT. Record actual setup, tester, date, version, environment and evidence in [testing.md](../testing.md) when these tests run.
+**Status:** proposed cases and fixture data, not executed AT evidence. TASK-QA-01 is coordinated by F and reviewed by A; B supplies PAT/CON/CLN examples and C reviews B's feature behavior. Source: SRS v1.0 PAT-01–02, CON-01–03, CLN-01–06 and AT02–05, plus the B/C join in AT06–07. [Fixture values](../../tests/fixtures/member-b-cases.json) are synthetic and reflect the latest user-supplied DEC02 text; its signed source and DEC08 review remain acceptance gates. Record actual setup, tester, date, version, environment and evidence in [testing.md](../testing.md) when these tests run.
 
 ## Patient cases — AT02
 
 | Case | Setup and steps | Expected result | Gate / owner |
 | --- | --- | --- | --- |
-| B-PAT-01 | As an authorized receptionist, register `b-no-identity`. Repeat with a second synthetic patient without identity. | Both receive distinct server IDs; optional identity is not required. Registration audit event exists with no note text. | DEC02 fields; B |
+| B-PAT-01 | As an authorized receptionist, register `b-no-identity` with name, DOB, gender and phone. Repeat with a second synthetic patient without NIC/passport. | Both receive distinct UUIDs and `AYUR-PT-XXXXX` display codes; optional NIC/passport is not required. Registration audit event exists with no note text. | DEC02 fields; B |
 | B-PAT-02 | Two authorized staff concurrently register `b-nic-first` and `b-nic-equivalent-conflict` against a clean disposable PostgreSQL database. | Exactly one committed patient/identity; the other gets a generic 409 with no existing patient ID/name. The failed request leaves no orphan patient or audit event. | DEC02 normalization; B, real PostgreSQL |
 | B-PAT-03 | Register `b-passport-distinct` after a NIC with the same canonical characters. | Passport and NIC remain distinct identity namespaces under the provisional rule. | DEC02 identity types; B |
 | B-PAT-04 | Register `b-unicode`; search by full and agreed partial Unicode name and retrieve it. | Unicode name round-trips without replacement; results are bounded, stable and restricted to permitted records. | DEC02 search policy; B |
 | B-PAT-05 | Attempt direct GET/PATCH by an unauthenticated caller, unrelated role, and a role with no record access. | 401/403 or privacy-preserving 404 as appropriate; no patient details leak. | A auth/record checks; B |
 | B-PAT-06 | Update permitted demographics as an authorized user; submit a simultaneous stale version and a conflicting normalized identity. | One valid update commits with its critical audit event; stale/conflicting writes fail without changing the previous committed record. | DEC02 editable fields; B, real PostgreSQL |
+| B-PAT-07 | Without NIC/passport, submit full legal name with different case/spacing, exact DOB and local or E.164 primary phone to the protected confirmation route. Change one attribute, then create two visible records with the same three attributes. | One exact permitted record confirms; a partial match returns safe 404; ambiguous matches return 409 without choosing a patient. No records are merged. | DEC02 name/DOB/phone rule; B, real PostgreSQL |
 
 ## Consultation cases — AT03
 

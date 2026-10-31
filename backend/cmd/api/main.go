@@ -15,6 +15,7 @@ import (
 	"ayurflow/backend/internal/authorization"
 	"ayurflow/backend/internal/billing"
 	"ayurflow/backend/internal/config"
+	"ayurflow/backend/internal/consultations"
 	"ayurflow/backend/internal/patients"
 	"ayurflow/backend/internal/platform/database"
 	transport "ayurflow/backend/internal/transport/http"
@@ -48,9 +49,13 @@ func run() error {
 	defer cancelRequests()
 	var router *gin.Engine
 	if cfg.Auth.Enabled {
+		clinical := consultations.NewService(pool, consultations.AssignedPolicy{})
 		router = transport.NewRouter(pool, transport.AuthRoutes{
 			Service: auth.NewService(pool, cfg.Auth), AllowedOrigin: cfg.Auth.AllowedOrigin,
 			Patients:       patients.NewService(pool, &authorization.PatientPolicy{}),
+			Consultations:  clinical,
+			Signing:        clinical,
+			Assignments:    consultations.NewAssignmentService(pool),
 			Administration: administration.NewService(pool),
 			Billing:        billing.NewService(pool),
 		})

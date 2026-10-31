@@ -26,7 +26,7 @@ var (
 
 // AccessPolicy must check an active clinician's patient assignment in the
 // caller's transaction. No policy, including a nil policy, grants access.
-// Assignment grant authority and final access policy remain DEC02 review gates.
+// Grant/revoke is restricted to active administrators by AssignmentService.
 type AccessPolicy interface {
 	CanCreate(context.Context, pgx.Tx, string, string) error
 	CanList(context.Context, pgx.Tx, string, string) error

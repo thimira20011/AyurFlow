@@ -66,7 +66,8 @@ func newProtectedFixture(t *testing.T) protectedFixture {
 	service := patients.NewService(pool, &authorization.PatientPolicy{})
 	clinical := consultations.NewService(pool, consultations.AssignedPolicy{})
 	router := NewRouter(pool, AuthRoutes{Service: sessions, AllowedOrigin: protectedOrigin,
-		Patients: service, Consultations: clinical, Signing: clinical})
+		Patients: service, Consultations: clinical, Signing: clinical,
+		Assignments: consultations.NewAssignmentService(pool)})
 	return protectedFixture{pool: pool, sessions: sessions, router: router, actor: actor, token: token, csrf: session.CSRFToken}
 }
 
@@ -96,7 +97,7 @@ func protectedRequest(
 func createProtectedPatient(t *testing.T, f protectedFixture) patients.Patient {
 	t.Helper()
 	response := protectedRequest(f.router, "POST", "/api/v1/patients", f.token, f.csrf,
-		`{"displayName":"Synthetic ආයු patient","phone":"0700000000","identity":{"type":"NIC","value":"synthetic-123"}}`)
+		`{"displayName":"Synthetic ආයු patient","birthDate":"1990-04-12","gender":"UNDISCLOSED","phone":"+94770000101","address":"Synthetic address","identity":{"type":"NIC","value":"synthetic-123"}}`)
 	if response.Code != http.StatusCreated {
 		t.Fatalf("create failed: %d %s", response.Code, response.Body.String())
 	}
@@ -133,6 +134,15 @@ func TestProtectedPatientFlowIntegration(t *testing.T) {
 		t.Fatalf("rejected requests changed state: count=%d err=%v", count, err)
 	}
 	patient := createProtectedPatient(t, f)
+	matchPath := "/api/v1/patient-identity-confirmations"
+	matchBody := `{"displayName":"synthetic ආයු patient","birthDate":"1990-04-12","phone":"0770000101"}`
+	if response := protectedRequest(f.router, "POST", matchPath, f.token, "", matchBody); response.Code != 403 {
+		t.Fatalf("identity confirmation without CSRF status=%d", response.Code)
+	}
+	if response := protectedRequest(f.router, "POST", matchPath, f.token, f.csrf, matchBody); response.Code != 200 ||
+		!strings.Contains(response.Body.String(), patient.PatientCode) {
+		t.Fatalf("identity confirmation status=%d body=%s", response.Code, response.Body.String())
+	}
 	response := protectedRequest(f.router, "GET", "/api/v1/patients/"+patient.ID, f.token, "", "")
 	if response.Code != 200 || !strings.Contains(response.Body.String(), "Synthetic") {
 		t.Fatalf("protected read: %d %s", response.Code, response.Body.String())
@@ -143,7 +153,7 @@ func TestProtectedPatientFlowIntegration(t *testing.T) {
 	}
 	// Ordinary reads did not rotate the token: the original token still authorizes a patch.
 	response = protectedRequest(f.router, "PATCH", "/api/v1/patients/"+patient.ID, f.token, f.csrf,
-		`{"version":1,"displayName":"Synthetic updated","phone":null,"identity":null}`)
+		`{"version":1,"displayName":"Synthetic updated","phone":"+94771111222","identity":null}`)
 	if response.Code != 200 {
 		t.Fatalf("protected update: %d %s", response.Code, response.Body.String())
 	}
