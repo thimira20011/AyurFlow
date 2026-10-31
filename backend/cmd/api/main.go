@@ -14,6 +14,7 @@ import (
 	"ayurflow/backend/internal/auth"
 	"ayurflow/backend/internal/authorization"
 	"ayurflow/backend/internal/billing"
+	"ayurflow/backend/internal/clinical"
 	"ayurflow/backend/internal/config"
 	"ayurflow/backend/internal/consultations"
 	"ayurflow/backend/internal/patients"
@@ -56,6 +57,7 @@ func run() error {
 			Consultations:  clinical,
 			Signing:        clinical,
 			Assignments:    consultations.NewAssignmentService(pool),
+			Plans:          clinical.NewService(pool, clinical.MemberBPathway(), nil),
 			Administration: administration.NewService(pool),
 			Billing:        billing.NewService(pool),
 		})

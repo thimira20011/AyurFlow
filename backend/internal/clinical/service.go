@@ -34,6 +34,7 @@ type Plan struct {
 	Status         string `json:"status"`
 	CurrentOrdinal int    `json:"currentStageOrdinal"`
 	Version        int64  `json:"version"`
+	PathwayState   string `json:"pathwayState"`
 }
 
 // CompletionPolicy checks clinic-approved completion evidence in the caller's
@@ -42,18 +43,29 @@ type CompletionPolicy interface {
 	CanComplete(context.Context, pgx.Tx, string, string) error
 }
 
-type Service struct {
-	pool       *pgxpool.Pool
-	pathway    []StageDefinition
-	completion CompletionPolicy
+// SessionCancellation runs inside the plan transaction after the plan row is
+// locked. C's adapter must cancel future unstarted sessions and retain history.
+type SessionCancellation interface {
+	CancelFuture(context.Context, pgx.Tx, string) error
 }
 
-func NewService(pool *pgxpool.Pool, pathway []StageDefinition, completion CompletionPolicy) *Service {
+type Service struct {
+	pool         *pgxpool.Pool
+	pathway      []StageDefinition
+	completion   CompletionPolicy
+	cancellation SessionCancellation
+}
+
+func NewService(pool *pgxpool.Pool, pathway []StageDefinition, completion CompletionPolicy, cancellation ...SessionCancellation) *Service {
 	copyPathway := make([]StageDefinition, len(pathway))
 	for i, stage := range pathway {
 		copyPathway[i] = StageDefinition{Label: stage.Label, RequiredChecks: append([]string{}, stage.RequiredChecks...)}
 	}
-	return &Service{pool: pool, pathway: copyPathway, completion: completion}
+	service := &Service{pool: pool, pathway: copyPathway, completion: completion}
+	if len(cancellation) > 0 {
+		service.cancellation = cancellation[0]
+	}
+	return service
 }
 
 func (s *Service) Create(ctx context.Context, actor, patientID, sourceConsultationID string) (Plan, error) {
@@ -88,8 +100,8 @@ func (s *Service) Create(ctx context.Context, actor, patientID, sourceConsultati
 		}
 		for ordinal, stage := range s.pathway {
 			checks := append([]string{}, stage.RequiredChecks...)
-			if _, err := tx.Exec(ctx, `INSERT INTO plan_stages(plan_id,ordinal,label,required_checks)
-				VALUES ($1,$2,$3,$4)`, plan.ID, ordinal+1, stage.Label, checks); err != nil {
+			if _, err := tx.Exec(ctx, `INSERT INTO plan_stages(plan_id,ordinal,stage_code,label,required_checks)
+				VALUES ($1,$2,$3,$4,$5)`, plan.ID, ordinal+1, stageCodes[ordinal], stage.Label, checks); err != nil {
 				return err
 			}
 		}
@@ -100,7 +112,7 @@ func (s *Service) Create(ctx context.Context, actor, patientID, sourceConsultati
 			Object: audit.Object{Type: "care_plan", ID: plan.ID}}); err != nil {
 			return err
 		}
-		plan.PatientID, plan.Status, plan.CurrentOrdinal, plan.Version = patientID, "active", 1, 1
+		plan.PatientID, plan.Status, plan.CurrentOrdinal, plan.Version, plan.PathwayState = patientID, "active", 1, 1, "PREPARATORY"
 		return nil
 	})
 	return plan, err
@@ -143,8 +155,18 @@ func (s *Service) Approve(ctx context.Context, actor, planID, stageID string, ve
 		if ordinal != plan.CurrentOrdinal || status != "pending" || !sameChecks(required, confirmedChecks) {
 			return ErrConflict
 		}
-		if _, err := tx.Exec(ctx, `UPDATE plan_stages SET status='approved',approved_by=$2,approved_at=clock_timestamp()
-			WHERE id=$1`, stageID, actor); err != nil {
+		if ordinal == 1 {
+			var signed bool
+			if err := tx.QueryRow(ctx, `SELECT EXISTS(SELECT 1 FROM consultations
+				WHERE patient_id=$1 AND status='signed')`, plan.PatientID).Scan(&signed); err != nil {
+				return err
+			}
+			if !signed {
+				return ErrCompletionPending
+			}
+		}
+		if _, err := tx.Exec(ctx, `UPDATE plan_stages SET status='approved',approved_by=$2,approved_at=clock_timestamp(),
+			confirmed_checks=$3 WHERE id=$1`, stageID, actor, confirmedChecks); err != nil {
 			return err
 		}
 		if err := recordDecision(ctx, tx, actor, planID, stageID, "approve", "pending", "approved"); err != nil {
@@ -158,6 +180,7 @@ func (s *Service) Approve(ctx context.Context, actor, planID, stageID string, ve
 			return err
 		}
 		plan.Version++
+		plan.PathwayState = pathwayState(plan.Status, plan.CurrentOrdinal)
 		return nil
 	})
 	return plan, err
@@ -236,6 +259,7 @@ func (s *Service) Advance(ctx context.Context, actor, planID string, version int
 			return err
 		}
 		plan.Version++
+		plan.PathwayState = pathwayState(plan.Status, plan.CurrentOrdinal)
 		return nil
 	})
 	return plan, err
@@ -259,7 +283,24 @@ func lockPlan(ctx context.Context, tx pgx.Tx, actor, id string) (Plan, error) {
 	if current.Valid {
 		plan.CurrentOrdinal = int(current.Int32)
 	}
+	plan.PathwayState = pathwayState(plan.Status, plan.CurrentOrdinal)
 	return plan, err
+}
+
+func pathwayState(status string, ordinal int) string {
+	if status == "draft" {
+		return "NOT_STARTED"
+	}
+	if status == "completed" {
+		return "COMPLETED"
+	}
+	if status == "cancelled" {
+		return "CANCELLED"
+	}
+	if ordinal >= 1 && ordinal <= len(stageCodes) {
+		return stageCodes[ordinal-1]
+	}
+	return "NOT_STARTED"
 }
 
 func requireClinicalWrite(ctx context.Context, tx pgx.Tx, actor, patientID string) error {
@@ -283,11 +324,15 @@ func bumpPlan(ctx context.Context, tx pgx.Tx, actor, id string) error {
 }
 
 func validPathway(stages []StageDefinition) bool {
-	if len(stages) == 0 || len(stages) > 16 {
+	approved := MemberBPathway()
+	if len(stages) != len(approved) {
 		return false
 	}
-	for _, stage := range stages {
+	for ordinal, stage := range stages {
 		if !utf8.ValidString(stage.Label) || strings.TrimSpace(stage.Label) == "" || len(stage.Label) > 200 {
+			return false
+		}
+		if stage.Label != approved[ordinal].Label || !sameChecks(stage.RequiredChecks, approved[ordinal].RequiredChecks) {
 			return false
 		}
 		seen := make(map[string]bool, len(stage.RequiredChecks))

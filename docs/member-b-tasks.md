@@ -32,6 +32,10 @@ For every new B task contribution, start a **new branch** from the latest integr
 | TASK-CLN-05 | Pending | `member-b/plan-screens` | CLN-02/04, UI-02/06; clinician actions |
 | TASK-CLN-06 | Pending | `member-b/clinical-transition-tests` | CLN-03/05, SCH-04; AT04–05 and C review |
 
+### Consolidated completion branch (1 November 2026)
+
+`member-b/patient-clinical-completion` carries the remaining B-owned code for PAT-01–03, CON-01–04 and CLN-01–02/05–06. It adds the phone-absent postal confirmation fallback, a fixed three-treatment-stage pathway, protected plan handlers, clinician plan screen, versioned decisions, hold/resume/cancel services, and B's session-clearance hook. The formal task-board status remains **Pending C Review & Integration Evidence**. C's scheduling completion/cancellation adapter, D's preparation evidence contract, the protected browser journeys, and AT02–05 reviewer sign-off are separate integration gates. The commit history of this branch is the review source; the older per-task rows above describe earlier work and do not assert closure.
+
 Tasks may be prepared while decisions are pending, but they cannot be marked Done until their dependencies, integration evidence and reviewer checks pass. Do not use provisional pathway or field choices as clinic approval.
 
 ## Sprint 1 — decisions, contracts, and registration (weeks 1–2)
