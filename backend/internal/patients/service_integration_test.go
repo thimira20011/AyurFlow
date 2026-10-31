@@ -18,6 +18,11 @@ type testAccess struct {
 	visible map[string]bool
 }
 
+func syntheticRegistration(name string) RegistrationInput {
+	birthDate, gender, phone := "1990-04-12", "UNDISCLOSED", "+94770000101"
+	return RegistrationInput{DisplayName: name, BirthDate: &birthDate, Gender: &gender, Phone: &phone}
+}
+
 func (a *testAccess) CanRegister(context.Context, pgx.Tx, string) error { return nil }
 func (a *testAccess) CanSearch(context.Context, pgx.Tx, string) error   { return nil }
 func (a *testAccess) CanRead(_ context.Context, _ pgx.Tx, _, id string) error {
@@ -44,11 +49,12 @@ func TestPatientServiceIntegration(t *testing.T) {
 	access := &testAccess{}
 	service := NewService(pool, access)
 
-	first, err := service.Create(ctx, actor, RegistrationInput{DisplayName: "සිංහල රෝගියා"})
-	if err != nil || first.Identity != nil || first.Version != 1 {
+	first, err := service.Create(ctx, actor, syntheticRegistration("සිංහල රෝගියා"))
+	if err != nil || first.Identity != nil || first.Version != 1 || first.PatientCode != "AYUR-PT-00001" ||
+		first.BirthDate == nil || *first.BirthDate != "1990-04-12" || first.Gender == nil || *first.Gender != "UNDISCLOSED" {
 		t.Fatalf("optional identity registration: patient=%+v err=%v", first, err)
 	}
-	second, err := service.Create(ctx, actor, RegistrationInput{DisplayName: "සිංහල දෙවන රෝගියා"})
+	second, err := service.Create(ctx, actor, syntheticRegistration("සිංහල දෙවන රෝගියා"))
 	if err != nil || second.ID == first.ID {
 		t.Fatalf("second optional identity registration: %v", err)
 	}
@@ -62,9 +68,9 @@ func TestPatientServiceIntegration(t *testing.T) {
 		go func(name string) {
 			defer wg.Done()
 			<-start
-			_, err := service.Create(ctx, actor, RegistrationInput{
-				DisplayName: name, Identity: &IdentityInput{Type: "NIC", Value: "1999-12345678v"},
-			})
+			input := syntheticRegistration(name)
+			input.Identity = &IdentityInput{Type: "NIC", Value: "1999-12345678v"}
+			_, err := service.Create(ctx, actor, input)
 			results <- err
 		}(name)
 	}
@@ -93,6 +99,10 @@ func TestPatientServiceIntegration(t *testing.T) {
 	if err != nil || len(idMatches) != 1 || idMatches[0].ID != identityMatches[0].ID {
 		t.Fatalf("internal ID search: items=%+v err=%v", idMatches, err)
 	}
+	codeMatches, err := service.Search(ctx, actor, first.PatientCode)
+	if err != nil || len(codeMatches) != 1 || codeMatches[0].ID != first.ID {
+		t.Fatalf("patient code search: items=%+v err=%v", codeMatches, err)
+	}
 	var racePatients int
 	if err := pool.QueryRow(ctx, `SELECT count(*) FROM patients WHERE display_name IN ('Race one', 'Race two')`).Scan(&racePatients); err != nil || racePatients != 1 {
 		t.Fatalf("duplicate must roll back whole registration: count=%d err=%v", racePatients, err)
@@ -106,26 +116,29 @@ func TestPatientServiceIntegration(t *testing.T) {
 	if _, err := service.Get(ctx, actor, second.ID); !errors.Is(err, ErrForbidden) {
 		t.Fatalf("direct inaccessible read: %v", err)
 	}
-	phone := "071 000 0000"
+	phone := "+94771111222"
+	address := "Synthetic address"
 	updated, err := service.Update(ctx, actor, first.ID, UpdateInput{
 		Version: first.Version, Phone: OptionalString{Set: true, Value: &phone},
+		Address: OptionalString{Set: true, Value: &address},
 	})
-	if err != nil || updated.Version != 2 || updated.Phone == nil || *updated.Phone != phone {
+	if err != nil || updated.Version != 2 || updated.Phone == nil || *updated.Phone != phone ||
+		updated.Address == nil || *updated.Address != address {
 		t.Fatalf("audited update: patient=%+v err=%v", updated, err)
 	}
-	phoneMatches, err := service.Search(ctx, actor, "071 000")
+	phoneMatches, err := service.Search(ctx, actor, "771111222")
 	if err != nil || len(phoneMatches) != 1 || phoneMatches[0].ID != first.ID {
 		t.Fatalf("contact search: items=%+v err=%v", phoneMatches, err)
 	}
 	if _, err := service.Update(ctx, actor, first.ID, UpdateInput{
-		Version: first.Version, Phone: OptionalString{Set: true},
+		Version: first.Version, Phone: OptionalString{Set: true, Value: &phone},
 	}); !errors.Is(err, ErrStaleVersion) {
 		t.Fatalf("stale update should fail: %v", err)
 	}
 	var auditCount int
 	if err := pool.QueryRow(ctx, `SELECT count(*) FROM audit_events
 		WHERE object_type='patient' AND object_id=$1 AND action='patient.updated'
-		AND reason='demographic_correction' AND changed_fields=ARRAY['phone']::text[]`, first.ID).Scan(&auditCount); err != nil || auditCount != 1 {
+		AND reason='demographic_correction' AND changed_fields=ARRAY['phone','address']::text[]`, first.ID).Scan(&auditCount); err != nil || auditCount != 1 {
 		t.Fatalf("demographic audit missing: count=%d err=%v", auditCount, err)
 	}
 
@@ -141,8 +154,9 @@ func TestPatientServiceIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	changedPhone := "+94773334444"
 	if _, err := service.Update(ctx, actor, first.ID, UpdateInput{
-		Version: updated.Version, Phone: OptionalString{Set: true},
+		Version: updated.Version, Phone: OptionalString{Set: true, Value: &changedPhone},
 	}); err == nil {
 		t.Fatal("audit failure should roll back demographic update")
 	}

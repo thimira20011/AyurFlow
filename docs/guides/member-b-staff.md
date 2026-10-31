@@ -15,8 +15,8 @@ The `/patients/preview` and `/clinical/preview` pages are development-only synth
 ## Register and find a patient
 
 1. In **Patient records**, search by name, internal patient ID, supplied NIC/passport, or phone before registering. A search returns at most 25 permitted results. If several are plausible, inspect the permitted demographic detail before choosing one.
-2. Select **Register patient**. Enter the patient's name. Phone and one supplied identity are optional under the current development rules. If you choose NIC or passport, enter its number too. Review the spelling and identity before selecting **Register patient**.
-3. After a success message, use the displayed patient record and internal ID for the next authorized handoff. Do not create another record because a screen response is slow.
+2. Select **Register patient**. Enter the full name, date of birth, gender and Sri Lankan mobile phone in `+947XXXXXXXX` format. Address and a supplied NIC/passport are optional. If you choose NIC or passport, enter its number too. Review the spelling and identity before selecting **Register patient**.
+3. After a success message, use the displayed `AYUR-PT-XXXXX` code to search and the internal UUID for an authorized clinical handoff. Do not create another record because a screen response is slow.
 4. To correct demographics, open the patient, select **Edit demographics**, change the fields, then **Save changes**. The update is audited. If the record changed while you were editing, use **Reload record**, review the latest values, and enter the correction again.
 
 If registration reports a possible duplicate identity, search for the existing patient and follow the clinic's duplicate-record procedure. Do not change an identity number merely to bypass the conflict. If registration or an update cannot be confirmed because the service is unavailable, search or reload before retrying; the previous request may have succeeded.

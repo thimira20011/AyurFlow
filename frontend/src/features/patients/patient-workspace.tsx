@@ -10,6 +10,7 @@ import {
   searchPatients,
   updatePatient,
   type IdentityType,
+  type Gender,
   type Patient,
   type PatientChanges,
   type PatientDraft,
@@ -18,25 +19,31 @@ import styles from "./patient-workspace.module.css";
 
 type Access = "checking" | "ready" | "signin" | "forbidden" | "unavailable";
 type Notice = { tone: "success" | "error" | "info"; text: string; signIn?: boolean };
-type FieldErrors = Partial<Record<"displayName" | "phone" | "identity", string>>;
+type FieldErrors = Partial<Record<"displayName" | "birthDate" | "gender" | "phone" | "address" | "identity", string>>;
 type FormValues = {
   displayName: string;
+  birthDate: string;
+  gender: Gender | "";
   phone: string;
+  address: string;
   identityType: IdentityType | "";
   identityValue: string;
 };
 
-const emptyForm: FormValues = { displayName: "", phone: "", identityType: "", identityValue: "" };
+const emptyForm: FormValues = { displayName: "", birthDate: "", gender: "", phone: "", address: "", identityType: "", identityValue: "" };
 const byteLength = (value: string) => new TextEncoder().encode(value).length;
 const previewPatients: Patient[] = [
-  { id: "00000000-0000-4000-8000-000000000101", displayName: "Demo Patient One", phone: "+94 77 000 0101", identity: null, version: 1, createdAt: "2026-10-20T09:00:00Z", updatedAt: "2026-10-20T09:00:00Z" },
-  { id: "00000000-0000-4000-8000-000000000102", displayName: "Demo Patient Two", phone: null, identity: { type: "PASSPORT", value: "DEMO-ONLY-02" }, version: 2, createdAt: "2026-10-21T10:30:00Z", updatedAt: "2026-10-22T06:15:00Z" },
+  { id: "00000000-0000-4000-8000-000000000101", patientCode: "AYUR-PT-00001", displayName: "Demo Patient One", birthDate: "1990-04-12", gender: "UNDISCLOSED", phone: "+94770000101", address: null, identity: null, version: 1, createdAt: "2026-10-20T09:00:00Z", updatedAt: "2026-10-20T09:00:00Z" },
+  { id: "00000000-0000-4000-8000-000000000102", patientCode: "AYUR-PT-00002", displayName: "Demo Patient Two", birthDate: null, gender: null, phone: null, address: null, identity: { type: "PASSPORT", value: "DEMO-ONLY-02" }, version: 2, createdAt: "2026-10-21T10:30:00Z", updatedAt: "2026-10-22T06:15:00Z" },
 ];
 
 function formFromPatient(patient: Patient): FormValues {
   return {
     displayName: patient.displayName,
+    birthDate: patient.birthDate ?? "",
+    gender: patient.gender ?? "",
     phone: patient.phone ?? "",
+    address: patient.address ?? "",
     identityType: patient.identity?.type ?? "",
     identityValue: patient.identity?.value ?? "",
   };
@@ -50,7 +57,10 @@ function validateForm(form: FormValues): FieldErrors {
   const errors: FieldErrors = {};
   if (!form.displayName.trim()) errors.displayName = "Enter the patient’s name.";
   else if (byteLength(form.displayName) > 512) errors.displayName = "Name is too long.";
-  if (byteLength(form.phone) > 64) errors.phone = "Phone is too long.";
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(form.birthDate)) errors.birthDate = "Enter a date of birth in YYYY-MM-DD format.";
+  if (!form.gender) errors.gender = "Choose a gender value.";
+  if (!/^\+947[0-9]{8}$/.test(form.phone.trim())) errors.phone = "Enter a Sri Lankan mobile number as +947XXXXXXXX.";
+  if (byteLength(form.address) > 1024) errors.address = "Address is too long.";
   if (form.identityType && !form.identityValue.trim()) errors.identity = "Enter the supplied identity number.";
   else if (!form.identityType && form.identityValue.trim()) errors.identity = "Choose an identity type or clear the number.";
   else if (byteLength(form.identityValue) > 128) errors.identity = "Identity number is too long.";
@@ -156,7 +166,7 @@ export default function PatientWorkspace({ preview = false }: { preview?: boolea
     setNotice(null);
     try {
       const items = preview
-        ? previewStore.current.filter((patient) => [patient.id, patient.displayName, patient.phone ?? "", patient.identity?.value ?? ""].some((value) => value.toLocaleLowerCase().includes(term.toLocaleLowerCase()))).slice(0, 25)
+        ? previewStore.current.filter((patient) => [patient.id, patient.patientCode, patient.displayName, patient.phone ?? "", patient.identity?.value ?? ""].some((value) => value.toLocaleLowerCase().includes(term.toLocaleLowerCase()))).slice(0, 25)
         : await searchPatients(term);
       setResults(items);
       setSearched(true);
@@ -194,14 +204,17 @@ export default function PatientWorkspace({ preview = false }: { preview?: boolea
     if (Object.keys(errors).length) return;
     const input: PatientDraft = {
       displayName: registerForm.displayName.trim(),
-      phone: registerForm.phone.trim() || null,
+      birthDate: registerForm.birthDate,
+      gender: registerForm.gender as Gender,
+      phone: registerForm.phone.trim(),
+      address: registerForm.address.trim() || null,
       identity: identityFromForm(registerForm),
     };
     setBusy(true);
     setNotice(null);
     try {
       const patient = preview ? {
-        id: crypto.randomUUID(), ...input, version: 1,
+        id: crypto.randomUUID(), patientCode: `AYUR-PT-${String(previewStore.current.length + 1).padStart(5, "0")}`, ...input, version: 1,
         createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
       } : await registerPatient(input);
       if (preview) previewStore.current.unshift(patient);
@@ -227,11 +240,17 @@ export default function PatientWorkspace({ preview = false }: { preview?: boolea
     setFieldErrors(errors);
     if (Object.keys(errors).length) return;
     const name = editForm.displayName.trim();
-    const phone = editForm.phone.trim() || null;
+    const birthDate = editForm.birthDate;
+    const gender = editForm.gender as Gender;
+    const phone = editForm.phone.trim();
+    const address = editForm.address.trim() || null;
     const identity = identityFromForm(editForm);
     const changes: PatientChanges = { version: selected.version };
     if (name !== selected.displayName) changes.displayName = name;
+    if (birthDate !== selected.birthDate) changes.birthDate = birthDate;
+    if (gender !== selected.gender) changes.gender = gender;
     if (phone !== selected.phone) changes.phone = phone;
+    if (address !== selected.address) changes.address = address;
     if (identity?.type !== selected.identity?.type || identity?.value !== selected.identity?.value) {
       changes.identity = identity;
     }
@@ -298,7 +317,7 @@ export default function PatientWorkspace({ preview = false }: { preview?: boolea
                 </div>
               </div>
               <form onSubmit={(event) => { void handleSearch(event); }} className={styles.searchForm} role="search">
-                <label htmlFor="patient-query" className={styles.label}>Name, ID, identity or phone</label>
+                <label htmlFor="patient-query" className={styles.label}>Name, patient code, ID, identity or phone</label>
                 <div className={styles.searchControls}>
                   <input id="patient-query" className={styles.input} value={query} onChange={(event) => setQuery(event.target.value)} disabled={busy} autoComplete="off" />
                   <button className={styles.searchButton} type="submit" disabled={busy}>{busy ? "Working…" : "Search"}</button>
@@ -318,7 +337,7 @@ export default function PatientWorkspace({ preview = false }: { preview?: boolea
                         <li key={patient.id}>
                           <button type="button" className={styles.resultButton} aria-pressed={selected?.id === patient.id && panel === "detail"} onClick={() => { void handleSelect(patient.id); }} disabled={busy}>
                             <span className={styles.resultName}>{patient.displayName}</span>
-                            <span className={styles.resultMeta}>{patient.id}</span>
+                            <span className={styles.resultMeta}>{patient.patientCode}</span>
                           </button>
                         </li>
                       ))}
@@ -338,7 +357,7 @@ export default function PatientWorkspace({ preview = false }: { preview?: boolea
                     </div>
                     <button className={styles.quietButton} type="button" onClick={showDetail} disabled={busy}>Cancel</button>
                   </div>
-                  <p className={styles.panelIntro}>Only a name is required. Record a supplied NIC or passport when available.</p>
+                  <p className={styles.panelIntro}>Name, date of birth, gender and mobile phone are required. A supplied NIC or passport remains optional.</p>
                   <form onSubmit={(event) => { void handleRegister(event); }} noValidate>
                     <PatientFields prefix="register" value={registerForm} onChange={setRegisterForm} errors={fieldErrors} disabled={busy} />
                     <div className={styles.formActions}>
@@ -367,8 +386,12 @@ export default function PatientWorkspace({ preview = false }: { preview?: boolea
                     </form>
                   ) : (
                     <dl className={styles.recordDetails}>
-                      <div className={styles.detailRow}><dt>Patient ID</dt><dd className={styles.monospace}>{selected.id}</dd></div>
+                      <div className={styles.detailRow}><dt>Patient code</dt><dd className={styles.monospace}>{selected.patientCode}</dd></div>
+                      <div className={styles.detailRow}><dt>Internal patient ID</dt><dd className={styles.monospace}>{selected.id}</dd></div>
+                      <div className={styles.detailRow}><dt>Date of birth</dt><dd>{selected.birthDate ?? "Not supplied"}</dd></div>
+                      <div className={styles.detailRow}><dt>Gender</dt><dd>{selected.gender ?? "Not supplied"}</dd></div>
                       <div className={styles.detailRow}><dt>Phone</dt><dd>{selected.phone ?? "Not supplied"}</dd></div>
+                      <div className={styles.detailRow}><dt>Address</dt><dd>{selected.address ?? "Not supplied"}</dd></div>
                       <div className={styles.detailRow}><dt>Identity</dt><dd>{selected.identity ? `${selected.identity.type} · ${selected.identity.value}` : "Not supplied"}</dd></div>
                       <div className={styles.detailRow}><dt>Registered</dt><dd>{formatColombo(selected.createdAt)}</dd></div>
                       <div className={styles.detailRow}><dt>Last updated</dt><dd>{formatColombo(selected.updatedAt)}</dd></div>
@@ -407,9 +430,26 @@ function PatientFields({ prefix, value, onChange, errors, disabled }: {
         {errors.displayName && <p className={styles.fieldError} id={`${prefix}-name-error`}>{errors.displayName}</p>}
       </div>
       <div className={styles.field}>
-        <label htmlFor={`${prefix}-phone`} className={styles.label}>Phone <span className={styles.optional}>Optional</span></label>
-        <input id={`${prefix}-phone`} className={styles.input} value={value.phone} onChange={(event) => onChange({ ...value, phone: event.target.value })} type="tel" autoComplete="tel" disabled={disabled} aria-invalid={Boolean(errors.phone)} aria-describedby={errors.phone ? `${prefix}-phone-error` : undefined} />
+        <label htmlFor={`${prefix}-birth-date`} className={styles.label}>Date of birth <span aria-hidden="true">*</span></label>
+        <input id={`${prefix}-birth-date`} className={styles.input} value={value.birthDate} onChange={(event) => onChange({ ...value, birthDate: event.target.value })} type="date" disabled={disabled} required aria-invalid={Boolean(errors.birthDate)} aria-describedby={errors.birthDate ? `${prefix}-birth-date-error` : undefined} />
+        {errors.birthDate && <p className={styles.fieldError} id={`${prefix}-birth-date-error`}>{errors.birthDate}</p>}
+      </div>
+      <div className={styles.field}>
+        <label htmlFor={`${prefix}-gender`} className={styles.label}>Gender <span aria-hidden="true">*</span></label>
+        <select id={`${prefix}-gender`} className={styles.input} value={value.gender} onChange={(event) => onChange({ ...value, gender: event.target.value as Gender | "" })} disabled={disabled} required aria-invalid={Boolean(errors.gender)} aria-describedby={errors.gender ? `${prefix}-gender-error` : undefined}>
+          <option value="">Select</option><option value="MALE">Male</option><option value="FEMALE">Female</option><option value="OTHER">Other</option><option value="UNDISCLOSED">Undisclosed</option>
+        </select>
+        {errors.gender && <p className={styles.fieldError} id={`${prefix}-gender-error`}>{errors.gender}</p>}
+      </div>
+      <div className={styles.field}>
+        <label htmlFor={`${prefix}-phone`} className={styles.label}>Mobile phone <span aria-hidden="true">*</span></label>
+        <input id={`${prefix}-phone`} className={styles.input} value={value.phone} onChange={(event) => onChange({ ...value, phone: event.target.value })} type="tel" autoComplete="tel" disabled={disabled} required aria-invalid={Boolean(errors.phone)} aria-describedby={errors.phone ? `${prefix}-phone-error` : undefined} />
         {errors.phone && <p className={styles.fieldError} id={`${prefix}-phone-error`}>{errors.phone}</p>}
+      </div>
+      <div className={styles.field}>
+        <label htmlFor={`${prefix}-address`} className={styles.label}>Address <span className={styles.optional}>Optional</span></label>
+        <textarea id={`${prefix}-address`} className={styles.input} value={value.address} onChange={(event) => onChange({ ...value, address: event.target.value })} disabled={disabled} rows={3} aria-invalid={Boolean(errors.address)} aria-describedby={errors.address ? `${prefix}-address-error` : undefined} />
+        {errors.address && <p className={styles.fieldError} id={`${prefix}-address-error`}>{errors.address}</p>}
       </div>
       <div className={styles.identityFields}>
         <div className={styles.field}>

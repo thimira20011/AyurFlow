@@ -96,7 +96,7 @@ func protectedRequest(
 func createProtectedPatient(t *testing.T, f protectedFixture) patients.Patient {
 	t.Helper()
 	response := protectedRequest(f.router, "POST", "/api/v1/patients", f.token, f.csrf,
-		`{"displayName":"Synthetic ආයු patient","phone":"0700000000","identity":{"type":"NIC","value":"synthetic-123"}}`)
+		`{"displayName":"Synthetic ආයු patient","birthDate":"1990-04-12","gender":"UNDISCLOSED","phone":"+94770000101","address":"Synthetic address","identity":{"type":"NIC","value":"synthetic-123"}}`)
 	if response.Code != http.StatusCreated {
 		t.Fatalf("create failed: %d %s", response.Code, response.Body.String())
 	}
@@ -143,7 +143,7 @@ func TestProtectedPatientFlowIntegration(t *testing.T) {
 	}
 	// Ordinary reads did not rotate the token: the original token still authorizes a patch.
 	response = protectedRequest(f.router, "PATCH", "/api/v1/patients/"+patient.ID, f.token, f.csrf,
-		`{"version":1,"displayName":"Synthetic updated","phone":null,"identity":null}`)
+		`{"version":1,"displayName":"Synthetic updated","phone":"+94771111222","identity":null}`)
 	if response.Code != 200 {
 		t.Fatalf("protected update: %d %s", response.Code, response.Body.String())
 	}

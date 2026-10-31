@@ -55,7 +55,10 @@ func registerPatients(group *gin.RouterGroup, service PatientService) {
 		var wire struct {
 			Version     int64           `json:"version"`
 			DisplayName json.RawMessage `json:"displayName"`
+			BirthDate   json.RawMessage `json:"birthDate"`
+			Gender      json.RawMessage `json:"gender"`
 			Phone       json.RawMessage `json:"phone"`
+			Address     json.RawMessage `json:"address"`
 			Identity    json.RawMessage `json:"identity"`
 		}
 		if !patientJSON(c, &wire) {
@@ -72,6 +75,27 @@ func registerPatients(group *gin.RouterGroup, service PatientService) {
 		if len(wire.Phone) > 0 {
 			input.Phone.Set = true
 			if strictJSON(wire.Phone, &input.Phone.Value) != nil {
+				badPatientRequest(c)
+				return
+			}
+		}
+		if len(wire.BirthDate) > 0 {
+			input.BirthDate.Set = true
+			if strictJSON(wire.BirthDate, &input.BirthDate.Value) != nil {
+				badPatientRequest(c)
+				return
+			}
+		}
+		if len(wire.Gender) > 0 {
+			input.Gender.Set = true
+			if strictJSON(wire.Gender, &input.Gender.Value) != nil {
+				badPatientRequest(c)
+				return
+			}
+		}
+		if len(wire.Address) > 0 {
+			input.Address.Set = true
+			if strictJSON(wire.Address, &input.Address.Value) != nil {
 				badPatientRequest(c)
 				return
 			}

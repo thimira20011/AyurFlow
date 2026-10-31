@@ -20,15 +20,28 @@ func TestProvisionalIdentityEquivalence(t *testing.T) {
 }
 
 func TestRegistrationAllowsOptionalIdentityAndUnicodeName(t *testing.T) {
-	if err := ValidateRegistration(RegistrationInput{DisplayName: "සිංහල රෝගියා"}); err != nil {
+	birthDate, gender, phone := "1990-04-12", "UNDISCLOSED", "+94770000101"
+	input := RegistrationInput{DisplayName: "සිංහල රෝගියා", BirthDate: &birthDate, Gender: &gender, Phone: &phone}
+	if err := ValidateRegistration(input); err != nil {
 		t.Fatal(err)
 	}
-	if err := ValidateRegistration(RegistrationInput{DisplayName: "   "}); !errors.Is(err, ErrInvalidPatient) {
+	input.DisplayName = "   "
+	if err := ValidateRegistration(input); !errors.Is(err, ErrInvalidPatient) {
 		t.Fatalf("blank name: %v", err)
 	}
-	if err := ValidateRegistration(RegistrationInput{
-		DisplayName: "Synthetic Patient", Identity: &IdentityInput{Type: "NIC", Value: " - "},
-	}); !errors.Is(err, ErrInvalidPatient) {
+	input.DisplayName = "Synthetic Patient"
+	input.Identity = &IdentityInput{Type: "NIC", Value: " - "}
+	if err := ValidateRegistration(input); !errors.Is(err, ErrInvalidPatient) {
 		t.Fatalf("blank supplied identity: %v", err)
+	}
+	input.Identity = nil
+	input.BirthDate = nil
+	if err := ValidateRegistration(input); !errors.Is(err, ErrInvalidPatient) {
+		t.Fatalf("missing DOB: %v", err)
+	}
+	input.BirthDate = &birthDate
+	phone = "0770000101"
+	if err := ValidateRegistration(input); !errors.Is(err, ErrInvalidPatient) {
+		t.Fatalf("unnormalized phone: %v", err)
 	}
 }

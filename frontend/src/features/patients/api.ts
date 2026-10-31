@@ -1,11 +1,16 @@
 import { APIRequestError, apiGet } from "@/lib/api-client";
 
 export type IdentityType = "NIC" | "PASSPORT";
+export type Gender = "MALE" | "FEMALE" | "OTHER" | "UNDISCLOSED";
 
 export type Patient = {
   id: string;
+  patientCode: string;
   displayName: string;
+  birthDate: string | null;
+  gender: Gender | null;
   phone: string | null;
+  address: string | null;
   identity: { type: IdentityType; value: string } | null;
   version: number;
   createdAt: string;
@@ -21,14 +26,20 @@ type StaffSession = {
 
 export type PatientDraft = {
   displayName: string;
-  phone: string | null;
+  birthDate: string;
+  gender: Gender;
+  phone: string;
+  address: string | null;
   identity: Patient["identity"];
 };
 
 export type PatientChanges = {
   version: number;
   displayName?: string;
-  phone?: string | null;
+  birthDate?: string | null;
+  gender?: Gender;
+  phone?: string;
+  address?: string | null;
   identity?: Patient["identity"];
 };
 

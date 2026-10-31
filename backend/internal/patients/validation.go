@@ -2,13 +2,17 @@ package patients
 
 import (
 	"errors"
+	"regexp"
 	"strings"
+	"time"
 	"unicode/utf8"
 )
 
 // These checks implement the provisional synthetic-development rule in DEC02.
 // HTTP registration uses the shared AUTH-03 session, CSRF and role/record policy.
 var ErrInvalidPatient = errors.New("patients: invalid patient fields")
+
+var mobilePhone = regexp.MustCompile(`^\+947[0-9]{8}$`)
 
 type IdentityInput struct {
 	Type  string `json:"type"`
@@ -17,7 +21,10 @@ type IdentityInput struct {
 
 type RegistrationInput struct {
 	DisplayName string         `json:"displayName"`
+	BirthDate   *string        `json:"birthDate,omitempty"`
+	Gender      *string        `json:"gender,omitempty"`
 	Phone       *string        `json:"phone,omitempty"`
+	Address     *string        `json:"address,omitempty"`
 	Identity    *IdentityInput `json:"identity,omitempty"`
 }
 
@@ -27,7 +34,12 @@ func ValidateRegistration(input RegistrationInput) error {
 	if !validName(input.DisplayName) {
 		return ErrInvalidPatient
 	}
-	if input.Phone != nil && !validPhone(*input.Phone) {
+	if input.BirthDate == nil || !validBirthDate(*input.BirthDate) ||
+		input.Gender == nil || !validGender(*input.Gender) ||
+		input.Phone == nil || !validPhone(*input.Phone) {
+		return ErrInvalidPatient
+	}
+	if input.Address != nil && !validOptionalText(*input.Address, 1024) {
 		return ErrInvalidPatient
 	}
 	if input.Identity != nil {
@@ -44,7 +56,21 @@ func validName(value string) bool {
 }
 
 func validPhone(value string) bool {
-	return utf8.ValidString(value) && len(value) <= 64 && strings.TrimSpace(value) != ""
+	return mobilePhone.MatchString(value)
+}
+
+func validGender(value string) bool {
+	return value == "MALE" || value == "FEMALE" || value == "OTHER" || value == "UNDISCLOSED"
+}
+
+func validOptionalText(value string, limit int) bool {
+	return utf8.ValidString(value) && len(value) <= limit && strings.TrimSpace(value) != ""
+}
+
+func validBirthDate(value string) bool {
+	parsed, err := time.Parse("2006-01-02", value)
+	today := time.Now().In(time.FixedZone("Asia/Colombo", 5*3600+30*60)).Format("2006-01-02")
+	return err == nil && parsed.Format("2006-01-02") == value && value <= today
 }
 
 func validIdentity(value IdentityInput) bool {
