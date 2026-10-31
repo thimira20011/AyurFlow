@@ -66,7 +66,8 @@ func newProtectedFixture(t *testing.T) protectedFixture {
 	service := patients.NewService(pool, &authorization.PatientPolicy{})
 	clinical := consultations.NewService(pool, consultations.AssignedPolicy{})
 	router := NewRouter(pool, AuthRoutes{Service: sessions, AllowedOrigin: protectedOrigin,
-		Patients: service, Consultations: clinical, Signing: clinical})
+		Patients: service, Consultations: clinical, Signing: clinical,
+		Assignments: consultations.NewAssignmentService(pool)})
 	return protectedFixture{pool: pool, sessions: sessions, router: router, actor: actor, token: token, csrf: session.CSRFToken}
 }
 

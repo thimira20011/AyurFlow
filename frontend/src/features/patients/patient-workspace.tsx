@@ -32,6 +32,12 @@ type FormValues = {
 
 const emptyForm: FormValues = { displayName: "", birthDate: "", gender: "", phone: "", address: "", identityType: "", identityValue: "" };
 const byteLength = (value: string) => new TextEncoder().encode(value).length;
+function normalizedPhone(value: string): string {
+  let phone = value.replace(/[ \t\r\n-]/g, "");
+  if (/^07[0-9]{8}$/.test(phone)) phone = `+94${phone.slice(1)}`;
+  else if (/^947[0-9]{8}$/.test(phone)) phone = `+${phone}`;
+  return phone;
+}
 const previewPatients: Patient[] = [
   { id: "00000000-0000-4000-8000-000000000101", patientCode: "AYUR-PT-00001", displayName: "Demo Patient One", birthDate: "1990-04-12", gender: "UNDISCLOSED", phone: "+94770000101", address: null, identity: null, version: 1, createdAt: "2026-10-20T09:00:00Z", updatedAt: "2026-10-20T09:00:00Z" },
   { id: "00000000-0000-4000-8000-000000000102", patientCode: "AYUR-PT-00002", displayName: "Demo Patient Two", birthDate: null, gender: null, phone: null, address: null, identity: { type: "PASSPORT", value: "DEMO-ONLY-02" }, version: 2, createdAt: "2026-10-21T10:30:00Z", updatedAt: "2026-10-22T06:15:00Z" },
@@ -59,7 +65,7 @@ function validateForm(form: FormValues): FieldErrors {
   else if (byteLength(form.displayName) > 512) errors.displayName = "Name is too long.";
   if (!/^\d{4}-\d{2}-\d{2}$/.test(form.birthDate)) errors.birthDate = "Enter a date of birth in YYYY-MM-DD format.";
   if (!form.gender) errors.gender = "Choose a gender value.";
-  if (!/^\+947[0-9]{8}$/.test(form.phone.trim())) errors.phone = "Enter a Sri Lankan mobile number as +947XXXXXXXX.";
+  if (!/^\+947[0-9]{8}$/.test(normalizedPhone(form.phone))) errors.phone = "Enter a Sri Lankan mobile number such as +947XXXXXXXX or 07XXXXXXXX.";
   if (byteLength(form.address) > 1024) errors.address = "Address is too long.";
   if (form.identityType && !form.identityValue.trim()) errors.identity = "Enter the supplied identity number.";
   else if (!form.identityType && form.identityValue.trim()) errors.identity = "Choose an identity type or clear the number.";
@@ -206,7 +212,7 @@ export default function PatientWorkspace({ preview = false }: { preview?: boolea
       displayName: registerForm.displayName.trim(),
       birthDate: registerForm.birthDate,
       gender: registerForm.gender as Gender,
-      phone: registerForm.phone.trim(),
+      phone: normalizedPhone(registerForm.phone),
       address: registerForm.address.trim() || null,
       identity: identityFromForm(registerForm),
     };
@@ -242,7 +248,7 @@ export default function PatientWorkspace({ preview = false }: { preview?: boolea
     const name = editForm.displayName.trim();
     const birthDate = editForm.birthDate;
     const gender = editForm.gender as Gender;
-    const phone = editForm.phone.trim();
+    const phone = normalizedPhone(editForm.phone);
     const address = editForm.address.trim() || null;
     const identity = identityFromForm(editForm);
     const changes: PatientChanges = { version: selected.version };
@@ -357,7 +363,7 @@ export default function PatientWorkspace({ preview = false }: { preview?: boolea
                     </div>
                     <button className={styles.quietButton} type="button" onClick={showDetail} disabled={busy}>Cancel</button>
                   </div>
-                  <p className={styles.panelIntro}>Name, date of birth, gender and mobile phone are required. A supplied NIC or passport remains optional.</p>
+                  <p className={styles.panelIntro}>Name, date of birth, gender and mobile phone are required. Local 07 numbers are stored as +947 numbers. A supplied NIC or passport remains optional.</p>
                   <form onSubmit={(event) => { void handleRegister(event); }} noValidate>
                     <PatientFields prefix="register" value={registerForm} onChange={setRegisterForm} errors={fieldErrors} disabled={busy} />
                     <div className={styles.formActions}>

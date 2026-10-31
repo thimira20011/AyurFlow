@@ -49,8 +49,12 @@
     }
   ],
   "pathwayExample": {
-    "status": "provisional-dec02",
-    "stages": ["Preparatory", "Primary", "Recovery"]
+    "status": "member-b-supplied-dec02-source-pending",
+    "stages": [
+      { "label": "Preparatory", "requiredChecks": ["Initial consultation signed", "Pre-treatment vitals and contraindications recorded", "Attending clinician approval"] },
+      { "label": "Primary", "requiredChecks": ["Primary sessions completed", "Botanical preparations accounted for", "Interim clinician evaluation approved"] },
+      { "label": "Recovery", "requiredChecks": ["Recovery sessions delivered", "Discharge assessment signed", "Final clinician review recorded"] }
+    ]
   },
   "actors": [
     { "fixtureId": "b-reception", "role": "receptionist" },

@@ -56,7 +56,22 @@ func validName(value string) bool {
 }
 
 func validPhone(value string) bool {
-	return mobilePhone.MatchString(value)
+	_, err := NormalizePhone(value)
+	return err == nil
+}
+
+// NormalizePhone stores one E.164 form for common Sri Lankan mobile inputs.
+func NormalizePhone(value string) (string, error) {
+	value = strings.NewReplacer(" ", "", "-", "", "\t", "", "\n", "", "\r", "").Replace(value)
+	if len(value) == 10 && strings.HasPrefix(value, "07") {
+		value = "+94" + value[1:]
+	} else if len(value) == 11 && strings.HasPrefix(value, "947") {
+		value = "+" + value
+	}
+	if !mobilePhone.MatchString(value) {
+		return "", ErrInvalidPatient
+	}
+	return value, nil
 }
 
 func validGender(value string) bool {

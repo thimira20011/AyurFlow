@@ -49,9 +49,13 @@ func TestPatientServiceIntegration(t *testing.T) {
 	access := &testAccess{}
 	service := NewService(pool, access)
 
-	first, err := service.Create(ctx, actor, syntheticRegistration("සිංහල රෝගියා"))
+	firstInput := syntheticRegistration("සිංහල රෝගියා")
+	localPhone := "0770000101"
+	firstInput.Phone = &localPhone
+	first, err := service.Create(ctx, actor, firstInput)
 	if err != nil || first.Identity != nil || first.Version != 1 || first.PatientCode != "AYUR-PT-00001" ||
-		first.BirthDate == nil || *first.BirthDate != "1990-04-12" || first.Gender == nil || *first.Gender != "UNDISCLOSED" {
+		first.BirthDate == nil || *first.BirthDate != "1990-04-12" || first.Gender == nil || *first.Gender != "UNDISCLOSED" ||
+		first.Phone == nil || *first.Phone != "+94770000101" {
 		t.Fatalf("optional identity registration: patient=%+v err=%v", first, err)
 	}
 	second, err := service.Create(ctx, actor, syntheticRegistration("සිංහල දෙවන රෝගියා"))

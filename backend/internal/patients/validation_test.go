@@ -40,8 +40,20 @@ func TestRegistrationAllowsOptionalIdentityAndUnicodeName(t *testing.T) {
 		t.Fatalf("missing DOB: %v", err)
 	}
 	input.BirthDate = &birthDate
-	phone = "0770000101"
+	phone = "not-a-phone"
 	if err := ValidateRegistration(input); !errors.Is(err, ErrInvalidPatient) {
-		t.Fatalf("unnormalized phone: %v", err)
+		t.Fatalf("invalid phone: %v", err)
+	}
+}
+
+func TestNormalizePhone(t *testing.T) {
+	for _, input := range []string{"0770000101", "94770000101", "+94 77-0000101"} {
+		got, err := NormalizePhone(input)
+		if err != nil || got != "+94770000101" {
+			t.Fatalf("normalization %q = %q, %v", input, got, err)
+		}
+	}
+	if _, err := NormalizePhone("071234"); !errors.Is(err, ErrInvalidPatient) {
+		t.Fatalf("short phone accepted: %v", err)
 	}
 }

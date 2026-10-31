@@ -81,6 +81,7 @@ func (s *Service) Create(ctx context.Context, actor string, input RegistrationIn
 	if s == nil || s.pool == nil || s.access == nil {
 		return Patient{}, ErrForbidden
 	}
+	phone, _ := NormalizePhone(*input.Phone)
 	var created Patient
 	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		if err := s.access.CanRegister(ctx, tx, actor); err != nil {
@@ -89,7 +90,7 @@ func (s *Service) Create(ctx context.Context, actor string, input RegistrationIn
 		var id string
 		err := tx.QueryRow(ctx, `INSERT INTO patients(display_name, birth_date, gender, phone, address, created_by, updated_by)
 			VALUES ($1, $2::date, $3, $4, $5, $6, $6) RETURNING id::text`,
-			input.DisplayName, input.BirthDate, input.Gender, input.Phone, input.Address, actor).Scan(&id)
+			input.DisplayName, input.BirthDate, input.Gender, phone, input.Address, actor).Scan(&id)
 		if err != nil {
 			return err
 		}

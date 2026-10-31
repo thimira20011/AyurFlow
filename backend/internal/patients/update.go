@@ -49,6 +49,8 @@ func (s *Service) Update(ctx context.Context, actor, id string, input UpdateInpu
 	}
 	if input.Phone.Set {
 		fields = append(fields, "phone")
+		phone, _ := NormalizePhone(*input.Phone.Value)
+		input.Phone.Value = &phone
 	}
 	if input.Address.Set {
 		fields = append(fields, "address")
