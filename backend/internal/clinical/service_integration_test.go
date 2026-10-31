@@ -147,6 +147,12 @@ func TestPlanActionsIntegration(t *testing.T) {
 	if _, err := service.Advance(ctx, clinician, plan.ID, plan.Version); !errors.Is(err, ErrConflict) {
 		t.Fatalf("completed plan advanced: %v", err)
 	}
+	if _, err := pool.Exec(ctx, `UPDATE care_plans SET status='active' WHERE id=$1`, plan.ID); err == nil {
+		t.Fatal("terminal plan was edited directly")
+	}
+	if _, err := pool.Exec(ctx, `INSERT INTO plan_stages(plan_id,ordinal,label) VALUES ($1,4,'UNAPPROVED')`, plan.ID); err == nil {
+		t.Fatal("stage added to completed plan")
+	}
 	var decisions, events int
 	if err := pool.QueryRow(ctx, `SELECT count(*) FROM plan_decisions WHERE plan_id=$1`, plan.ID).Scan(&decisions); err != nil {
 		t.Fatal(err)
