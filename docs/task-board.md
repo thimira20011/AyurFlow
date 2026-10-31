@@ -11,7 +11,7 @@ This is the single tracking board for the 64 tasks in the *AyurFlow Team task pl
 | A | Pending | Shared API, auth, audit, deployment | F |
 | B | Current user; name pending | Patients and clinical workflow | C |
 | C | Pending | Scheduling and session delivery | B |
-| D | Pending | Inventory and preparation | E |
+| D | K. I. R. Perera (`22FIS0506`) | Inventory and preparation | E |
 | E | Pending | Billing | D |
 | F | Pending | Shared UI, integration and UAT | A |
 | Team lead | Pending | Formal clinic/institution coordination | Pending |
@@ -24,7 +24,7 @@ Status values: **Pending** = not started; **In progress** = work underway but co
 | --- | --- | --- | --- | --- | --- |
 | TASK-SET-01 | Named assignments, one board, sprint reviews | A coordinates | F | In progress | This board; names/reviews pending |
 | TASK-SET-02 | Clinic identity, patient fields, access, pathway | B | C; clinic review | Done | `member-b/confirm-clinic-rules`; interim rules and DEC01–02 open owners/gates recorded. Clinic approval remains a separate UAT gate. |
-| TASK-SET-03 | Availability, recipe/expiry and billing examples | C coordinates D/E | B; clinic review | Pending | — |
+| TASK-SET-03 | Availability, recipe/expiry and billing examples | C coordinates D/E | B; clinic review | In progress | D's [DEC03 inventory/recipe/expiry review record](inventory-rules-review.md) and [AT08–11 examples](qa/member-d-examples.md) on `member-d/task-set-03-inventory-rules`, plus E's [DEC04 billing review record](billing-rules-review.md); C availability examples and clinic review pending |
 | TASK-SET-04 | IDs, units, errors, sessions and retry conventions | A | F; all owners review | Pending | — |
 | TASK-SET-05 | Working repo, migrations, synthetic seed and checks | A | F | In progress | Scaffold exists; member startup pending |
 | TASK-SET-06 | Shared schema and OpenAPI module boundaries | A coordinates B–E | F; all owners review | In progress | B's [patient/clinical draft](api/member-b-contract.md) on `member-b/schema-api-contracts`; A/C/F review, other modules and migration sequence pending |
@@ -114,7 +114,7 @@ Status values: **Pending** = not started; **In progress** = work underway but co
 
 | Task | Deliverable | Owner slot | Peer reviewer | Status | Evidence |
 | --- | --- | --- | --- | --- | --- |
-| TASK-QA-01 | Requirement/test checklist and synthetic journey data | F; all owners supply examples | A | In progress | B's [synthetic AT02–05 examples](qa/member-b-examples.md) on `member-b/clinical-test-examples`; F/A review and other modules pending |
+| TASK-QA-01 | Requirement/test checklist and synthetic journey data | F; all owners supply examples | A | In progress | B's [synthetic AT02–05 examples](qa/member-b-examples.md) and D's [synthetic AT08–11 examples](qa/member-d-examples.md) (`tests/fixtures/member-d-cases.json`); F/A review and other modules pending |
 | TASK-QA-02 | Authorized report navigation | F with D/E; A checks access | A | Pending | — |
 | TASK-QA-03 | Patient-to-receipt walkthrough | F; owners fix modules | A | Pending | — |
 | TASK-QA-04 | Critical audit and permission sweep | A with F | F | Pending | — |
