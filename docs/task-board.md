@@ -62,7 +62,7 @@ Status values: **Pending** = not started; **In progress** = work underway but co
 | TASK-CON-01 | Consultation/addendum schema and drafts | B | C | In progress | [PR #32](https://github.com/thimira20011/AyurFlow/pull/32) and [PR #39](https://github.com/thimira20011/AyurFlow/pull/39) merged; [PR #49](https://github.com/thimira20011/AyurFlow/pull/49) adds administrator assignment workflow and live protected draft wiring; AT03 journey and source/review evidence pending |
 | TASK-CON-02 | Signing, immutable text and dated addenda | B | C | In progress | [PR #36](https://github.com/thimira20011/AyurFlow/pull/36) and [PR #42](https://github.com/thimira20011/AyurFlow/pull/42) merged; [PR #49](https://github.com/thimira20011/AyurFlow/pull/49) wires protected signing/addenda; AT03 journey and source/review evidence pending |
 | TASK-CON-03 | Consultation editor, sign and history UI | B | C | In progress | [PR #38](https://github.com/thimira20011/AyurFlow/pull/38) merged; [PR #49](https://github.com/thimira20011/AyurFlow/pull/49) supplies live protected HTTP/assignment integration; shared sign-in and AT03 screen journey pending |
-| TASK-CON-04 | AT02–03 patient/consultation verification | B | C | Pending | — |
+| TASK-CON-04 | AT02–03 patient/consultation verification | B | C | In progress | `member-b/con-04-patient-consultation-verification` adds protected HTTP duplicate-registration and sign/edit races; [PostgreSQL CI passed](https://github.com/thimira20011/AyurFlow/actions/runs/41236381647). [Implementation test record](testing.md#task-con-04-patient-and-consultation-verification) distinguishes these checks from pending AT02–03 staff journeys and C review. |
 
 ## 5. Clinical plans and approvals (weeks 3–4)
 
