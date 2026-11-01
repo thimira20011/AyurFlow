@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
+import styles from "./heritage.module.css";
 import { apiGet, apiMutation, APIRequestError, canOpenArea, login, sessionExpiredEvent, type StaffSession } from "@/lib/api-client";
 
 type SessionContextValue = {
@@ -101,11 +102,20 @@ export function StaffSessionProvider({ children }: { children: React.ReactNode }
   let content = children;
   if (!publicPage) {
     if (loading) content = <p role="status">Checking your session…</p>;
-    else if (!session) content = <div role="status"><p>{error || "Sign in to continue."}</p><button className="auth-btn-primary" onClick={() => void refresh()}>Retry session lookup</button><Link href="/sign-in">Go to sign in</Link></div>;
-    else if (!canOpenArea(path, session.roles)) content = <div><h1>Access unavailable</h1><p>This area is not assigned to your role.</p><Link href="/workspace">Return to workspace</Link></div>;
+    else if (!session) content = <div className={`${styles.theme} ${styles.stateShell}`}><section role="status" className={styles.stateCard} aria-labelledby="session-state-title">
+      <p className={styles.eyebrow}>STAFF SIGN-IN</p><h1 id="session-state-title">Sign in to continue.</h1>
+      <p>{error === "Your session ended. Sign in again." ? "Your staff session has ended. Sign in again before continuing with protected records." : error || "Sign in before continuing with protected records."}</p>
+      {error && error !== "Your session ended. Sign in again." && <button className={styles.secondary} onClick={() => void refresh()}>Retry session lookup</button>}
+      <Link className={styles.primary} href="/sign-in">Return to sign-in</Link>
+    </section></div>;
+    else if (!canOpenArea(path, session.roles)) content = <div className={`${styles.theme} ${styles.stateShell}`}><section className={styles.stateCard} aria-labelledby="access-state-title">
+      <p className={styles.eyebrow}>ACCESS RESTRICTED</p><h1 id="access-state-title">This record is not available to you.</h1>
+      <p>Your account does not have permission for this record or action. Return to your workspace or contact the clinic administrator.</p>
+      <Link className={styles.primary} href="/workspace">Return to workspace</Link>
+    </section></div>;
   }
   return <SessionContext.Provider value={{ session, loading, error, refresh, signIn, signOut, signingOut }}>
-    {session && <nav aria-label="Staff session" className="mb-6 flex flex-wrap items-center gap-4 rounded-xl border border-green-900/15 bg-white p-4">
+    {session && path !== "/administration" && <nav aria-label="Staff session" className="mb-6 flex flex-wrap items-center gap-4 rounded-xl border border-green-900/15 bg-white p-4">
       <Link href="/workspace" className="font-semibold underline">Workspace</Link>
       <span className="text-sm">{session.roles.length ? session.roles.join(", ") : "No roles assigned"}</span>
       <button type="button" className="ml-auto rounded-lg border px-4 py-2" disabled={signingOut} onClick={() => void signOut()}>{signingOut ? "Signing out…" : "Sign out"}</button>

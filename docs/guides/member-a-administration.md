@@ -18,17 +18,17 @@ Repeated unsuccessful sign-in can trigger a temporary block. Ask the administrat
 This requires an active **administrator** account. Initial synthetic bootstrap is an operator task described in the [operations runbook](../operations.md); there is no production bootstrap or password-recovery workflow yet.
 
 1. From **Staff workspace**, select **Staff administration**.
-2. In **Create staff account**, enter a unique **Login identifier**, an **Initial password**, and the required roles under **Assign roles**. Choose only roles approved for that staff member's duties.
+2. On **Staff & roles**, select **+ Create staff account**. In the dialog, enter a unique **Login identifier**, an **Initial password**, and the required roles under **Assign roles explicitly**. Choose only roles approved for that staff member's duties. **Cancel** or Escape closes the dialog without creating an account.
 3. Use at least **15 Unicode characters** for an administrator-created initial password. The server also limits it to 1,024 UTF-8 bytes. Login identifiers are trimmed/lowercased, limited to 64 UTF-8 bytes and cannot contain control characters.
-4. Select **Create account** once. After **Staff account created**, provide the initial password privately through the agreed credential channel. Do not record it in tickets, screenshots or Git.
-5. Confirm the account and roles in **Staff accounts**. The list contains up to 25 accounts per page; use **Next page** or **Refresh first page** to navigate it. Newly created accounts need not appear on the first page.
+4. Select **Create staff account** once. After **Staff account created**, provide the initial password privately through the agreed credential channel. Do not record it in tickets, screenshots or Git.
+5. Confirm the login, roles and status in the staff table. The list contains up to 25 accounts per page; use **Next page** or **Refresh first page** to navigate it. Newly created accounts need not appear on the first page. Human display names are not part of the current staff API; account labels do not supply a person's name.
 
 If a request times out or its outcome cannot be confirmed, refresh and inspect the pages before trying again. A duplicate identifier is a conflict, not a reason to create a second identity. The application has no password reset, forced first-password change, account reactivation or account deletion action.
 
 ## Change roles or disable access
 
-1. Find the correct login in **Staff accounts** and review its **Active** or **Disabled** status.
-2. To change access, select the intended nonempty set of roles and choose **Save roles**. An actual role change ends that person's active sessions; they must sign in again.
+1. Find the correct login in the staff table and review its **Active** or **Disabled** status. Select **Manage access** for an active account or **View account** for a disabled account.
+2. In the access dialog, select the intended nonempty set of roles and choose **Save roles**. An actual role change ends that person's active sessions; they must sign in again.
 3. To remove access, choose **Disable account**, verify the login in the confirmation, then confirm. After **Account disabled and sessions ended**, the account cannot sign in. Its historical references remain.
 4. If the outcome is uncertain, refresh and inspect the current account state before another action. Disabled accounts cannot receive role changes through this screen.
 

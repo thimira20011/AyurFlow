@@ -1,5 +1,13 @@
 # Verification plan and evidence
 
+## Figma alignment for Member A screens (2 November 2026)
+
+Owner A, reviewer F; AUTH-04/AUTH-06/QA-04, IAM-01–05/ADM-01, AT01 and AT15 support. Follow-up on `codex/auth-06-integration-repair` after `ee7e7a2`. Figma file `z0du8yEIF8zoZfemfhbIzo`, frames `5:23`, `7:499`, `9:656`, `9:612`, `9:618`: high-fidelity design context and screenshots supplied typography, dimensions, colors and assets. Implementation uses scoped DM Sans/Lora styles, the exact downloaded paper/SVG exports, a real-data staff table, native account dialogs and the shared protected-session states. No business API, role policy or migration changes.
+
+Codex automation on Windows/Node 22.23.2/npm 10.9.8: production build/TypeScript and all 13 helper tests passed; lint passed with the existing unused `executeSearch` warning in B's patient screen. All 15 synthetic-response Chromium cases passed, including create/role/disable actions, dialog dismissal/focus return, show-password, local artwork and no page-wide horizontal overflow at 1366×768 and 1024×768. The new focus assertion initially failed; restoring the opener during dialog cleanup fixed it. Sign-in, staff-table, create-dialog and protected-state captures were visually inspected against the Figma renders; local captures are under `.cache/figma-*.png` and are not published assets. Exported SVG root dimensions are retained; matching paper/sprout exports were hash-verified before deduplication. These checks do not close real HTTPS/backend AT01, full AT15 or F review.
+
+Deliberate functional differences from the static frames: names not provided by the staff API are not invented; current date/roles/identifiers are dynamic; the full role catalog remains available; reference-data and audit links are disabled until implemented; existing pagination, clinician-assignment access and actual logout remain available. Other modules' layouts are outside this alignment.
+
 ## AUTH-06/QA-04 frontend integration repair (2 November 2026)
 
 - **Owner/reviewer/scope:** A/F; IAM-01–05 and AT01/AT13 frontend integration support. Branch `codex/auth-06-integration-repair`, based on `dev` at `13c22e5`. No backend endpoint, migration or session-policy change.
