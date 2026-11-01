@@ -11,6 +11,7 @@ export type Patient = {
   gender: Gender | null;
   phone: string | null;
   address: string | null;
+  postalCode: string | null;
   identity: { type: IdentityType; value: string } | null;
   version: number;
   createdAt: string;
@@ -28,8 +29,9 @@ export type PatientDraft = {
   displayName: string;
   birthDate: string;
   gender: Gender;
-  phone: string;
+  phone: string | null;
   address: string | null;
+  postalCode: string | null;
   identity: Patient["identity"];
 };
 
@@ -38,8 +40,9 @@ export type PatientChanges = {
   displayName?: string;
   birthDate?: string | null;
   gender?: Gender;
-  phone?: string;
+  phone?: string | null;
   address?: string | null;
+  postalCode?: string | null;
   identity?: Patient["identity"];
 };
 
@@ -60,8 +63,8 @@ export function getPatient(id: string): Promise<Patient> {
   return apiGet<Patient>(`/patients/${encodeURIComponent(id)}`);
 }
 
-export function confirmNoIDIdentity(displayName: string, birthDate: string, phone: string): Promise<Patient> {
-  return apiMutation<Patient>("/patient-identity-confirmations", { displayName, birthDate, phone });
+export function confirmNoIDIdentity(displayName: string, birthDate: string, phone: string, postalCode: string): Promise<Patient> {
+  return apiMutation<Patient>("/patient-identity-confirmations", { displayName, birthDate, phone, postalCode });
 }
 
 export function registerPatient(input: PatientDraft): Promise<Patient> {

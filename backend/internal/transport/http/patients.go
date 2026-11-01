@@ -73,6 +73,7 @@ func registerPatients(group *gin.RouterGroup, service PatientService) {
 			Gender      json.RawMessage `json:"gender"`
 			Phone       json.RawMessage `json:"phone"`
 			Address     json.RawMessage `json:"address"`
+			PostalCode  json.RawMessage `json:"postalCode"`
 			Identity    json.RawMessage `json:"identity"`
 		}
 		if !patientJSON(c, &wire) {
@@ -110,6 +111,13 @@ func registerPatients(group *gin.RouterGroup, service PatientService) {
 		if len(wire.Address) > 0 {
 			input.Address.Set = true
 			if strictJSON(wire.Address, &input.Address.Value) != nil {
+				badPatientRequest(c)
+				return
+			}
+		}
+		if len(wire.PostalCode) > 0 {
+			input.PostalCode.Set = true
+			if strictJSON(wire.PostalCode, &input.PostalCode.Value) != nil {
 				badPatientRequest(c)
 				return
 			}

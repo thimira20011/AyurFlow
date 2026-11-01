@@ -20,18 +20,19 @@ import styles from "./patient-workspace.module.css";
 
 type Access = "checking" | "ready" | "signin" | "forbidden" | "unavailable";
 type Notice = { tone: "success" | "error" | "info"; text: string; signIn?: boolean };
-type FieldErrors = Partial<Record<"displayName" | "birthDate" | "gender" | "phone" | "address" | "identity", string>>;
+type FieldErrors = Partial<Record<"displayName" | "birthDate" | "gender" | "phone" | "address" | "postalCode" | "identity", string>>;
 type FormValues = {
   displayName: string;
   birthDate: string;
   gender: Gender | "";
   phone: string;
   address: string;
+  postalCode: string;
   identityType: IdentityType | "";
   identityValue: string;
 };
 
-const emptyForm: FormValues = { displayName: "", birthDate: "", gender: "", phone: "", address: "", identityType: "", identityValue: "" };
+const emptyForm: FormValues = { displayName: "", birthDate: "", gender: "", phone: "", address: "", postalCode: "", identityType: "", identityValue: "" };
 const byteLength = (value: string) => new TextEncoder().encode(value).length;
 function normalizedPhone(value: string): string {
   let phone = value.replace(/[ \t\r\n-]/g, "");
@@ -39,9 +40,10 @@ function normalizedPhone(value: string): string {
   else if (/^947[0-9]{8}$/.test(phone)) phone = `+${phone}`;
   return phone;
 }
+const normalizedPostalCode = (value: string) => value.replace(/\s+/g, "").toUpperCase();
 const previewPatients: Patient[] = [
-  { id: "00000000-0000-4000-8000-000000000101", patientCode: "AYUR-PT-00001", displayName: "Demo Patient One", birthDate: "1990-04-12", gender: "UNDISCLOSED", phone: "+94770000101", address: null, identity: null, version: 1, createdAt: "2026-10-20T09:00:00Z", updatedAt: "2026-10-20T09:00:00Z" },
-  { id: "00000000-0000-4000-8000-000000000102", patientCode: "AYUR-PT-00002", displayName: "Demo Patient Two", birthDate: null, gender: null, phone: null, address: null, identity: { type: "PASSPORT", value: "DEMO-ONLY-02" }, version: 2, createdAt: "2026-10-21T10:30:00Z", updatedAt: "2026-10-22T06:15:00Z" },
+  { id: "00000000-0000-4000-8000-000000000101", patientCode: "AYUR-PT-00001", displayName: "Demo Patient One", birthDate: "1990-04-12", gender: "UNDISCLOSED", phone: "+94770000101", address: null, postalCode: null, identity: null, version: 1, createdAt: "2026-10-20T09:00:00Z", updatedAt: "2026-10-20T09:00:00Z" },
+  { id: "00000000-0000-4000-8000-000000000102", patientCode: "AYUR-PT-00002", displayName: "Demo Patient Two", birthDate: null, gender: null, phone: null, address: null, postalCode: null, identity: { type: "PASSPORT", value: "DEMO-ONLY-02" }, version: 2, createdAt: "2026-10-21T10:30:00Z", updatedAt: "2026-10-22T06:15:00Z" },
 ];
 
 function formFromPatient(patient: Patient): FormValues {
@@ -51,6 +53,7 @@ function formFromPatient(patient: Patient): FormValues {
     gender: patient.gender ?? "",
     phone: patient.phone ?? "",
     address: patient.address ?? "",
+    postalCode: patient.postalCode ?? "",
     identityType: patient.identity?.type ?? "",
     identityValue: patient.identity?.value ?? "",
   };
@@ -66,7 +69,9 @@ function validateForm(form: FormValues): FieldErrors {
   else if (byteLength(form.displayName) > 512) errors.displayName = "Name is too long.";
   if (!/^\d{4}-\d{2}-\d{2}$/.test(form.birthDate)) errors.birthDate = "Enter a date of birth in YYYY-MM-DD format.";
   if (!form.gender) errors.gender = "Choose a gender value.";
-  if (!/^\+947[0-9]{8}$/.test(normalizedPhone(form.phone))) errors.phone = "Enter a Sri Lankan mobile number such as +947XXXXXXXX or 07XXXXXXXX.";
+  if (form.phone.trim() && !/^\+947[0-9]{8}$/.test(normalizedPhone(form.phone))) errors.phone = "Enter a Sri Lankan mobile number such as +947XXXXXXXX or 07XXXXXXXX.";
+  if (!form.phone.trim() && !form.postalCode.trim()) errors.phone = "Enter a mobile phone or residential postal code.";
+  if (form.postalCode.trim() && !/^[A-Z0-9][A-Z0-9-]{1,15}$/.test(normalizedPostalCode(form.postalCode))) errors.postalCode = "Enter a postal code of 2–16 letters, numbers or hyphens.";
   if (byteLength(form.address) > 1024) errors.address = "Address is too long.";
   if (form.identityType && !form.identityValue.trim()) errors.identity = "Enter the supplied identity number.";
   else if (!form.identityType && form.identityValue.trim()) errors.identity = "Choose an identity type or clear the number.";
@@ -115,6 +120,7 @@ export default function PatientWorkspace({ preview = false }: { preview?: boolea
   const [matchName, setMatchName] = useState("");
   const [matchBirthDate, setMatchBirthDate] = useState("");
   const [matchPhone, setMatchPhone] = useState("");
+  const [matchPostalCode, setMatchPostalCode] = useState("");
   const [searched, setSearched] = useState(preview);
   const [results, setResults] = useState<Patient[]>(preview ? previewPatients : []);
   const [selected, setSelected] = useState<Patient | null>(preview ? previewPatients[0] : null);
@@ -210,8 +216,10 @@ export default function PatientWorkspace({ preview = false }: { preview?: boolea
   async function handleConfirmIdentity(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!matchName.trim() || !/^\d{4}-\d{2}-\d{2}$/.test(matchBirthDate) ||
-        !/^\+947[0-9]{8}$/.test(normalizedPhone(matchPhone))) {
-      setNotice({ tone: "error", text: "Enter the full name, exact date of birth and mobile phone supplied for identity confirmation." });
+        (Boolean(matchPhone.trim()) === Boolean(matchPostalCode.trim())) ||
+        (matchPhone.trim() && !/^\+947[0-9]{8}$/.test(normalizedPhone(matchPhone))) ||
+        (matchPostalCode.trim() && !/^[A-Z0-9][A-Z0-9-]{1,15}$/.test(normalizedPostalCode(matchPostalCode)))) {
+      setNotice({ tone: "error", text: "Enter full name, exact date of birth, and either a mobile phone or residential postal code." });
       return;
     }
     setBusy(true);
@@ -223,10 +231,12 @@ export default function PatientWorkspace({ preview = false }: { preview?: boolea
         const name = matchName.trim().replace(/\s+/g, " ").toLocaleLowerCase();
         const matches = previewStore.current.filter(item =>
           item.displayName.trim().replace(/\s+/g, " ").toLocaleLowerCase() === name &&
-          item.birthDate === matchBirthDate && item.phone === normalizedPhone(matchPhone));
+          item.birthDate === matchBirthDate && (matchPhone.trim()
+            ? item.phone === normalizedPhone(matchPhone)
+            : item.phone === null && item.identity === null && item.postalCode === normalizedPostalCode(matchPostalCode)));
         if (matches.length !== 1) throw new APIRequestError(matches.length ? 409 : 404, "identity_match", "Identity could not be confirmed.");
         patient = matches[0];
-      } else patient = await confirmNoIDIdentity(matchName, matchBirthDate, matchPhone);
+      } else patient = await confirmNoIDIdentity(matchName, matchBirthDate, matchPhone.trim(), matchPostalCode.trim());
       setSelected(patient);
       setResults([patient]);
       setSearched(false);
@@ -251,8 +261,9 @@ export default function PatientWorkspace({ preview = false }: { preview?: boolea
       displayName: registerForm.displayName.trim(),
       birthDate: registerForm.birthDate,
       gender: registerForm.gender as Gender,
-      phone: normalizedPhone(registerForm.phone),
+      phone: registerForm.phone.trim() ? normalizedPhone(registerForm.phone) : null,
       address: registerForm.address.trim() || null,
+      postalCode: registerForm.postalCode.trim() ? normalizedPostalCode(registerForm.postalCode) : null,
       identity: identityFromForm(registerForm),
     };
     setBusy(true);
@@ -287,8 +298,9 @@ export default function PatientWorkspace({ preview = false }: { preview?: boolea
     const name = editForm.displayName.trim();
     const birthDate = editForm.birthDate;
     const gender = editForm.gender as Gender;
-    const phone = normalizedPhone(editForm.phone);
+    const phone = editForm.phone.trim() ? normalizedPhone(editForm.phone) : null;
     const address = editForm.address.trim() || null;
+    const postalCode = editForm.postalCode.trim() ? normalizedPostalCode(editForm.postalCode) : null;
     const identity = identityFromForm(editForm);
     const changes: PatientChanges = { version: selected.version };
     if (name !== selected.displayName) changes.displayName = name;
@@ -296,6 +308,7 @@ export default function PatientWorkspace({ preview = false }: { preview?: boolea
     if (gender !== selected.gender) changes.gender = gender;
     if (phone !== selected.phone) changes.phone = phone;
     if (address !== selected.address) changes.address = address;
+    if (postalCode !== selected.postalCode) changes.postalCode = postalCode;
     if (identity?.type !== selected.identity?.type || identity?.value !== selected.identity?.value) {
       changes.identity = identity;
     }
@@ -376,8 +389,10 @@ export default function PatientWorkspace({ preview = false }: { preview?: boolea
                 <input id="match-name" className={styles.input} value={matchName} onChange={event => setMatchName(event.target.value)} disabled={busy} required />
                 <label htmlFor="match-birth-date" className={styles.label}>Date of birth</label>
                 <input id="match-birth-date" className={styles.input} type="date" value={matchBirthDate} onChange={event => setMatchBirthDate(event.target.value)} disabled={busy} required />
-                <label htmlFor="match-phone" className={styles.label}>Primary mobile phone</label>
-                <input id="match-phone" className={styles.input} type="tel" value={matchPhone} onChange={event => setMatchPhone(event.target.value)} disabled={busy} required />
+                <label htmlFor="match-phone" className={styles.label}>Primary mobile phone (when recorded)</label>
+                <input id="match-phone" className={styles.input} type="tel" value={matchPhone} onChange={event => setMatchPhone(event.target.value)} disabled={busy} />
+                <label htmlFor="match-postal-code" className={styles.label}>Residential postal code (when phone and ID are absent)</label>
+                <input id="match-postal-code" className={styles.input} value={matchPostalCode} onChange={event => setMatchPostalCode(event.target.value)} disabled={busy} />
                 <button className={styles.searchButton} disabled={busy}>Confirm exact match</button>
               </form>
               <div className={styles.results} aria-live="polite">
@@ -413,7 +428,7 @@ export default function PatientWorkspace({ preview = false }: { preview?: boolea
                     </div>
                     <button className={styles.quietButton} type="button" onClick={showDetail} disabled={busy}>Cancel</button>
                   </div>
-                  <p className={styles.panelIntro}>Name, date of birth, gender and mobile phone are required. Local 07 numbers are stored as +947 numbers. A supplied NIC or passport remains optional.</p>
+                  <p className={styles.panelIntro}>Name, date of birth, gender and either a mobile phone or residential postal code are required. A supplied NIC or passport remains optional.</p>
                   <form onSubmit={(event) => { void handleRegister(event); }} noValidate>
                     <PatientFields prefix="register" value={registerForm} onChange={setRegisterForm} errors={fieldErrors} disabled={busy} />
                     <div className={styles.formActions}>
@@ -448,6 +463,7 @@ export default function PatientWorkspace({ preview = false }: { preview?: boolea
                       <div className={styles.detailRow}><dt>Gender</dt><dd>{selected.gender ?? "Not supplied"}</dd></div>
                       <div className={styles.detailRow}><dt>Phone</dt><dd>{selected.phone ?? "Not supplied"}</dd></div>
                       <div className={styles.detailRow}><dt>Address</dt><dd>{selected.address ?? "Not supplied"}</dd></div>
+                      <div className={styles.detailRow}><dt>Postal code</dt><dd>{selected.postalCode ?? "Not supplied"}</dd></div>
                       <div className={styles.detailRow}><dt>Identity</dt><dd>{selected.identity ? `${selected.identity.type} · ${selected.identity.value}` : "Not supplied"}</dd></div>
                       <div className={styles.detailRow}><dt>Registered</dt><dd>{formatColombo(selected.createdAt)}</dd></div>
                       <div className={styles.detailRow}><dt>Last updated</dt><dd>{formatColombo(selected.updatedAt)}</dd></div>
@@ -498,9 +514,14 @@ function PatientFields({ prefix, value, onChange, errors, disabled }: {
         {errors.gender && <p className={styles.fieldError} id={`${prefix}-gender-error`}>{errors.gender}</p>}
       </div>
       <div className={styles.field}>
-        <label htmlFor={`${prefix}-phone`} className={styles.label}>Mobile phone <span aria-hidden="true">*</span></label>
-        <input id={`${prefix}-phone`} className={styles.input} value={value.phone} onChange={(event) => onChange({ ...value, phone: event.target.value })} type="tel" autoComplete="tel" disabled={disabled} required aria-invalid={Boolean(errors.phone)} aria-describedby={errors.phone ? `${prefix}-phone-error` : undefined} />
+        <label htmlFor={`${prefix}-phone`} className={styles.label}>Mobile phone <span className={styles.optional}>Phone or postal code required</span></label>
+        <input id={`${prefix}-phone`} className={styles.input} value={value.phone} onChange={(event) => onChange({ ...value, phone: event.target.value })} type="tel" autoComplete="tel" disabled={disabled} aria-invalid={Boolean(errors.phone)} aria-describedby={errors.phone ? `${prefix}-phone-error` : undefined} />
         {errors.phone && <p className={styles.fieldError} id={`${prefix}-phone-error`}>{errors.phone}</p>}
+      </div>
+      <div className={styles.field}>
+        <label htmlFor={`${prefix}-postal-code`} className={styles.label}>Residential postal code <span className={styles.optional}>Phone or postal code required</span></label>
+        <input id={`${prefix}-postal-code`} className={styles.input} value={value.postalCode} onChange={(event) => onChange({ ...value, postalCode: event.target.value })} autoComplete="postal-code" disabled={disabled} aria-invalid={Boolean(errors.postalCode)} aria-describedby={errors.postalCode ? `${prefix}-postal-code-error` : undefined} />
+        {errors.postalCode && <p className={styles.fieldError} id={`${prefix}-postal-code-error`}>{errors.postalCode}</p>}
       </div>
       <div className={styles.field}>
         <label htmlFor={`${prefix}-address`} className={styles.label}>Address <span className={styles.optional}>Optional</span></label>

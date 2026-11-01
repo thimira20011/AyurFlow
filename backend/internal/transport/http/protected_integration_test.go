@@ -176,6 +176,41 @@ func TestProtectedPatientFlowIntegration(t *testing.T) {
 	}
 }
 
+func TestPostalFallbackProtectedPatientIntegration(t *testing.T) {
+	f := newProtectedFixture(t)
+	response := protectedRequest(f.router, "POST", "/api/v1/patients", f.token, f.csrf,
+		`{"displayName":"Synthetic Postal HTTP","birthDate":"1990-04-12","gender":"UNDISCLOSED","postalCode":" 00 500 "}`)
+	if response.Code != 201 {
+		t.Fatalf("postal-only registration status=%d body=%s", response.Code, response.Body.String())
+	}
+	var patient patients.Patient
+	if err := json.Unmarshal(response.Body.Bytes(), &patient); err != nil {
+		t.Fatal(err)
+	}
+	if patient.Phone != nil || patient.PostalCode == nil || *patient.PostalCode != "00500" {
+		t.Fatalf("postal-only demographics=%+v", patient)
+	}
+	matchPath := "/api/v1/patient-identity-confirmations"
+	matchBody := `{"displayName":"synthetic  postal http","birthDate":"1990-04-12","postalCode":"00500"}`
+	if response := protectedRequest(f.router, "POST", matchPath, f.token, f.csrf, matchBody); response.Code != 200 || !strings.Contains(response.Body.String(), patient.ID) {
+		t.Fatalf("postal fallback status=%d body=%s", response.Code, response.Body.String())
+	}
+	response = protectedRequest(f.router, "PATCH", "/api/v1/patients/"+patient.ID, f.token, f.csrf,
+		`{"version":1,"postalCode":"00501"}`)
+	if response.Code != 200 || !strings.Contains(response.Body.String(), "00501") {
+		t.Fatalf("audited postal correction status=%d body=%s", response.Code, response.Body.String())
+	}
+	var auditCount int
+	if err := f.pool.QueryRow(t.Context(), `SELECT count(*) FROM audit_events WHERE
+		action='patient.updated' AND object_id=$1 AND changed_fields=ARRAY['postal_code']::text[]`,
+		patient.ID).Scan(&auditCount); err != nil || auditCount != 1 {
+		t.Fatalf("postal correction audit count=%d err=%v", auditCount, err)
+	}
+	if response := protectedRequest(f.router, "POST", matchPath, f.token, f.csrf, matchBody); response.Code != 404 {
+		t.Fatalf("old postal code still matched: %d", response.Code)
+	}
+}
+
 func TestProtectedSessionRejectionIntegration(t *testing.T) {
 	for _, tc := range []struct {
 		name, sql string

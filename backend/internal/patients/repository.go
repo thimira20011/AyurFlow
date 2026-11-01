@@ -13,13 +13,13 @@ import (
 func readPatient(ctx context.Context, tx pgx.Tx, id string) (Patient, error) {
 	var patient Patient
 	var registryNumber int64
-	var birthDate, gender, phone, address, identityType, identityValue pgtype.Text
+	var birthDate, gender, phone, address, postalCode, identityType, identityValue pgtype.Text
 	// Read demographics and optional identity from one committed statement snapshot.
-	err := tx.QueryRow(ctx, `SELECT p.id::text, p.registry_number, p.display_name, p.birth_date::text, p.gender, p.phone, p.address, p.record_version,
+	err := tx.QueryRow(ctx, `SELECT p.id::text, p.registry_number, p.display_name, p.birth_date::text, p.gender, p.phone, p.address, p.postal_code, p.record_version,
 		p.created_at, p.updated_at, i.identity_type, i.original_value
 		FROM patients p LEFT JOIN patient_identities i ON i.patient_id = p.id
 		WHERE p.id = $1`, id).Scan(
-		&patient.ID, &registryNumber, &patient.DisplayName, &birthDate, &gender, &phone, &address, &patient.Version,
+		&patient.ID, &registryNumber, &patient.DisplayName, &birthDate, &gender, &phone, &address, &postalCode, &patient.Version,
 		&patient.CreatedAt, &patient.UpdatedAt, &identityType, &identityValue,
 	)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -40,6 +40,9 @@ func readPatient(ctx context.Context, tx pgx.Tx, id string) (Patient, error) {
 	}
 	if address.Valid {
 		patient.Address = &address.String
+	}
+	if postalCode.Valid {
+		patient.PostalCode = &postalCode.String
 	}
 	if identityType.Valid {
 		patient.Identity = &IdentityInput{Type: identityType.String, Value: identityValue.String}

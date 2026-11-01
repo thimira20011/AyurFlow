@@ -71,6 +71,7 @@ The [TASK-CON-03 branch workflow](https://github.com/thimira20011/AyurFlow/actio
 | AT02 | Optional identity, duplicate race, Unicode search, demographic audit | B | Pending |
 | AT03 | Draft/sign locking race and preserved dated addenda | B | Pending |
 | AT04 | Ordered plan and clinician approval; current-stage clearance | B/C | Pending |
+
 | AT05 | Hold/resume/cancel, retained history and hold/start race | B/C | Pending |
 | AT06 | Availability, adjacent/overlapping booking races, atomic rescheduling | C | Pending |
 | AT07 | Assigned therapist delivery and cancellation boundaries | C | Pending |
@@ -84,6 +85,8 @@ The [TASK-CON-03 branch workflow](https://github.com/thimira20011/AyurFlow/actio
 | AT15 | 1366×768 and 1024×768, keyboard, labels, Unicode, errors | F/all | Pending |
 | AT16 | Outage re-entry and encrypted isolated restore of four record categories | A/F | Pending |
 | AT17 | Clean startup, migrations, seed, restart persistence, docs and handover | A/F | Pending |
+
+Member B's consolidated implementation and synthetic PostgreSQL CI results for PAT-01–03, CON-01–04 and CLN-01–02/05–06 are in [the 1 November completion evidence](evidence/member-b-completion-2026-11-01.md). The local PostgreSQL run is blocked by the unavailable Docker engine and Go toolchain. AT02–05 remain pending C review, live scheduling/preparation adapters and staff journey evidence.
 
 For each result record setup, steps, expected/actual behavior, tester, date, application version, environment and evidence location. Go PostgreSQL tests live beside module code as `*_integration_test.go` under the `integration` build tag; CI discovers all packages. Store browser scenarios in `tests/e2e`. Record unresolved defects rather than marking them passed.
 

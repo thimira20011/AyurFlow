@@ -57,3 +57,24 @@ func TestNormalizePhone(t *testing.T) {
 		t.Fatalf("short phone accepted: %v", err)
 	}
 }
+
+func TestPostalContactFallback(t *testing.T) {
+	birthDate, gender, postal := "1990-04-12", "UNDISCLOSED", " 00 500 "
+	input := RegistrationInput{DisplayName: "Synthetic Patient", BirthDate: &birthDate,
+		Gender: &gender, PostalCode: &postal}
+	if err := ValidateRegistration(input); err != nil {
+		t.Fatalf("postal-only registration rejected: %v", err)
+	}
+	if got, err := NormalizePostalCode(postal); err != nil || got != "00500" {
+		t.Fatalf("postal normalization=%q err=%v", got, err)
+	}
+	input.PostalCode = nil
+	if err := ValidateRegistration(input); !errors.Is(err, ErrInvalidPatient) {
+		t.Fatalf("registration without phone or postal accepted: %v", err)
+	}
+	for _, invalid := range []string{"", "-123", "12!", "a"} {
+		if _, err := NormalizePostalCode(invalid); !errors.Is(err, ErrInvalidPatient) {
+			t.Fatalf("invalid postal code %q accepted: %v", invalid, err)
+		}
+	}
+}

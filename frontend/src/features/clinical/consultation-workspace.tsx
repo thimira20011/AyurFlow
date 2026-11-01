@@ -224,7 +224,7 @@ export default function ConsultationWorkspace({ preview = false, initialPatientI
     <div className={styles.workspace}>
       {preview && <div className={styles.preview} role="status"><strong>Synthetic screen preview</strong><span>Preview actions use browser memory only. No clinical API or database is used.</span><Link href="/clinical">Live workspace</Link></div>}
       <header className={styles.heading}>
-        <div><p className={styles.kicker}>Clinical records</p><h1>Consultations</h1><p>Work with permitted drafts, signed originals, and dated corrections.</p></div>
+        <div><p className={styles.kicker}>Clinical records</p><h1>Consultations</h1><p>Work with permitted drafts, signed originals, and dated corrections.</p>{!preview && <p><Link href={patientId ? `/clinical/plans?patientId=${encodeURIComponent(patientId)}` : "/clinical/plans"}>Care plans →</Link></p>}</div>
       </header>
       <form className={styles.patientForm} onSubmit={(event) => { void openPatient(event); }}>
         <div><label htmlFor="consultation-patient-id">Patient ID</label><p>Enter a patient ID from an authorized clinical handoff.</p></div>

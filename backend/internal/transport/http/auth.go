@@ -27,6 +27,7 @@ type AuthRoutes struct {
 	Consultations  ConsultationDraftService
 	Signing        ConsultationSigningService
 	Assignments    ClinicalAssignmentService
+	Plans          PlanService
 	Administration AdministrationService
 	Billing        BillingService
 }

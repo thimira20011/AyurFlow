@@ -25,6 +25,7 @@ type RegistrationInput struct {
 	Gender      *string        `json:"gender,omitempty"`
 	Phone       *string        `json:"phone,omitempty"`
 	Address     *string        `json:"address,omitempty"`
+	PostalCode  *string        `json:"postalCode,omitempty"`
 	Identity    *IdentityInput `json:"identity,omitempty"`
 }
 
@@ -36,7 +37,9 @@ func ValidateRegistration(input RegistrationInput) error {
 	}
 	if input.BirthDate == nil || !validBirthDate(*input.BirthDate) ||
 		input.Gender == nil || !validGender(*input.Gender) ||
-		input.Phone == nil || !validPhone(*input.Phone) {
+		(input.Phone == nil && input.PostalCode == nil) ||
+		(input.Phone != nil && !validPhone(*input.Phone)) ||
+		(input.PostalCode != nil && !validPostalCode(*input.PostalCode)) {
 		return ErrInvalidPatient
 	}
 	if input.Address != nil && !validOptionalText(*input.Address, 1024) {
@@ -48,6 +51,32 @@ func ValidateRegistration(input RegistrationInput) error {
 		}
 	}
 	return nil
+}
+
+func validPostalCode(value string) bool {
+	_, err := NormalizePostalCode(value)
+	return err == nil
+}
+
+// NormalizePostalCode makes the fallback comparison exact and case insensitive.
+func NormalizePostalCode(value string) (string, error) {
+	value = strings.ToUpper(strings.Join(strings.Fields(value), ""))
+	if len(value) < 2 || len(value) > 16 {
+		return "", ErrInvalidPatient
+	}
+	for _, char := range value {
+		if char < 'A' || char > 'Z' {
+			if char < '0' || char > '9' {
+				if char != '-' {
+					return "", ErrInvalidPatient
+				}
+			}
+		}
+	}
+	if value[0] == '-' {
+		return "", ErrInvalidPatient
+	}
+	return value, nil
 }
 
 // The limits are provisional transport safety bounds, not DEC02 clinic rules.

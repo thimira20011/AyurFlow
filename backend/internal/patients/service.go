@@ -38,6 +38,7 @@ type Patient struct {
 	Gender      *string        `json:"gender"`
 	Phone       *string        `json:"phone"`
 	Address     *string        `json:"address"`
+	PostalCode  *string        `json:"postalCode"`
 	Identity    *IdentityInput `json:"identity"`
 	Version     int64          `json:"version"`
 	CreatedAt   time.Time      `json:"createdAt"`
@@ -62,6 +63,7 @@ type UpdateInput struct {
 	Gender      OptionalString
 	Phone       OptionalString
 	Address     OptionalString
+	PostalCode  OptionalString
 	Identity    OptionalIdentity
 }
 
@@ -81,16 +83,25 @@ func (s *Service) Create(ctx context.Context, actor string, input RegistrationIn
 	if s == nil || s.pool == nil || s.access == nil {
 		return Patient{}, ErrForbidden
 	}
-	phone, _ := NormalizePhone(*input.Phone)
+	var phone *string
+	if input.Phone != nil {
+		normalized, _ := NormalizePhone(*input.Phone)
+		phone = &normalized
+	}
+	var postalCode *string
+	if input.PostalCode != nil {
+		normalized, _ := NormalizePostalCode(*input.PostalCode)
+		postalCode = &normalized
+	}
 	var created Patient
 	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		if err := s.access.CanRegister(ctx, tx, actor); err != nil {
 			return err
 		}
 		var id string
-		err := tx.QueryRow(ctx, `INSERT INTO patients(display_name, birth_date, gender, phone, address, created_by, updated_by)
-			VALUES ($1, $2::date, $3, $4, $5, $6, $6) RETURNING id::text`,
-			input.DisplayName, input.BirthDate, input.Gender, phone, input.Address, actor).Scan(&id)
+		err := tx.QueryRow(ctx, `INSERT INTO patients(display_name, birth_date, gender, phone, address, postal_code, created_by, updated_by)
+			VALUES ($1, $2::date, $3, $4, $5, $6, $7, $7) RETURNING id::text`,
+			input.DisplayName, input.BirthDate, input.Gender, phone, input.Address, postalCode, actor).Scan(&id)
 		if err != nil {
 			return err
 		}
