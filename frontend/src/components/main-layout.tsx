@@ -5,9 +5,12 @@ import { usePathname } from "next/navigation";
 
 export function MainLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const isAuthPage = pathname.startsWith("/sign-in") || pathname.startsWith("/sign-up");
+  const isStandalonePage =
+    pathname.startsWith("/sign-in") ||
+    pathname.startsWith("/sign-up") ||
+    pathname.startsWith("/reception");
 
-  if (isAuthPage) {
+  if (isStandalonePage) {
     return (
       <main id="main" className="min-h-screen w-full">
         {children}

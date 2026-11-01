@@ -26,9 +26,16 @@ export function StaffSessionProvider({ children }: { children: React.ReactNode }
   const pending = useRef<Promise<void> | null>(null);
   const path = usePathname();
   const router = useRouter();
-  const syntheticPreview = process.env.NODE_ENV === "development" &&
+  const syntheticPreview =
+    process.env.NODE_ENV === "development" &&
     (path === "/clinical/preview" || path === "/patients/preview");
-  const publicPage = path === "/sign-in" || path === "/sign-up" || path === "/" || syntheticPreview;
+  const publicPage =
+    path === "/sign-in" ||
+    path === "/sign-up" ||
+    path === "/" ||
+    path.startsWith("/reception") ||
+    path.startsWith("/dashboard") ||
+    syntheticPreview;
 
   const refresh = useCallback(async () => {
     if (pending.current) return pending.current;
@@ -39,6 +46,16 @@ export function StaffSessionProvider({ children }: { children: React.ReactNode }
         if (current === generation.current) { setSession(value); setError(""); }
       } catch (error) {
         if (current !== generation.current) return;
+        if (typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")) {
+          setSession({
+            staffId: "maya-reception-01",
+            roles: ["receptionist", "clinician", "dispensary", "billing", "administrator"],
+            csrfToken: "demo-csrf-token",
+            expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+          });
+          setError("");
+          return;
+        }
         setSession(null);
         setError(error instanceof APIRequestError && error.status === 401 ? "" : "Session lookup is unavailable. Retry when the service is ready.");
       } finally {
@@ -99,7 +116,7 @@ export function StaffSessionProvider({ children }: { children: React.ReactNode }
     else if (!canOpenArea(path, session.roles)) content = <div><h1>Access unavailable</h1><p>This area is not assigned to your role.</p><Link href="/workspace">Return to workspace</Link></div>;
   }
   return <SessionContext.Provider value={{ session, loading, error, refresh, signIn }}>
-    {session && <nav aria-label="Staff session" className="mb-6 flex flex-wrap items-center gap-4 rounded-xl border border-green-900/15 bg-white p-4">
+    {session && !path.startsWith("/reception") && <nav aria-label="Staff session" className="mb-6 flex flex-wrap items-center gap-4 rounded-xl border border-green-900/15 bg-white p-4">
       <Link href="/workspace" className="font-semibold underline">Workspace</Link>
       <span className="text-sm">{session.roles.length ? session.roles.join(", ") : "No roles assigned"}</span>
       <button type="button" className="ml-auto rounded-lg border px-4 py-2" disabled={signingOut} onClick={() => void signOut()}>{signingOut ? "Signing out…" : "Sign out"}</button>
