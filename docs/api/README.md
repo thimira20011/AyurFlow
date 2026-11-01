@@ -6,6 +6,8 @@
 
 [Member B's patient and clinical contract](member-b-contract.md) is the TASK-SET-06 contribution draft. It records proposed relationships, protected resource shapes and the B/C session-clearance join for review; it is not an implemented endpoint list.
 
+Implemented development contracts are described in [AUTH-03 patient/session access](auth-03-contract.md), [AUTH-04 login](auth-04-login.md) and [AUTH-04 staff administration](auth-04-staff.md). Publication remains subject to the stated reviewer/decision gates. For operator setup, migration and incident handling, use [the operations runbook](../operations.md); staff account instructions are in [the administration guide](../guides/member-a-administration.md).
+
 Use `/api/v1`, consistent errors and parameterized SQL. HTTP conventions: 400 malformed input; 401 unauthenticated; 403 forbidden; 404 absent/inaccessible resource where appropriate; 409 state/concurrency conflict; 422 field validation. Choose bounded list responses and stable pagination in TASK-SET-04/06.
 
 Document backend roles and record restrictions per endpoint. Consumption and receipts carry unique operation identifiers; identical successful retries return the original result, changed payload retries conflict. The final request field and session/CSRF contract is pending DEC07. Do not mark planned endpoints implemented or expose them without permission checks.

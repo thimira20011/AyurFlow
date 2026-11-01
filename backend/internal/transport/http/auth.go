@@ -24,7 +24,12 @@ type AuthRoutes struct {
 	Service        SessionService
 	AllowedOrigin  string
 	Patients       PatientService
+	Consultations  ConsultationDraftService
+	Signing        ConsultationSigningService
+	Assignments    ClinicalAssignmentService
+	Plans          PlanService
 	Administration AdministrationService
+	Billing        BillingService
 }
 
 func registerAuth(api *gin.RouterGroup, routes AuthRoutes) {

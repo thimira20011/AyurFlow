@@ -2,9 +2,11 @@ package config
 
 import (
 	"errors"
+	"io"
 	"net/url"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -27,10 +29,14 @@ type AuthPolicy struct {
 }
 
 func Load() (Config, error) {
+	databaseURL, err := loadDatabaseURL()
+	if err != nil {
+		return Config{}, err
+	}
 	cfg := Config{
 		Environment: valueOrDefault("APP_ENV", "development"),
 		HTTPAddr:    valueOrDefault("HTTP_ADDR", "127.0.0.1:8080"),
-		DatabaseURL: os.Getenv("DATABASE_URL"),
+		DatabaseURL: databaseURL,
 	}
 	if cfg.DatabaseURL == "" {
 		return Config{}, errors.New("DATABASE_URL is required")
@@ -41,6 +47,31 @@ func Load() (Config, error) {
 	}
 	cfg.Auth = policy
 	return cfg, nil
+}
+
+func loadDatabaseURL() (string, error) {
+	value, path := os.Getenv("DATABASE_URL"), os.Getenv("DATABASE_URL_FILE")
+	if value != "" && path != "" {
+		return "", errors.New("set only one of DATABASE_URL and DATABASE_URL_FILE")
+	}
+	if path == "" {
+		return value, nil
+	}
+	file, err := os.Open(path)
+	if err != nil {
+		return "", errors.New("cannot open DATABASE_URL_FILE")
+	}
+	defer file.Close()
+	const limit = 65536
+	contents, err := io.ReadAll(io.LimitReader(file, limit+1))
+	if err != nil || len(contents) > limit {
+		return "", errors.New("cannot read DATABASE_URL_FILE or file exceeds 64 KiB")
+	}
+	value = strings.TrimSpace(string(contents))
+	if value == "" {
+		return "", errors.New("DATABASE_URL_FILE is empty")
+	}
+	return value, nil
 }
 
 func loadAuthPolicy(getenv func(string) string) (AuthPolicy, error) {

@@ -1,9 +1,47 @@
 package config
 
 import (
+	"os"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
+
+func TestLoadDatabaseURL(t *testing.T) {
+	for _, tc := range []struct {
+		name, direct, contents string
+		missing, wantError     bool
+	}{
+		{name: "environment", direct: "synthetic-dsn"},
+		{name: "file with newline", contents: "synthetic-dsn\n"},
+		{name: "ambiguous", direct: "synthetic-dsn", contents: "other", wantError: true},
+		{name: "empty file", contents: "\n", wantError: true},
+		{name: "missing file", missing: true, wantError: true},
+		{name: "oversized file", contents: strings.Repeat("x", 65537), wantError: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv("DATABASE_URL", tc.direct)
+			t.Setenv("DATABASE_URL_FILE", "")
+			if tc.contents != "" || tc.missing {
+				path := filepath.Join(t.TempDir(), "database-url")
+				if !tc.missing {
+					if err := os.WriteFile(path, []byte(tc.contents), 0600); err != nil {
+						t.Fatal(err)
+					}
+				}
+				t.Setenv("DATABASE_URL_FILE", path)
+			}
+			value, err := loadDatabaseURL()
+			if (err != nil) != tc.wantError {
+				t.Fatalf("error=%v, wantError=%v", err, tc.wantError)
+			}
+			if err == nil && value != "synthetic-dsn" {
+				t.Fatal("database secret was not loaded correctly")
+			}
+		})
+	}
+}
 
 func TestLoadAuthPolicy(t *testing.T) {
 	tests := []struct {

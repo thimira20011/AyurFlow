@@ -11,7 +11,7 @@ This is the single tracking board for the 64 tasks in the *AyurFlow Team task pl
 | A | Pending | Shared API, auth, audit, deployment | F |
 | B | Current user; name pending | Patients and clinical workflow | C |
 | C | Pending | Scheduling and session delivery | B |
-| D | Pending | Inventory and preparation | E |
+| D | K. I. R. Perera (`22FIS0506`) | Inventory and preparation | E |
 | E | Pending | Billing | D |
 | F | Pending | Shared UI, integration and UAT | A |
 | Team lead | Pending | Formal clinic/institution coordination | Pending |
@@ -24,7 +24,7 @@ Status values: **Pending** = not started; **In progress** = work underway but co
 | --- | --- | --- | --- | --- | --- |
 | TASK-SET-01 | Named assignments, one board, sprint reviews | A coordinates | F | In progress | This board; names/reviews pending |
 | TASK-SET-02 | Clinic identity, patient fields, access, pathway | B | C; clinic review | Done | `member-b/confirm-clinic-rules`; interim rules and DEC01–02 open owners/gates recorded. Clinic approval remains a separate UAT gate. |
-| TASK-SET-03 | Availability, recipe/expiry and billing examples | C coordinates D/E | B; clinic review | Pending | — |
+| TASK-SET-03 | Availability, recipe/expiry and billing examples | C coordinates D/E | B; clinic review | In progress | D's [DEC03 inventory/recipe/expiry review record](inventory-rules-review.md) and [AT08–11 examples](qa/member-d-examples.md) on `member-d/task-set-03-inventory-rules`, plus E's [DEC04 billing review record](billing-rules-review.md); C availability examples and clinic review pending |
 | TASK-SET-04 | IDs, units, errors, sessions and retry conventions | A | F; all owners review | Pending | — |
 | TASK-SET-05 | Working repo, migrations, synthetic seed and checks | A | F | In progress | Scaffold exists; member startup pending |
 | TASK-SET-06 | Shared schema and OpenAPI module boundaries | A coordinates B–E | F; all owners review | In progress | B's [patient/clinical draft](api/member-b-contract.md) on `member-b/schema-api-contracts`; A/C/F review, other modules and migration sequence pending |
@@ -34,7 +34,7 @@ Status values: **Pending** = not started; **In progress** = work underway but co
 | Task | Deliverable | Owner slot | Peer reviewer | Status | Evidence |
 | --- | --- | --- | --- | --- | --- |
 | TASK-UI-01 | Role-based navigation and screen access | F | A; all owners review | Pending | — |
-| TASK-UI-02 | Patient, consultation and plan wireframes | F with B | A | In progress | B's [visual wireframes and handoff](ui/member-b-clinical-wireframes.md) on `member-b/ui-02-clinical-wireframes`; F/A review and DEC02/08 decisions pending |
+| TASK-UI-02 | Patient, consultation and plan wireframes | F with B | A | Done | [Wireframes and handoff](ui/member-b-clinical-wireframes.md) merged in [PR #33](https://github.com/thimira20011/AyurFlow/pull/33); collaborator approval and B-confirmed team review. DEC02/08 still gate affected clinical implementation/UAT. |
 | TASK-UI-03 | Availability, booking and therapist wireframes | F with C | A | Pending | — |
 | TASK-UI-04 | Batch, recipe, preparation and traceability wireframes | F with D | A | Pending | — |
 | TASK-UI-05 | Invoice, receipt, balance and admin wireframes | F with E/A | A | Pending | — |
@@ -56,20 +56,20 @@ Status values: **Pending** = not started; **In progress** = work underway but co
 
 | Task | Deliverable | Owner slot | Peer reviewer | Status | Evidence |
 | --- | --- | --- | --- | --- | --- |
-| TASK-PAT-01 | Patient schema and identifier rules | B | C | In progress | [PR #19](https://github.com/thimira20011/AyurFlow/pull/19); isolated PostgreSQL schema test passed; A number, C/DEC02 review and AT02 integration pending |
-| TASK-PAT-02 | Registration, search and audited updates | B | C | In progress | [PR #22](https://github.com/thimira20011/AyurFlow/pull/22); [PostgreSQL CI passed](https://github.com/thimira20011/AyurFlow/actions/runs/40089021544); AUTH-03/CSRF, DEC02, C review and AT02 integration pending |
-| TASK-PAT-03 | Registration, search and detail screens | B | C | In progress | [PR #29](https://github.com/thimira20011/AyurFlow/pull/29) merged; development-only synthetic preview; [CI passed](https://github.com/thimira20011/AyurFlow/actions/runs/40177536481); shared sign-in/UI, DEC02/07, C review and AT02 journey pending |
-| TASK-CON-01 | Consultation/addendum schema and drafts | B | C | In progress | [PR #32](https://github.com/thimira20011/AyurFlow/pull/32); [CI passed](https://github.com/thimira20011/AyurFlow/actions/runs/40267707813); assignment policy, protected HTTP, A migration number, C review and AT03 pending |
-| TASK-CON-02 | Signing, immutable text and dated addenda | B | C | Pending | — |
-| TASK-CON-03 | Consultation editor, sign and history UI | B | C | Pending | — |
-| TASK-CON-04 | AT02–03 patient/consultation verification | B | C | Pending | — |
+| TASK-PAT-01 | Patient schema and identifier rules | B | C | In progress | [PR #19](https://github.com/thimira20011/AyurFlow/pull/19) merged; [PR #49](https://github.com/thimira20011/AyurFlow/pull/49) adds DOB/gender/address and display code; signed DEC02 source and AT02 integration pending |
+| TASK-PAT-02 | Registration, search and audited updates | B | C | In progress | [PR #22](https://github.com/thimira20011/AyurFlow/pull/22) merged; [PR #49](https://github.com/thimira20011/AyurFlow/pull/49) extends audited demographics, phone normalization and exact no-ID confirmation; postal fallback and AT02 remain |
+| TASK-PAT-03 | Registration, search and detail screens | B | C | In progress | [PR #29](https://github.com/thimira20011/AyurFlow/pull/29) merged; [PR #49](https://github.com/thimira20011/AyurFlow/pull/49) adds new fields, code lookup, preview access and stale-record clearing; shared sign-in and AT02 journey pending |
+| TASK-CON-01 | Consultation/addendum schema and drafts | B | C | In progress | [PR #32](https://github.com/thimira20011/AyurFlow/pull/32) and [PR #39](https://github.com/thimira20011/AyurFlow/pull/39) merged; [PR #49](https://github.com/thimira20011/AyurFlow/pull/49) adds administrator assignment workflow and live protected draft wiring; AT03 journey and source/review evidence pending |
+| TASK-CON-02 | Signing, immutable text and dated addenda | B | C | In progress | [PR #36](https://github.com/thimira20011/AyurFlow/pull/36) and [PR #42](https://github.com/thimira20011/AyurFlow/pull/42) merged; [PR #49](https://github.com/thimira20011/AyurFlow/pull/49) wires protected signing/addenda; AT03 journey and source/review evidence pending |
+| TASK-CON-03 | Consultation editor, sign and history UI | B | C | In progress | [PR #38](https://github.com/thimira20011/AyurFlow/pull/38) merged; [PR #49](https://github.com/thimira20011/AyurFlow/pull/49) supplies live protected HTTP/assignment integration; shared sign-in and AT03 screen journey pending |
+| TASK-CON-04 | AT02–03 patient/consultation verification | B | C | In progress | `member-b/con-04-patient-consultation-verification` adds protected HTTP duplicate-registration and sign/edit races; [PostgreSQL CI passed](https://github.com/thimira20011/AyurFlow/actions/runs/41236381647). [Implementation test record](testing.md#task-con-04-patient-and-consultation-verification) distinguishes these checks from pending AT02–03 staff journeys and C review. |
 
 ## 5. Clinical plans and approvals (weeks 3–4)
 
 | Task | Deliverable | Owner slot | Peer reviewer | Status | Evidence |
 | --- | --- | --- | --- | --- | --- |
-| TASK-CLN-01 | One pathway and ordered plan/stage schema | B | C | Pending | — |
-| TASK-CLN-02 | Plan, approval and guarded advancement | B | C | Pending | — |
+| TASK-CLN-01 | One pathway and ordered plan/stage schema | B | C | In progress | `member-b/cln-01-pathway-schema` adds schema and PostgreSQL test; A migration number, DEC02 labels/checklist and C review pending |
+| TASK-CLN-02 | Plan, approval and guarded advancement | B | C | In progress | `member-b/cln-02-plan-approval` adds transactional service/tests; DEC02 completion evidence, C session integration, protected HTTP and AT04 pending |
 | TASK-CLN-03 | Hold, resume, cancel and history | B with C | C | Pending | — |
 | TASK-CLN-04 | Shared clearance and plan/start concurrency | B with C | C | Pending | — |
 | TASK-CLN-05 | Plan timeline and clinician actions UI | B | C | Pending | — |
@@ -103,9 +103,9 @@ Status values: **Pending** = not started; **In progress** = work underway but co
 
 | Task | Deliverable | Owner slot | Peer reviewer | Status | Evidence |
 | --- | --- | --- | --- | --- | --- |
-| TASK-BILL-01 | Invoice/receipt schema and integer LKR | E | D | In progress | `member-e/task-bill-01-invoice-schema`; domain types, repository, service, handler and migration written; routes not registered (AUTH-03 gate); patient FK deferred until PAT-01 |
-| TASK-BILL-02 | Draft editing and atomic invoice issue | E | D | Pending | — |
-| TASK-BILL-03 | Direct receipts, deposits and balance | E | D | Pending | — |
+| TASK-BILL-01 | Invoice/receipt schema and integer LKR | E | D | In review | Merged in PR #17; migration `000004_billing.up.sql` live in `dev` |
+| TASK-BILL-02 | Draft editing and atomic invoice issue | E | D | In review | `member-e/task-bill-02-invoice-lifecycle`; routes wired under `RequireSession` in `router.go`, atomic issue, item lines, role checks, frontend workspace, DEC04 review record; Go & Next.js test suites pass |
+| TASK-BILL-03 | Direct receipts, deposits and balance | E | D | In review | `member-e/task-bill-03-receipts-balance`; direct receipts, labelled bank deposits, derived balance, overpayment conflict guard, idempotent operation ID, HTTP routes (`/api/v1/invoices/:id/receipts`, `/api/v1/invoices/:id/balance`), transaction audit logging, and Go & Next.js test suites passing |
 | TASK-BILL-04 | Unique receipt operations and concurrency | E | D | Pending | — |
 | TASK-BILL-05 | Invoice editor, issued view, receipt/history UI | E | D | Pending | — |
 | TASK-BILL-06 | Outstanding report and AT12 verification | E | D | Pending | — |
@@ -114,7 +114,7 @@ Status values: **Pending** = not started; **In progress** = work underway but co
 
 | Task | Deliverable | Owner slot | Peer reviewer | Status | Evidence |
 | --- | --- | --- | --- | --- | --- |
-| TASK-QA-01 | Requirement/test checklist and synthetic journey data | F; all owners supply examples | A | In progress | B's [synthetic AT02–05 examples](qa/member-b-examples.md) on `member-b/clinical-test-examples`; F/A review and other modules pending |
+| TASK-QA-01 | Requirement/test checklist and synthetic journey data | F; all owners supply examples | A | In progress | B's [synthetic AT02–05 examples](qa/member-b-examples.md) and D's [synthetic AT08–11 examples](qa/member-d-examples.md) (`tests/fixtures/member-d-cases.json`); F/A review and other modules pending |
 | TASK-QA-02 | Authorized report navigation | F with D/E; A checks access | A | Pending | — |
 | TASK-QA-03 | Patient-to-receipt walkthrough | F; owners fix modules | A | Pending | — |
 | TASK-QA-04 | Critical audit and permission sweep | A with F | F | Pending | — |
@@ -127,7 +127,7 @@ Status values: **Pending** = not started; **In progress** = work underway but co
 | --- | --- | --- | --- | --- | --- |
 | TASK-OPS-01 | Compose, configuration, HTTPS and pilot deployment | A | F | Pending | — |
 | TASK-OPS-02 | Encrypted daily backup and isolated restore | A | F; clinic operations review | Pending | — |
-| TASK-OPS-03 | Usage, outage, API/setup and migration guides | F assembles; each owner writes module | A | Pending | — |
+| TASK-OPS-03 | Usage, outage, API/setup and migration guides | F assembles; each owner writes module | A | In progress | B's [patient/clinical guide](guides/member-b-staff.md) and A's [administration guide](guides/member-a-administration.md)/[operations runbook](operations.md), A slice on `codex/ops-03-admin-runbook`; A's reviewer is F. Named-member walkthroughs and F/A assembly/review pending |
 | TASK-OPS-04 | Clean startup, migrations, seed and restart | A with F | F | Pending | — |
 | TASK-OPS-05 | Data authorization, custody and support decisions | Team lead; A handles operations | Clinic/institution | Pending | — |
 | TASK-OPS-06 | Training, release and handover | F; all owners teach modules | A; clinic recipient | Pending | — |

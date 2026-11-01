@@ -1,3 +1,9 @@
 # Clinical interface
 
-Feature-specific forms, tables, hooks and API types belong here. The route at src/app/clinical/page.tsx is currently a planned-work-area placeholder. Follow the matching backend module README and shared OpenAPI contract. Enforce authoritative permissions in Go and show accurate failure states; do not use browser visibility as authorization.
+TASK-CON-03 provides the consultation editor at `/clinical`: patient-scoped history, versioned draft save, explicit sign confirmation, read-only signed original and ordered dated corrections. The page is clinician-role gated by the shared staff session UI. Backend role and patient-record checks remain authoritative.
+
+The client API calls in `api.ts` follow B's contract in `docs/api/member-b-contract.md`. With authentication explicitly configured, the Go API registers protected consultation routes and enforces active clinician role plus patient assignment. Administrators grant or revoke assignments at `/administration/clinical-assignments`; their role alone never grants clinical-note access. The signed clinic source and integrated AT03 journey remain review gates. Do not publish these routes in OpenAPI until endpoint review is recorded.
+
+`/clinical/plans` shows the assigned clinician the fixed pathway, stage checklist, version, hold/resume/cancel reason form and dated decision history. It calls the protected B plan API. A 409 on advancement or cancellation means required scheduling/preparation integration evidence is unavailable; the screen must not imply the plan changed. The backend remains the authority for record access and stage prerequisites.
+
+`/clinical/preview` is available only in Next.js development mode. It uses synthetic consultation records and browser memory for its actions; it makes no clinical API or database writes. It is for screen review, not AT03 evidence. Signing fields, correction reason rules and record access still require clinic/team review. No real patient data belongs in the preview.

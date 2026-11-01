@@ -1,0 +1,202 @@
+{
+  "dataset": "member-d-synthetic-v1",
+  "purpose": "Proposed AT08-11 botanical inventory, flat recipe scaling, snapshot, actual consumption and traceability examples; synthetic data only",
+  "rulesBaseline": {
+    "status": "provisional-dec03",
+    "unit": "g",
+    "decimalScale": 3,
+    "roundingMode": "HALF_UP",
+    "expiryTimezone": "Asia/Colombo",
+    "expiryInclusive": true,
+    "missingExpiryConsumable": false
+  },
+  "botanicalItems": [
+    {
+      "fixtureId": "d-item-ashwagandha",
+      "code": "BOT-ASHWA-001",
+      "displayName": "Ashwagandha Root (Withania somnifera)",
+      "baseUnit": "g",
+      "active": true
+    },
+    {
+      "fixtureId": "d-item-guduchi",
+      "code": "BOT-GUDU-002",
+      "displayName": "Guduchi Stem (Tinospora cordifolia)",
+      "baseUnit": "g",
+      "active": true
+    },
+    {
+      "fixtureId": "d-item-bala",
+      "code": "BOT-BALA-003",
+      "displayName": "Bala Root (Sida cordifolia)",
+      "baseUnit": "g",
+      "active": true
+    }
+  ],
+  "stockBatches": [
+    {
+      "fixtureId": "d-batch-ashwa-a",
+      "itemFixtureId": "d-item-ashwagandha",
+      "batchReference": "CLN-BATCH-2026-A01",
+      "receivedGrams": "1000.000",
+      "remainingGrams": "1000.000",
+      "expiresAt": "2027-06-30",
+      "blocked": false,
+      "blockReason": null,
+      "expectedEligibility": "eligible"
+    },
+    {
+      "fixtureId": "d-batch-ashwa-b",
+      "itemFixtureId": "d-item-ashwagandha",
+      "batchReference": "CLN-BATCH-2026-A02",
+      "receivedGrams": "500.000",
+      "remainingGrams": "500.000",
+      "expiresAt": "2027-09-15",
+      "blocked": false,
+      "blockReason": null,
+      "expectedEligibility": "eligible"
+    },
+    {
+      "fixtureId": "d-batch-guduchi-a",
+      "itemFixtureId": "d-item-guduchi",
+      "batchReference": "CLN-BATCH-2026-G01",
+      "receivedGrams": "400.000",
+      "remainingGrams": "400.000",
+      "expiresAt": "2027-08-01",
+      "blocked": false,
+      "blockReason": null,
+      "expectedEligibility": "eligible"
+    },
+    {
+      "fixtureId": "d-batch-ashwa-blocked",
+      "itemFixtureId": "d-item-ashwagandha",
+      "batchReference": "CLN-BATCH-2026-A03-BLK",
+      "receivedGrams": "300.000",
+      "remainingGrams": "300.000",
+      "expiresAt": "2027-12-31",
+      "blocked": true,
+      "blockReason": "Packaging seal damaged during transit",
+      "expectedEligibility": "blocked"
+    },
+    {
+      "fixtureId": "d-batch-ashwa-expired",
+      "itemFixtureId": "d-item-ashwagandha",
+      "batchReference": "CLN-BATCH-2025-A99-EXP",
+      "receivedGrams": "250.000",
+      "remainingGrams": "250.000",
+      "expiresAt": "2025-12-31",
+      "blocked": false,
+      "blockReason": null,
+      "expectedEligibility": "expired"
+    },
+    {
+      "fixtureId": "d-batch-ashwa-unknown-expiry",
+      "itemFixtureId": "d-item-ashwagandha",
+      "batchReference": "CLN-BATCH-2026-A04-UNK",
+      "receivedGrams": "200.000",
+      "remainingGrams": "200.000",
+      "expiresAt": null,
+      "blocked": false,
+      "blockReason": null,
+      "expectedEligibility": "unknown_expiry"
+    },
+    {
+      "fixtureId": "d-batch-race-shared",
+      "itemFixtureId": "d-item-bala",
+      "batchReference": "CLN-BATCH-2026-B01-RACE",
+      "receivedGrams": "40.000",
+      "remainingGrams": "40.000",
+      "expiresAt": "2027-10-31",
+      "blocked": false,
+      "blockReason": null,
+      "expectedEligibility": "eligible"
+    }
+  ],
+  "recipes": [
+    {
+      "fixtureId": "d-recipe-balashwagandha",
+      "displayName": "Synthetic Ashwagandha-Guduchi Decoction Mix",
+      "baseYieldGrams": "100.000",
+      "ingredients": [
+        {
+          "itemFixtureId": "d-item-ashwagandha",
+          "quantityGrams": "20.000"
+        },
+        {
+          "itemFixtureId": "d-item-guduchi",
+          "quantityGrams": "15.000"
+        }
+      ]
+    },
+    {
+      "fixtureId": "d-recipe-rounding-check",
+      "displayName": "Synthetic Three-Part Bala Blend",
+      "baseYieldGrams": "300.000",
+      "ingredients": [
+        {
+          "itemFixtureId": "d-item-bala",
+          "quantityGrams": "10.000"
+        }
+      ]
+    }
+  ],
+  "scalingExamples": [
+    {
+      "fixtureId": "d-prep-srs-scale",
+      "recipeFixtureId": "d-recipe-balashwagandha",
+      "patientFixtureId": "b-no-identity",
+      "sessionFixtureId": "c-session-01",
+      "targetYieldGrams": "250.000",
+      "expectedSnapshot": [
+        {
+          "itemFixtureId": "d-item-ashwagandha",
+          "requiredGrams": "50.000"
+        },
+        {
+          "itemFixtureId": "d-item-guduchi",
+          "requiredGrams": "37.500"
+        }
+      ]
+    },
+    {
+      "fixtureId": "d-prep-rounding-scale",
+      "recipeFixtureId": "d-recipe-rounding-check",
+      "patientFixtureId": "b-no-identity",
+      "sessionFixtureId": "c-session-02",
+      "targetYieldGrams": "100.000",
+      "expectedSnapshot": [
+        {
+          "itemFixtureId": "d-item-bala",
+          "requiredGrams": "3.333"
+        }
+      ]
+    }
+  ],
+  "consumptionExample": {
+    "preparationFixtureId": "d-prep-srs-scale",
+    "operationId": "7c4a1b9e-2001-4c9a-8a11-111111111111",
+    "allocations": [
+      {
+        "batchFixtureId": "d-batch-ashwa-a",
+        "itemFixtureId": "d-item-ashwagandha",
+        "quantityGrams": "30.000"
+      },
+      {
+        "batchFixtureId": "d-batch-ashwa-b",
+        "itemFixtureId": "d-item-ashwagandha",
+        "quantityGrams": "20.000"
+      },
+      {
+        "batchFixtureId": "d-batch-guduchi-a",
+        "itemFixtureId": "d-item-guduchi",
+        "quantityGrams": "37.500"
+      }
+    ]
+  },
+  "actors": [
+    { "fixtureId": "d-dispensary", "role": "dispensary" },
+    { "fixtureId": "d-report-reader", "role": "report_reader" },
+    { "fixtureId": "d-admin-only", "role": "administrator" },
+    { "fixtureId": "d-reception", "role": "receptionist" }
+  ]
+}

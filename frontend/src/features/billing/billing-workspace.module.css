@@ -1,0 +1,426 @@
+.workspace {
+  --bill-ink: oklch(0.24 0.04 150);
+  --bill-muted: oklch(0.48 0.02 155);
+  --bill-border: oklch(0.88 0.015 150);
+  --bill-surface: oklch(0.995 0.005 145);
+  --bill-soft: oklch(0.965 0.015 145);
+  --bill-accent: oklch(0.38 0.1 155);
+  --bill-gold: oklch(0.52 0.13 75);
+  --bill-gold-soft: oklch(0.96 0.04 80);
+  --bill-draft: oklch(0.5 0.12 65);
+  --bill-draft-bg: oklch(0.96 0.04 70);
+  --bill-issued: oklch(0.4 0.11 155);
+  --bill-issued-bg: oklch(0.95 0.04 155);
+  --bill-void: oklch(0.5 0.15 25);
+  --bill-void-bg: oklch(0.96 0.04 25);
+  color: var(--bill-ink);
+  width: 100%;
+}
+
+.noticeBar {
+  align-items: center;
+  background: var(--bill-gold-soft);
+  border: 1px solid oklch(0.82 0.08 75);
+  border-radius: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.25rem;
+  justify-content: space-between;
+  line-height: 1.4;
+  margin-bottom: 1.5rem;
+  padding: 0.85rem 1.25rem;
+}
+
+.noticeTag {
+  background: var(--bill-gold);
+  border-radius: 4px;
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 0.2rem 0.5rem;
+  text-transform: uppercase;
+}
+
+.headerArea {
+  border-bottom: 1px solid var(--bill-border);
+  margin-bottom: 2rem;
+  padding-bottom: 1.5rem;
+}
+
+.kicker {
+  color: var(--bill-accent);
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  margin: 0 0 0.5rem;
+  text-transform: uppercase;
+}
+
+.headingRow {
+  align-items: flex-end;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+  justify-content: space-between;
+}
+
+.title {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(2rem, 3.2vw, 2.75rem);
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  margin: 0;
+}
+
+.subtitle {
+  color: var(--bill-muted);
+  font-size: 1.05rem;
+  margin: 0.5rem 0 0;
+}
+
+.statsGrid {
+  display: grid;
+  gap: 1.25rem;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  margin-bottom: 2rem;
+}
+
+.statCard {
+  background: var(--bill-surface);
+  border: 1px solid var(--bill-border);
+  border-radius: 12px;
+  padding: 1.25rem 1.5rem;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.statCard:hover {
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.04);
+  transform: translateY(-2px);
+}
+
+.statLabel {
+  color: var(--bill-muted);
+  font-size: 0.82rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.statValue {
+  font-family: Georgia, serif;
+  font-size: 1.85rem;
+  font-weight: 700;
+  margin: 0.4rem 0 0.15rem;
+}
+
+.statSub {
+  color: var(--bill-muted);
+  font-size: 0.8rem;
+}
+
+.tabsRow {
+  border-bottom: 1px solid var(--bill-border);
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.75rem;
+  overflow-x: auto;
+}
+
+.tabButton {
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  color: var(--bill-muted);
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 600;
+  padding: 0.75rem 1.25rem;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.tabButton:hover {
+  color: var(--bill-ink);
+}
+
+.tabButtonActive {
+  border-bottom-color: var(--bill-accent);
+  color: var(--bill-accent);
+  font-weight: 700;
+}
+
+.actionBar {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+}
+
+.searchGroup {
+  align-items: center;
+  display: flex;
+  flex: 1 1 20rem;
+  gap: 0.75rem;
+}
+
+.searchInput {
+  background: var(--bill-surface);
+  border: 1px solid var(--bill-border);
+  border-radius: 8px;
+  color: var(--bill-ink);
+  font-size: 0.92rem;
+  padding: 0.6rem 0.9rem;
+  width: 100%;
+}
+
+.searchInput:focus {
+  border-color: var(--bill-accent);
+  outline: none;
+  box-shadow: 0 0 0 2px oklch(0.38 0.1 155 / 0.15);
+}
+
+.filterPills {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.pill {
+  background: var(--bill-soft);
+  border: 1px solid var(--bill-border);
+  border-radius: 9999px;
+  color: var(--bill-muted);
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.35rem 0.85rem;
+  transition: all 0.15s ease;
+}
+
+.pill:hover {
+  background: oklch(0.92 0.02 150);
+}
+
+.pillActive {
+  background: var(--bill-accent);
+  border-color: var(--bill-accent);
+  color: #fff;
+}
+
+.primaryBtn {
+  align-items: center;
+  background: var(--bill-accent);
+  border: none;
+  border-radius: 8px;
+  color: #fff;
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 0.92rem;
+  font-weight: 600;
+  gap: 0.5rem;
+  padding: 0.65rem 1.25rem;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.primaryBtn:hover {
+  background: oklch(0.32 0.1 155);
+  transform: translateY(-1px);
+}
+
+.primaryBtn:active {
+  transform: translateY(0);
+}
+
+.secondaryBtn {
+  align-items: center;
+  background: var(--bill-surface);
+  border: 1px solid var(--bill-border);
+  border-radius: 8px;
+  color: var(--bill-ink);
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 0.92rem;
+  font-weight: 600;
+  gap: 0.5rem;
+  padding: 0.65rem 1.25rem;
+  transition: all 0.15s ease;
+}
+
+.secondaryBtn:hover {
+  background: var(--bill-soft);
+}
+
+.tableWrap {
+  background: var(--bill-surface);
+  border: 1px solid var(--bill-border);
+  border-radius: 12px;
+  overflow-x: auto;
+}
+
+.table {
+  border-collapse: collapse;
+  font-size: 0.92rem;
+  text-align: left;
+  width: 100%;
+}
+
+.table th {
+  background: var(--bill-soft);
+  border-bottom: 1px solid var(--bill-border);
+  color: var(--bill-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  padding: 0.85rem 1.25rem;
+  text-transform: uppercase;
+}
+
+.table td {
+  border-bottom: 1px solid var(--bill-border);
+  padding: 1rem 1.25rem;
+  vertical-align: middle;
+}
+
+.table tr:last-child td {
+  border-bottom: none;
+}
+
+.table tr:hover td {
+  background: oklch(0.985 0.008 145);
+}
+
+.badgeDraft {
+  background: var(--bill-draft-bg);
+  border: 1px solid oklch(0.85 0.08 70);
+  border-radius: 9999px;
+  color: var(--bill-draft);
+  display: inline-block;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 0.2rem 0.65rem;
+  text-transform: uppercase;
+}
+
+.badgeIssued {
+  background: var(--bill-issued-bg);
+  border: 1px solid oklch(0.82 0.08 155);
+  border-radius: 9999px;
+  color: var(--bill-issued);
+  display: inline-block;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 0.2rem 0.65rem;
+  text-transform: uppercase;
+}
+
+.badgeVoid {
+  background: var(--bill-void-bg);
+  border: 1px solid oklch(0.85 0.08 25);
+  border-radius: 9999px;
+  color: var(--bill-void);
+  display: inline-block;
+  font-size: 0.74rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 0.2rem 0.65rem;
+  text-transform: uppercase;
+}
+
+.modalOverlay {
+  align-items: center;
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(4px);
+  bottom: 0;
+  display: flex;
+  justify-content: center;
+  left: 0;
+  padding: 1.5rem;
+  position: fixed;
+  right: 0;
+  top: 0;
+  z-index: 50;
+}
+
+.modalCard {
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.18);
+  max-height: 90vh;
+  max-width: 680px;
+  overflow-y: auto;
+  padding: 2rem;
+  position: relative;
+  width: 100%;
+}
+
+.modalHeader {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 1.5rem;
+}
+
+.modalTitle {
+  font-family: Georgia, serif;
+  font-size: 1.65rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.closeBtn {
+  background: none;
+  border: none;
+  color: var(--bill-muted);
+  cursor: pointer;
+  font-size: 1.5rem;
+  line-height: 1;
+  padding: 0.25rem;
+}
+
+.formGrid {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.formGroup {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.formLabel {
+  color: var(--bill-ink);
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+.formInput,
+.formSelect {
+  background: var(--bill-surface);
+  border: 1px solid var(--bill-border);
+  border-radius: 8px;
+  font-size: 0.95rem;
+  padding: 0.65rem 0.85rem;
+  width: 100%;
+}
+
+.formHelp {
+  color: var(--bill-muted);
+  font-size: 0.78rem;
+}
+
+.moneyDisplay {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-weight: 600;
+}
+
+.emptyState {
+  color: var(--bill-muted);
+  padding: 3rem 1.5rem;
+  text-align: center;
+}

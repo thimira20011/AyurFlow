@@ -22,7 +22,13 @@ func billingFixture(t *testing.T) (*Service, *pgxpool.Pool) {
 	t.Helper()
 	pool := testutil.Postgres(t, "BILLING_TEST_DATABASE_URL")
 	_, err := pool.Exec(t.Context(), `INSERT INTO staff_accounts(id, login_identifier, password_hash)
-		VALUES ($1, 'synthetic-billing-actor', '$argon2id$synthetic-non-login-fixture')`, billingTestActor)
+		VALUES ($1, 'synthetic-billing-actor', '$argon2id$synthetic-non-login-fixture')
+		ON CONFLICT (id) DO NOTHING`, billingTestActor)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = pool.Exec(t.Context(), `INSERT INTO staff_roles(staff_id, role_code)
+		VALUES ($1, 'billing') ON CONFLICT DO NOTHING`, billingTestActor)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -218,5 +224,280 @@ func TestReceiptAuditFailureRollsBackIntegration(t *testing.T) {
 	err = pool.QueryRow(t.Context(), `SELECT count(*) FROM audit_events WHERE action='receipt.posted'`).Scan(&receiptAudits)
 	if err != nil || receipts != 0 || receiptAudits != 0 {
 		t.Fatal("receipt or audit survived the failed transaction")
+	}
+}
+
+func TestInvoiceDraftAndIssueLifecycleIntegration(t *testing.T) {
+	service, pool := billingFixture(t)
+	patientID := "30ad6d29-79b0-4028-93c4-614df48ec3ea"
+
+	// 1. Create draft invoice
+	inv, err := service.CreateInvoice(t.Context(), billingTestActor, CreateInvoiceRequest{
+		PatientID: patientID,
+	})
+	if err != nil {
+		t.Fatalf("failed to create draft invoice: %v", err)
+	}
+	if inv.Status != StatusDraft {
+		t.Fatalf("expected status draft, got %s", inv.Status)
+	}
+	if inv.TotalMinor != nil {
+		t.Fatalf("expected nil total on draft, got %v", inv.TotalMinor)
+	}
+
+	// 2. Add line items with integer LKR minor units
+	item1, err := service.AddItem(t.Context(), billingTestActor, inv.ID, AddItemRequest{
+		Description: "Ayurvedic Consultation", Quantity: 1, UnitPriceMinor: 250000,
+	})
+	if err != nil || item1.LineTotalMinor != 250000 {
+		t.Fatalf("failed to add item1: item=%+v err=%v", item1, err)
+	}
+
+	item2, err := service.AddItem(t.Context(), billingTestActor, inv.ID, AddItemRequest{
+		Description: "Shirodhara Oil 500g", Quantity: 2, UnitPriceMinor: 150000,
+	})
+	if err != nil || item2.LineTotalMinor != 300000 {
+		t.Fatalf("failed to add item2: item=%+v err=%v", item2, err)
+	}
+
+	tempItem, err := service.AddItem(t.Context(), billingTestActor, inv.ID, AddItemRequest{
+		Description: "Mistaken Item", Quantity: 1, UnitPriceMinor: 50000,
+	})
+	if err != nil {
+		t.Fatalf("failed to add tempItem: %v", err)
+	}
+
+	// 3. Remove mistakenly added item from draft
+	err = service.RemoveItem(t.Context(), billingTestActor, inv.ID, tempItem.ID)
+	if err != nil {
+		t.Fatalf("failed to remove item: %v", err)
+	}
+
+	// Check invoice lines
+	fetched, err := service.GetInvoice(t.Context(), billingTestActor, inv.ID)
+	if err != nil || len(fetched.Items) != 2 {
+		t.Fatalf("expected 2 items after removal, got %d items: %v", len(fetched.Items), err)
+	}
+
+	// 4. Atomically issue invoice
+	issued, err := service.IssueInvoice(t.Context(), billingTestActor, inv.ID)
+	if err != nil {
+		t.Fatalf("failed to issue invoice: %v", err)
+	}
+	if issued.Status != StatusIssued {
+		t.Fatalf("expected status issued, got %s", issued.Status)
+	}
+	if issued.TotalMinor == nil || *issued.TotalMinor != 550000 {
+		t.Fatalf("expected total 550000 minor units (Rs. 5,500.00), got %v", issued.TotalMinor)
+	}
+	if issued.IssuedBy == nil || *issued.IssuedBy != billingTestActor {
+		t.Fatalf("expected issued_by %s, got %v", billingTestActor, issued.IssuedBy)
+	}
+	if issued.IssuedAt == nil {
+		t.Fatal("expected non-nil issued_at")
+	}
+
+	// Check audit event
+	var auditCount int
+	err = pool.QueryRow(t.Context(), `SELECT count(*) FROM audit_events WHERE action='invoice.issued' AND object_id=$1`, inv.ID).Scan(&auditCount)
+	if err != nil || auditCount != 1 {
+		t.Fatalf("expected 1 audit event for invoice.issued, got %d (err: %v)", auditCount, err)
+	}
+
+	// 5. Verify immutability: Cannot add or remove items on an issued invoice
+	_, err = service.AddItem(t.Context(), billingTestActor, inv.ID, AddItemRequest{
+		Description: "Late Addition", Quantity: 1, UnitPriceMinor: 10000,
+	})
+	if !errors.Is(err, ErrConflict) {
+		t.Fatalf("adding item to issued invoice must return ErrConflict, got %v", err)
+	}
+
+	err = service.RemoveItem(t.Context(), billingTestActor, inv.ID, item1.ID)
+	if !errors.Is(err, ErrConflict) {
+		t.Fatalf("removing item from issued invoice must return ErrConflict, got %v", err)
+	}
+
+	// 6. Cannot void an issued invoice
+	err = service.VoidInvoice(t.Context(), billingTestActor, inv.ID)
+	if !errors.Is(err, ErrConflict) {
+		t.Fatalf("voiding issued invoice must return ErrConflict, got %v", err)
+	}
+}
+
+func TestInvoiceRoleAccessDeniedIntegration(t *testing.T) {
+	service, pool := billingFixture(t)
+	patientID := "30ad6d29-79b0-4028-93c4-614df48ec3ea"
+
+	// Staff account with therapist role only (no billing role)
+	therapistActor := "e11e11e1-1111-4444-a045-127158e311f6"
+	_, err := pool.Exec(t.Context(), `INSERT INTO staff_accounts(id, login_identifier, password_hash)
+		VALUES ($1, 'synthetic-therapist', '$argon2id$synthetic-non-login-fixture')
+		ON CONFLICT (id) DO NOTHING`, therapistActor)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = pool.Exec(t.Context(), `INSERT INTO staff_roles(staff_id, role_code)
+		VALUES ($1, 'therapist') ON CONFLICT DO NOTHING`, therapistActor)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Attempting to create invoice as therapist must fail
+	_, err = service.CreateInvoice(t.Context(), therapistActor, CreateInvoiceRequest{PatientID: patientID})
+	if !errors.Is(err, ErrForbidden) {
+		t.Fatalf("expected ErrForbidden for therapist actor, got %v", err)
+	}
+
+	// Disabled staff account with billing role
+	disabledActor := "d22d22d2-2222-4444-a045-127158e311f6"
+	_, err = pool.Exec(t.Context(), `INSERT INTO staff_accounts(id, login_identifier, password_hash, active)
+		VALUES ($1, 'synthetic-disabled', '$argon2id$synthetic-non-login-fixture', false)
+		ON CONFLICT (id) DO NOTHING`, disabledActor)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = pool.Exec(t.Context(), `INSERT INTO staff_roles(staff_id, role_code)
+		VALUES ($1, 'billing') ON CONFLICT DO NOTHING`, disabledActor)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	_, err = service.CreateInvoice(t.Context(), disabledActor, CreateInvoiceRequest{PatientID: patientID})
+	if !errors.Is(err, ErrForbidden) {
+		t.Fatalf("expected ErrForbidden for disabled actor, got %v", err)
+	}
+}
+
+func TestVoidDraftInvoiceIntegration(t *testing.T) {
+	service, pool := billingFixture(t)
+	patientID := "30ad6d29-79b0-4028-93c4-614df48ec3ea"
+
+	inv, err := service.CreateInvoice(t.Context(), billingTestActor, CreateInvoiceRequest{PatientID: patientID})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	err = service.VoidInvoice(t.Context(), billingTestActor, inv.ID)
+	if err != nil {
+		t.Fatalf("failed to void draft invoice: %v", err)
+	}
+
+	fetched, err := service.GetInvoice(t.Context(), billingTestActor, inv.ID)
+	if err != nil || fetched.Status != StatusVoid {
+		t.Fatalf("expected status void, got %s (err: %v)", fetched.Status, err)
+	}
+
+	var auditCount int
+	err = pool.QueryRow(t.Context(), `SELECT count(*) FROM audit_events WHERE action='invoice.voided' AND object_id=$1`, inv.ID).Scan(&auditCount)
+	if err != nil || auditCount != 1 {
+		t.Fatalf("expected 1 audit event for invoice.voided, got %d", auditCount)
+	}
+
+	// Cannot add item or issue void invoice
+	_, err = service.AddItem(t.Context(), billingTestActor, inv.ID, AddItemRequest{
+		Description: "Item", Quantity: 1, UnitPriceMinor: 1000,
+	})
+	if !errors.Is(err, ErrConflict) {
+		t.Fatalf("adding item to void invoice must return ErrConflict, got %v", err)
+	}
+
+	_, err = service.IssueInvoice(t.Context(), billingTestActor, inv.ID)
+	if !errors.Is(err, ErrConflict) {
+		t.Fatalf("issuing void invoice must return ErrConflict, got %v", err)
+	}
+}
+
+func TestDirectReceiptsDepositsAndBalanceIntegration(t *testing.T) {
+	service, pool := billingFixture(t)
+	// Issue an invoice with a total of Rs. 10,000.00 (1,000,000 minor units)
+	invoice := issuedTestInvoice(t, service, 1000000)
+
+	// 1. Initial balance check: total = 1,000,000; paid = 0; outstanding = 1,000,000
+	bal, err := service.GetBalance(t.Context(), billingTestActor, invoice.ID)
+	if err != nil {
+		t.Fatalf("failed to get initial balance: %v", err)
+	}
+	if bal.TotalMinor != 1000000 || bal.PaidMinor != 0 || bal.OutstandingMinor != 1000000 {
+		t.Fatalf("unexpected initial balance: %+v", bal)
+	}
+
+	// 2. Post an advance direct deposit (Rs. 4,000.00 = 400,000 minor units)
+	op1 := receiptOperation(t, pool)
+	req1 := PostReceiptRequest{
+		OperationID:   op1,
+		AmountMinor:   400000,
+		PaymentMethod: "direct_deposit",
+		Label:         "Advance deposit BOC-slip-882",
+	}
+	rec1, err := service.PostReceipt(t.Context(), billingTestActor, invoice.ID, req1)
+	if err != nil {
+		t.Fatalf("failed to post direct deposit: %v", err)
+	}
+	if rec1.AmountMinor != 400000 || rec1.PaymentMethod != "direct_deposit" || rec1.Label != "Advance deposit BOC-slip-882" {
+		t.Fatalf("unexpected deposit receipt: %+v", rec1)
+	}
+
+	// 3. Balance after deposit: paid = 400,000; outstanding = 600,000
+	bal, err = service.GetBalance(t.Context(), billingTestActor, invoice.ID)
+	if err != nil {
+		t.Fatalf("failed to get balance after deposit: %v", err)
+	}
+	if bal.PaidMinor != 400000 || bal.OutstandingMinor != 600000 {
+		t.Fatalf("unexpected balance after deposit: %+v", bal)
+	}
+
+	// 4. Post final counter cash payment (Rs. 6,000.00 = 600,000 minor units)
+	op2 := receiptOperation(t, pool)
+	req2 := PostReceiptRequest{
+		OperationID:   op2,
+		AmountMinor:   600000,
+		PaymentMethod: "cash",
+		Label:         "Counter settlement",
+	}
+	rec2, err := service.PostReceipt(t.Context(), billingTestActor, invoice.ID, req2)
+	if err != nil {
+		t.Fatalf("failed to post cash receipt: %v", err)
+	}
+	if rec2.AmountMinor != 600000 || rec2.PaymentMethod != "cash" || rec2.Label != "Counter settlement" {
+		t.Fatalf("unexpected cash receipt: %+v", rec2)
+	}
+
+	// 5. Balance after full payment: paid = 1,000,000; outstanding = 0 (settled)
+	bal, err = service.GetBalance(t.Context(), billingTestActor, invoice.ID)
+	if err != nil {
+		t.Fatalf("failed to get settled balance: %v", err)
+	}
+	if bal.PaidMinor != 1000000 || bal.OutstandingMinor != 0 {
+		t.Fatalf("unexpected settled balance: %+v", bal)
+	}
+
+	// 6. Overpayment attempt must be rejected with ErrConflict
+	op3 := receiptOperation(t, pool)
+	_, err = service.PostReceipt(t.Context(), billingTestActor, invoice.ID, PostReceiptRequest{
+		OperationID:   op3,
+		AmountMinor:   5000,
+		PaymentMethod: "cash",
+	})
+	if !errors.Is(err, ErrConflict) {
+		t.Fatalf("expected ErrConflict on overpayment attempt, got %v", err)
+	}
+
+	// 7. Verify ListReceipts returns both receipts in chronological order
+	receipts, err := service.ListReceipts(t.Context(), billingTestActor, invoice.ID)
+	if err != nil {
+		t.Fatalf("failed to list receipts: %v", err)
+	}
+	if len(receipts) != 2 {
+		t.Fatalf("expected 2 receipts, got %d", len(receipts))
+	}
+	if receipts[0].ID != rec1.ID || receipts[1].ID != rec2.ID {
+		t.Fatalf("receipts not in expected order: %+v", receipts)
+	}
+
+	// 8. Verify audit events recorded in transaction for each receipt
+	var auditCount int
+	err = pool.QueryRow(t.Context(), `SELECT count(*) FROM audit_events WHERE action='receipt.posted' AND object_id IN ($1, $2)`, rec1.ID, rec2.ID).Scan(&auditCount)
+	if err != nil || auditCount != 2 {
+		t.Fatalf("expected 2 audit events for receipt.posted, got %d (err: %v)", auditCount, err)
 	}
 }

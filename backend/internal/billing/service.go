@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -39,18 +40,25 @@ func NewService(pool *pgxpool.Pool) *Service {
 // ---------------------------------------------------------------------------
 
 // CreateInvoice opens a new draft invoice for the given patient.
-//
-// AUTH-03 TODO: check caller has billing role; check patient record access.
 func (s *Service) CreateInvoice(ctx context.Context, actorID string, req CreateInvoiceRequest) (Invoice, error) {
 	if strings.TrimSpace(req.PatientID) == "" {
 		return Invoice{}, fmt.Errorf("%w: patientId is required", ErrValidation)
 	}
+	canonicalPatient, err := canonicalUUID(req.PatientID)
+	if err != nil {
+		return Invoice{}, fmt.Errorf("%w: patientId must be a valid UUID", ErrValidation)
+	}
+	req.PatientID = canonicalPatient
 
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return Invoice{}, err
 	}
 	defer tx.Rollback(ctx)
+
+	if err := s.checkRole(ctx, tx, actorID, "billing", "receptionist"); err != nil {
+		return Invoice{}, err
+	}
 
 	inv, err := s.repo.CreateInvoice(ctx, tx, req.PatientID)
 	if err != nil {
@@ -69,21 +77,61 @@ func (s *Service) CreateInvoice(ctx context.Context, actorID string, req CreateI
 }
 
 // GetInvoice returns a single invoice with its line items.
-//
-// AUTH-03 TODO: check caller has billing role; check patient record access.
-func (s *Service) GetInvoice(ctx context.Context, _ string, invoiceID string) (Invoice, error) {
+func (s *Service) GetInvoice(ctx context.Context, actorID string, invoiceID string) (Invoice, error) {
+	canonicalInvoice, err := canonicalUUID(invoiceID)
+	if err != nil {
+		return Invoice{}, fmt.Errorf("%w: invoiceId must be a valid UUID", ErrValidation)
+	}
+	invoiceID = canonicalInvoice
+
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return Invoice{}, err
+	}
+	defer tx.Rollback(ctx)
+
+	if err := s.checkRole(ctx, tx, actorID, "billing", "receptionist"); err != nil {
+		return Invoice{}, err
+	}
+
 	inv, err := s.repo.GetInvoice(ctx, invoiceID)
 	if err != nil {
 		return Invoice{}, err
 	}
 	inv.Items, err = s.repo.GetInvoiceItems(ctx, invoiceID)
-	return inv, err
+	if err != nil {
+		return Invoice{}, err
+	}
+	_ = tx.Commit(ctx)
+	return inv, nil
 }
 
 // ListInvoicesForPatient returns a paginated list of invoices for one patient.
-//
-// AUTH-03 TODO: check caller has billing role; check patient record access.
-func (s *Service) ListInvoicesForPatient(ctx context.Context, _ string, patientID string, limit int, afterID string) (InvoicePage, error) {
+func (s *Service) ListInvoicesForPatient(ctx context.Context, actorID string, patientID string, limit int, afterID string) (InvoicePage, error) {
+	canonicalPatient, err := canonicalUUID(patientID)
+	if err != nil {
+		return InvoicePage{}, fmt.Errorf("%w: patientId must be a valid UUID", ErrValidation)
+	}
+	patientID = canonicalPatient
+
+	if afterID != "" {
+		canonicalAfter, err := canonicalUUID(afterID)
+		if err != nil {
+			return InvoicePage{}, fmt.Errorf("%w: after cursor must be a valid UUID", ErrValidation)
+		}
+		afterID = canonicalAfter
+	}
+
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return InvoicePage{}, err
+	}
+	defer tx.Rollback(ctx)
+
+	if err := s.checkRole(ctx, tx, actorID, "billing", "receptionist"); err != nil {
+		return InvoicePage{}, err
+	}
+
 	if limit <= 0 || limit > 100 {
 		limit = 25
 	}
@@ -98,22 +146,30 @@ func (s *Service) ListInvoicesForPatient(ctx context.Context, _ string, patientI
 		last := items[len(items)-1].ID
 		nextCursor = &last
 	}
+	_ = tx.Commit(ctx)
 	return InvoicePage{Items: items, NextCursor: nextCursor}, nil
 }
 
 // AddItem adds a line item to a draft invoice.
-//
-// AUTH-03 TODO: check caller has billing role.
 func (s *Service) AddItem(ctx context.Context, actorID, invoiceID string, req AddItemRequest) (InvoiceItem, error) {
 	if err := validateAddItem(req); err != nil {
 		return InvoiceItem{}, err
 	}
+	canonicalInvoice, err := canonicalUUID(invoiceID)
+	if err != nil {
+		return InvoiceItem{}, fmt.Errorf("%w: invoiceId must be a valid UUID", ErrValidation)
+	}
+	invoiceID = canonicalInvoice
 
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return InvoiceItem{}, err
 	}
 	defer tx.Rollback(ctx)
+
+	if err := s.checkRole(ctx, tx, actorID, "billing"); err != nil {
+		return InvoiceItem{}, err
+	}
 
 	inv, err := s.repo.GetInvoiceForUpdate(ctx, tx, invoiceID)
 	if err != nil {
@@ -140,14 +196,28 @@ func (s *Service) AddItem(ctx context.Context, actorID, invoiceID string, req Ad
 }
 
 // RemoveItem removes a line item from a draft invoice.
-//
-// AUTH-03 TODO: check caller has billing role.
 func (s *Service) RemoveItem(ctx context.Context, actorID, invoiceID, itemID string) error {
+	canonicalInvoice, err := canonicalUUID(invoiceID)
+	if err != nil {
+		return fmt.Errorf("%w: invoiceId must be a valid UUID", ErrValidation)
+	}
+	invoiceID = canonicalInvoice
+
+	canonicalItem, err := canonicalUUID(itemID)
+	if err != nil {
+		return fmt.Errorf("%w: itemId must be a valid UUID", ErrValidation)
+	}
+	itemID = canonicalItem
+
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback(ctx)
+
+	if err := s.checkRole(ctx, tx, actorID, "billing"); err != nil {
+		return err
+	}
 
 	inv, err := s.repo.GetInvoiceForUpdate(ctx, tx, invoiceID)
 	if err != nil {
@@ -171,14 +241,22 @@ func (s *Service) RemoveItem(ctx context.Context, actorID, invoiceID, itemID str
 
 // IssueInvoice atomically locks the invoice, computes the total from its lines,
 // and transitions it to 'issued'. An issued invoice is immutable.
-//
-// AUTH-03 TODO: check caller has billing role.
 func (s *Service) IssueInvoice(ctx context.Context, actorID, invoiceID string) (Invoice, error) {
+	canonicalInvoice, err := canonicalUUID(invoiceID)
+	if err != nil {
+		return Invoice{}, fmt.Errorf("%w: invoiceId must be a valid UUID", ErrValidation)
+	}
+	invoiceID = canonicalInvoice
+
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return Invoice{}, err
 	}
 	defer tx.Rollback(ctx)
+
+	if err := s.checkRole(ctx, tx, actorID, "billing"); err != nil {
+		return Invoice{}, err
+	}
 
 	// Lock the row to serialize concurrent issue attempts.
 	inv, err := s.repo.GetInvoiceForUpdate(ctx, tx, invoiceID)
@@ -216,14 +294,22 @@ func (s *Service) IssueInvoice(ctx context.Context, actorID, invoiceID string) (
 }
 
 // VoidInvoice transitions a draft invoice to 'void'. Fails if any receipts exist.
-//
-// AUTH-03 TODO: check caller has billing role.
 func (s *Service) VoidInvoice(ctx context.Context, actorID, invoiceID string) error {
+	canonicalInvoice, err := canonicalUUID(invoiceID)
+	if err != nil {
+		return fmt.Errorf("%w: invoiceId must be a valid UUID", ErrValidation)
+	}
+	invoiceID = canonicalInvoice
+
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback(ctx)
+
+	if err := s.checkRole(ctx, tx, actorID, "billing"); err != nil {
+		return err
+	}
 
 	inv, err := s.repo.GetInvoiceForUpdate(ctx, tx, invoiceID)
 	if err != nil {
@@ -263,8 +349,6 @@ func (s *Service) VoidInvoice(ctx context.Context, actorID, invoiceID string) er
 // without writing a duplicate (AT12 retry safety).
 // Concurrency: the invoice row is locked FOR UPDATE before the overpayment
 // check, serializing concurrent receipt posts on the same invoice.
-//
-// AUTH-03 TODO: check caller has billing role.
 func (s *Service) PostReceipt(ctx context.Context, actorID, invoiceID string, req PostReceiptRequest) (Receipt, error) {
 	if err := validatePostReceipt(req); err != nil {
 		return Receipt{}, err
@@ -286,6 +370,11 @@ func (s *Service) PostReceipt(ctx context.Context, actorID, invoiceID string, re
 		return Receipt{}, err
 	}
 	defer tx.Rollback(ctx)
+
+	if err := s.checkRole(ctx, tx, actorID, "billing"); err != nil {
+		return Receipt{}, err
+	}
+
 	if err := s.repo.LockReceiptOperation(ctx, tx, req.OperationID); err != nil {
 		return Receipt{}, err
 	}
@@ -349,9 +438,23 @@ func (s *Service) PostReceipt(ctx context.Context, actorID, invoiceID string, re
 }
 
 // GetBalance returns the derived balance for an issued invoice.
-//
-// AUTH-03 TODO: check caller has billing role.
-func (s *Service) GetBalance(ctx context.Context, _ string, invoiceID string) (InvoiceBalance, error) {
+func (s *Service) GetBalance(ctx context.Context, actorID string, invoiceID string) (InvoiceBalance, error) {
+	canonicalInvoice, err := canonicalUUID(invoiceID)
+	if err != nil {
+		return InvoiceBalance{}, fmt.Errorf("%w: invoiceId must be a valid UUID", ErrValidation)
+	}
+	invoiceID = canonicalInvoice
+
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return InvoiceBalance{}, err
+	}
+	defer tx.Rollback(ctx)
+
+	if err := s.checkRole(ctx, tx, actorID, "billing", "receptionist"); err != nil {
+		return InvoiceBalance{}, err
+	}
+
 	inv, err := s.repo.GetInvoice(ctx, invoiceID)
 	if err != nil {
 		return InvoiceBalance{}, err
@@ -360,17 +463,11 @@ func (s *Service) GetBalance(ctx context.Context, _ string, invoiceID string) (I
 		return InvoiceBalance{}, fmt.Errorf("%w: balance is only available for issued invoices", ErrConflict)
 	}
 
-	tx, err := s.pool.Begin(ctx)
-	if err != nil {
-		return InvoiceBalance{}, err
-	}
-	defer tx.Rollback(ctx)
-
 	paid, err := s.repo.SumReceipts(ctx, tx, invoiceID)
 	if err != nil {
 		return InvoiceBalance{}, err
 	}
-	tx.Rollback(ctx)
+	_ = tx.Commit(ctx)
 
 	return InvoiceBalance{
 		InvoiceID:        invoiceID,
@@ -381,14 +478,33 @@ func (s *Service) GetBalance(ctx context.Context, _ string, invoiceID string) (I
 }
 
 // ListReceipts returns all receipts for an invoice.
-//
-// AUTH-03 TODO: check caller has billing role.
-func (s *Service) ListReceipts(ctx context.Context, _ string, invoiceID string) ([]Receipt, error) {
+func (s *Service) ListReceipts(ctx context.Context, actorID string, invoiceID string) ([]Receipt, error) {
+	canonicalInvoice, err := canonicalUUID(invoiceID)
+	if err != nil {
+		return nil, fmt.Errorf("%w: invoiceId must be a valid UUID", ErrValidation)
+	}
+	invoiceID = canonicalInvoice
+
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback(ctx)
+
+	if err := s.checkRole(ctx, tx, actorID, "billing", "receptionist"); err != nil {
+		return nil, err
+	}
+
 	// Confirm invoice exists before querying receipts.
 	if _, err := s.repo.GetInvoice(ctx, invoiceID); err != nil {
 		return nil, err
 	}
-	return s.repo.ListReceipts(ctx, invoiceID)
+	receipts, err := s.repo.ListReceipts(ctx, invoiceID)
+	if err != nil {
+		return nil, err
+	}
+	_ = tx.Commit(ctx)
+	return receipts, nil
 }
 
 // ---------------------------------------------------------------------------
@@ -396,13 +512,22 @@ func (s *Service) ListReceipts(ctx context.Context, _ string, invoiceID string) 
 // ---------------------------------------------------------------------------
 
 // OutstandingReport returns all issued invoices with a remaining balance.
-//
-// AUTH-03 TODO: check caller has billing or admin role.
-func (s *Service) OutstandingReport(ctx context.Context, _ string) (OutstandingReport, error) {
+func (s *Service) OutstandingReport(ctx context.Context, actorID string) (OutstandingReport, error) {
+	tx, err := s.pool.Begin(ctx)
+	if err != nil {
+		return OutstandingReport{}, err
+	}
+	defer tx.Rollback(ctx)
+
+	if err := s.checkRole(ctx, tx, actorID, "billing", "report_reader"); err != nil {
+		return OutstandingReport{}, err
+	}
+
 	rows, err := s.repo.OutstandingInvoices(ctx)
 	if err != nil {
 		return OutstandingReport{}, err
 	}
+	_ = tx.Commit(ctx)
 	return OutstandingReport{
 		GeneratedAt: time.Now().UTC(),
 		Rows:        rows,
@@ -459,4 +584,30 @@ func canonicalUUID(value string) (string, error) {
 		return "", ErrValidation
 	}
 	return id.String(), nil
+}
+
+func (s *Service) checkRole(ctx context.Context, tx pgx.Tx, actorID string, allowedRoles ...string) error {
+	canonical, err := canonicalUUID(actorID)
+	if err != nil {
+		return ErrForbidden
+	}
+	var active bool
+	err = tx.QueryRow(ctx, `SELECT active FROM staff_accounts WHERE id=$1 FOR SHARE`, canonical).Scan(&active)
+	if errors.Is(err, pgx.ErrNoRows) || (err == nil && !active) {
+		return ErrForbidden
+	}
+	if err != nil {
+		return err
+	}
+	var exists bool
+	err = tx.QueryRow(ctx, `SELECT EXISTS(
+		SELECT 1 FROM staff_roles WHERE staff_id=$1 AND role_code = ANY($2::text[])
+	)`, canonical, allowedRoles).Scan(&exists)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return ErrForbidden
+	}
+	return nil
 }

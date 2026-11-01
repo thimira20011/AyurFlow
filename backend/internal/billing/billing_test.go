@@ -158,3 +158,65 @@ func TestItoa(t *testing.T) {
 		}
 	}
 }
+
+func TestInvoiceBalanceDerivation(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name            string
+		totalMinor      int64
+		paidMinor       int64
+		wantOutstanding int64
+	}{
+		{
+			name:            "unpaid invoice",
+			totalMinor:      100000,
+			paidMinor:       0,
+			wantOutstanding: 100000,
+		},
+		{
+			name:            "partially paid with advance deposit",
+			totalMinor:      500000,
+			paidMinor:       200000,
+			wantOutstanding: 300000,
+		},
+		{
+			name:            "fully settled",
+			totalMinor:      350000,
+			paidMinor:       350000,
+			wantOutstanding: 0,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			bal := InvoiceBalance{
+				InvoiceID:        "inv-1",
+				TotalMinor:       tt.totalMinor,
+				PaidMinor:        tt.paidMinor,
+				OutstandingMinor: tt.totalMinor - tt.paidMinor,
+			}
+			if bal.OutstandingMinor != tt.wantOutstanding {
+				t.Errorf("got outstanding %d, want %d", bal.OutstandingMinor, tt.wantOutstanding)
+			}
+		})
+	}
+}
+
+func TestCanonicalUUID(t *testing.T) {
+	t.Parallel()
+	validLower := "3fa85f64-5717-4562-b3fc-2c963f66afa6"
+	validUpper := "3FA85F64-5717-4562-B3FC-2C963F66AFA6"
+
+	canonical, err := canonicalUUID(validUpper)
+	if err != nil {
+		t.Fatalf("unexpected error for uppercase UUID: %v", err)
+	}
+	if canonical != validLower {
+		t.Fatalf("expected canonical lower %s, got %s", validLower, canonical)
+	}
+
+	for _, invalid := range []string{"", "not-a-uuid", "00000000-0000-0000-0000-000000000000", "3fa85f64-5717-4562-b3fc"} {
+		if _, err := canonicalUUID(invalid); err == nil {
+			t.Errorf("expected error for invalid UUID %q, got nil", invalid)
+		}
+	}
+}

@@ -1,0 +1,68 @@
+# Standalone file: do not merge with the development compose.yaml.
+name: ayurflow-pilot
+services:
+  migrate:
+    build: ../backend
+    entrypoint: ["migrate"]
+    environment:
+      DATABASE_URL_FILE: /run/secrets/migration_database_url
+    secrets: [migration_database_url]
+    networks: [application]
+    profiles: [maintenance]
+    restart: "no"
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+
+  backend:
+    build: ../backend
+    environment:
+      APP_ENV: pilot
+      HTTP_ADDR: 0.0.0.0:8080
+      DATABASE_URL_FILE: /run/secrets/application_database_url
+      AUTH_ENABLED: "true"
+      AUTH_ALLOWED_ORIGIN: https://${AYURFLOW_DOMAIN:?Set the reviewed DNS hostname}
+      AUTH_IDLE_TIMEOUT: ${AUTH_IDLE_TIMEOUT:?Set explicitly}
+      AUTH_ABSOLUTE_TIMEOUT: ${AUTH_ABSOLUTE_TIMEOUT:?Set explicitly}
+      AUTH_ATTEMPT_LIMIT: ${AUTH_ATTEMPT_LIMIT:?Set explicitly}
+      AUTH_ATTEMPT_WINDOW: ${AUTH_ATTEMPT_WINDOW:?Set explicitly}
+      AUTH_BLOCK_DURATION: ${AUTH_BLOCK_DURATION:?Set explicitly}
+    secrets: [application_database_url]
+    networks: [application]
+    restart: unless-stopped
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+
+  frontend:
+    build:
+      context: ../frontend
+      args:
+        BACKEND_URL: http://backend:8080
+    networks: [application]
+    restart: unless-stopped
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+
+  proxy:
+    image: ${CADDY_IMAGE:?Set a reviewed pinned Caddy image}
+    environment:
+      AYURFLOW_DOMAIN: ${AYURFLOW_DOMAIN:?Set the reviewed DNS hostname}
+    ports: ["80:80", "443:443"]
+    volumes:
+      - ./Caddyfile.example:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks: [application]
+    depends_on: [backend, frontend]
+    restart: unless-stopped
+    security_opt: [no-new-privileges:true]
+
+networks:
+  application:
+volumes:
+  caddy_data:
+  caddy_config:
+secrets:
+  application_database_url:
+    file: ${APPLICATION_DATABASE_URL_FILE:?Set an absolute secret path outside Git}
+  migration_database_url:
+    file: ${MIGRATION_DATABASE_URL_FILE:?Set a separate absolute secret path outside Git}

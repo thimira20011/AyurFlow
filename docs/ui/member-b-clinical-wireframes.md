@@ -1,6 +1,6 @@
 # TASK-UI-02 — patient and clinical screen wireframes
 
-**B contribution for F and A review, 26 October 2026.** [Open the visual wireframes](member-b-clinical-wireframes.html). They use synthetic labels, show intended screen structure, and do not implement clinical routes or record access. F owns TASK-UI-02 and the shared design system; A is the task reviewer. B owns the patient and clinical rules represented here. Status: **in progress — F/A review pending**.
+**TASK-UI-02 design complete.** [Open the visual wireframes](member-b-clinical-wireframes.html). They use synthetic labels, show intended screen structure, and do not implement clinical routes or record access. F owns the shared design system; A is the task reviewer. B owns the patient and clinical rules represented here. The wireframes were merged in [PR #33](https://github.com/thimira20011/AyurFlow/pull/33), approved by a collaborator on 26 October 2026. Member B confirmed on 27 October 2026 that the team reviewed and approved the design. The tracker does not map reviewer account names to A/F/C roles, so this records the user's team-review confirmation rather than inventing named sign-offs.
 
 ## Scope and source
 
@@ -37,9 +37,9 @@ This proposal covers patient search/registration/detail, consultation draft/sign
 
 | Reviewer | Requested decision | Status |
 | --- | --- | --- |
-| F — accountable UI owner | Confirm shared navigation, component patterns, responsive layout, field/action copy and how these wireframes join TASK-UI-06. | Pending |
-| A — TASK-UI-02 reviewer | Confirm the screen permissions match backend session/CSRF and record-access behavior; review errors and access states. | Pending |
-| C — B clinical reviewer and scheduling owner | Confirm plan/session status wording and whether the clearance boundary is clear to therapists. | Pending |
+| F — accountable UI owner | Confirm shared navigation, component patterns, responsive layout, field/action copy and how these wireframes join TASK-UI-06. | Team review and approval reported by B on 27 October 2026; [PR #33](https://github.com/thimira20011/AyurFlow/pull/33) merged. Role-to-account mapping not recorded. |
+| A — TASK-UI-02 reviewer | Confirm the screen permissions match backend session/CSRF and record-access behavior; review errors and access states. | Team review and approval reported by B on 27 October 2026; PR #33 approved. Role-to-account mapping not recorded. |
+| C — B clinical reviewer and scheduling owner | Confirm plan/session status wording and whether the clearance boundary is clear to therapists. | Team review and approval reported by B on 27 October 2026; role-to-account mapping not recorded. |
 | Clinic clinician with B — DEC02/08 | Confirm patient/signing fields, pathway labels/checklists, completion and hold/cancel behavior before clinical UAT. | Pending |
 
-The visual mockups deliberately use generic stage labels and synthetic records. The clinic has not approved the pathway, signing fields, addendum reason rule, or therapist observation scope. F should record review outcome, reviewer and date here, then update the shared UI task status. Clinical screens should not be connected to protected routes until A/B/C finish the assignment and session-clearance contracts.
+The visual mockups deliberately use generic stage labels and synthetic records. The clinic has not approved the pathway, signing fields, addendum reason rule, or therapist observation scope. DEC02/08 remain gates for affected clinical implementation and UAT, not for completion of these wireframes. Clinical screens should not be connected to protected routes until A/B/C finish the assignment and session-clearance contracts.

@@ -55,7 +55,7 @@ docker compose logs migrate backend frontend
 
 Open <http://localhost:3000>. API liveness: <http://localhost:8080/api/v1/health>; database readiness: <http://localhost:8080/api/v1/ready>. Compose waits for the database and migration job before starting the API. Persistent data lives in the `postgres_data` volume.
 
-This Compose file binds application/database ports to localhost for development. The pilot HTTPS proxy is a template, not a completed production deployment. See [operations](docs/operations.md).
+This Compose file binds application/database ports to localhost for development. A separate [pilot configuration](deploy/README.md) supplies HTTPS proxy wiring, restricted database grants and separate file secrets; it still requires operator configuration, live verification and review. See [operations](docs/operations.md).
 
 ## Start Go and Next.js locally
 
@@ -90,4 +90,4 @@ CI checks all Go packages, including real PostgreSQL tests tagged `integration`,
 
 Start Sprint 1 with the pending decision register, authentication/permissions/CSRF, and patient registration. The first exit check is a deployed login-to-registration-to-search journey. Module folders and pages currently establish boundaries; they do not satisfy the SRS acceptance tests.
 
-See [architecture](docs/architecture.md), [OpenAPI](docs/api/openapi.yaml), [team allocation](docs/team-plan.md), [decisions](docs/decisions.md), [testing](docs/testing.md) and [contributing](CONTRIBUTING.md).
+See [architecture](docs/architecture.md), [OpenAPI](docs/api/openapi.yaml), [team allocation](docs/team-plan.md), [decisions](docs/decisions.md), [testing](docs/testing.md) and [contributing](CONTRIBUTING.md). Staff access instructions are in [Member A's administration guide](docs/guides/member-a-administration.md); setup, migration and outage/re-entry procedures are in [the operations runbook](docs/operations.md).

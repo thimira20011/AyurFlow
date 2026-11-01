@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { apiGet, apiMutation, APIRequestError } from "@/lib/api-client";
 import { useStaffSession } from "@/features/administration/session";
 
@@ -78,6 +79,7 @@ export default function AdministrationPage() {
   return <section>
     <h1 className="text-3xl font-semibold">Staff administration</h1>
     <p className="my-3">Create assigned staff accounts and manage their access. Role changes and disabling an account end that staff member’s sessions.</p>
+    <p className="my-3"><Link className="underline" href="/administration/clinical-assignments">Manage clinician patient assignments</Link></p>
     {error && <p ref={summary} tabIndex={-1} role="alert" className="my-4 rounded-lg border border-red-800 p-4">{error}</p>}
     {notice && <p role="status" className="my-4 rounded-lg border p-4">{notice}</p>}
     <form method="post" className="my-6 rounded-xl border bg-white p-5" aria-busy={busy} onSubmit={event => {

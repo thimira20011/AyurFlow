@@ -39,6 +39,16 @@ func TestRoleAndRecordAccessIntegration(t *testing.T) {
 		t.Fatal(err)
 	}
 	policy := &PatientPolicy{}
+	if err := pgx.BeginFunc(ctx, pool, func(tx pgx.Tx) error {
+		return policy.CanEdit(ctx, tx, receptionist, patient, []string{"birth_date", "gender", "address"})
+	}); err != nil {
+		t.Fatalf("approved demographic fields denied: %v", err)
+	}
+	if err := pgx.BeginFunc(ctx, pool, func(tx pgx.Tx) error {
+		return policy.CanEdit(ctx, tx, receptionist, patient, []string{"signed_text"})
+	}); !errors.Is(err, patients.ErrForbidden) {
+		t.Fatalf("clinical field edit allowed: %v", err)
+	}
 	for _, tc := range []struct {
 		name, actor string
 		wantAllowed bool

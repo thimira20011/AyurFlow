@@ -51,7 +51,7 @@ export function login(loginIdentifier: string, password: string): Promise<StaffS
 
 // Session bootstrap rotates CSRF. Fetch immediately before a mutation; never retry
 // a business write after an ambiguous network response.
-export async function apiMutation<T>(resource: string, body?: unknown, method: "POST" | "PUT" | "PATCH" = "POST"): Promise<T> {
+export async function apiMutation<T>(resource: string, body?: unknown, method: "POST" | "PUT" | "PATCH" | "DELETE" = "POST"): Promise<T> {
   try {
     const session = await apiGet<StaffSession>("/auth/session");
     return await request<T>(resource, method, body, session.csrfToken);
