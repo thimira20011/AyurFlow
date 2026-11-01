@@ -1,5 +1,13 @@
 # Verification plan and evidence
 
+## TASK-OPS-03 Member A documentation checks (31 October 2026)
+
+Owner A; reviewer F. Branch `codex/ops-03-admin-runbook`, based on `dev` at `d459314`. Scope: staff administration, setup/migrations and outage/re-entry guidance; IAM-01–05, ADM-01 and AUD-01–02 support, related AT16/AT17 documentation. Tester: Codex automation on Windows with Node 22.23.2. Setup: repository source and synthetic-development contracts; no database or clinic records accessed. Steps: compare staff-guide labels and behavior with the administration/sign-in/session UI, API handlers and account service; compare environment, seed and migration guidance with configuration, command entry points, migration runner and Compose; validate local Markdown targets/anchors and run `git diff --check`. Expected/actual: documented controls and restrictions match the inspected implementation; all 78 local links/anchors across the initial eight changed/new documentation files resolved and the diff check passed. No runtime code, endpoint or migration changed.
+
+**Remote result:** implementation `0217936` passed all five jobs in [workflow 41224003897](https://github.com/thimira20011/AyurFlow/actions/runs/41224003897): backend, PostgreSQL integration, security, frontend and deployment configuration on Linux CI. The workflow uses the existing real PostgreSQL/race checks and skipped-test gate; no runtime suite or CI configuration changed in this slice.
+
+This is source/documentation verification, **not** a successful setup/browser walkthrough, AT16 restore or AT17 acceptance. Local Docker/PostgreSQL execution, a named member following the guide, F review and pilot procedures remain pending. Runtime suites were not rerun locally for this documentation-only slice. The user deferred OPS-02 backup/storage and key-custody work until deployment; no backup tooling or recovery claim is included.
+
 TASK-CON-02 implementation check (27 October 2026; commit `33881dc`, `member-b/signing-addenda`): Setup: verified Go 1.27.3 on Windows for local checks; [branch CI run](https://github.com/thimira20011/AyurFlow/actions/runs/40394151806) on Ubuntu with Go 1.27.3 and disposable PostgreSQL 17.11. Steps: local `gofmt -l` on changed files, `go test ./...`, tagged integration compilation, `go vet ./...`, and `git diff --check`; CI ran backend format/vet/unit/race/lint/build, real PostgreSQL integration, security and frontend jobs. Expected: versioned sign/edit and competing-sign races have one winner; signed original and addenda resist direct changes; forbidden access and failed audit leave prior state intact. Actual: local checks passed and all four CI jobs passed, including `TestConsultationSigningAndAddendaIntegration` on PostgreSQL. Tester: Codex via local checks and CI; evidence: linked run. Docker/PostgreSQL was unavailable locally. This is **not AT03 acceptance**: production record assignment, DEC02 signing/reason policy, A migration-number confirmation and C review remain open.
 
 TASK-CON-02 protected HTTP check (28 October 2026; commit `04bfa48`, `member-b/con-02-signing-http`): Setup: [CI run](https://github.com/thimira20011/AyurFlow/actions/runs/40652220332) on Ubuntu with Go and disposable PostgreSQL, using synthetic assigned clinician and receptionist accounts. Steps: call sign without CSRF and as reception, sign a versioned draft as assigned clinician, attempt a later edit and repeat sign, reject an invalid correction, add a dated correction, read the preserved signed original, revoke assignment and retry. Expected: CSRF and role/record checks deny forbidden actions; signing freezes original; addenda retain server author/time; revocation denies subsequent writes. Actual: the PostgreSQL integration job and backend format/vet/unit/race/lint/build, security and frontend jobs passed. Tester: Codex via CI; evidence: linked run and `TestProtectedConsultationDraftFlowIntegration`. Local `git diff --check` passed; local Go/PostgreSQL checks could not run because Go and a database service were unavailable. This is **not AT03 acceptance**: the clinical handlers are not registered in the application while DEC02 assignment authority, A/C review and integrated journey evidence remain open.
@@ -48,12 +56,22 @@ TASK-CON-03 implementation check (27 October 2026, `member-b/consultation-screen
 
 The [TASK-CON-03 branch workflow](https://github.com/thimira20011/AyurFlow/actions/runs/40399408858) for implementation commit `ba3dc3a` passed frontend lint/tests/typecheck/Turbopack production build, backend checks, PostgreSQL integration/race tests and security scanning on GitHub Actions Ubuntu with synthetic data. This confirms build and regression checks for the branch; it does not supply protected clinical HTTP or AT03 journey evidence.
 
+## TASK-CON-04 patient and consultation verification
+
+- **Status and scope (1 November 2026):** B-owned TASK-CON-04, SRS PAT-01–02 and CON-01–03, partial AT02–03. C reviews. Automated protected API and PostgreSQL behavior passed; the complete staff journeys remain pending.
+- **Setup:** synthetic receptionist, administrator and assigned clinician sessions against an isolated migrated PostgreSQL 17.11 schema in GitHub Actions Ubuntu; Go 1.27.3. Version: commit `a489342` on `member-b/con-04-patient-consultation-verification`.
+- **Steps:** run `go test -race -tags=integration -shuffle=on -count=1 -timeout=5m -json ./...` and the CI no-skipped-tests gate. `TestAT02DuplicateIdentityHTTPIntegration` sends two simultaneous authenticated, CSRF-protected NIC registrations with equivalent normalized values. `TestAT03SignEditHTTPRaceIntegration` assigns a clinician through the protected administrator route, creates a draft, then sends simultaneous version-1 edit and sign requests. Existing patient and consultation tests also exercise Unicode search, no-ID matching, demographic audit rollback, denied note access, immutable signed originals and dated addenda.
+- **Expected:** each race has one committed winner and one safe conflict; the losing registration leaves no patient, identity or audit row; signing and editing cannot produce a mixed or overwritten consultation; each committed mutation has its audit event.
+- **Actual, tester and evidence:** both new cases and the repository integration suite passed with real PostgreSQL and race detection in [CI run 41236381647](https://github.com/thimira20011/AyurFlow/actions/runs/41236381647). Backend formatting, vet, unit/race, lint and build, plus frontend, security and deployment jobs also passed. Tester: Codex-authored cases executed by GitHub Actions. Local execution was unavailable because Go and the Docker engine are not running in this workspace.
+- **Still required for AT02–03 and TASK-CON-04 closure:** complete the browser login → registration/search → consultation/sign/addendum journeys with the shared sign-in, record results and screenshots, obtain C's review and the signed DEC02 source, and resolve the phone-absent postal fallback. No AT02 or AT03 pass is claimed from CI alone.
+
 | Test | Scope | Proposed owner | Status |
 | --- | --- | --- | --- |
 | AT01 | Accounts, sessions, CSRF, roles and record restrictions | A | Pending |
 | AT02 | Optional identity, duplicate race, Unicode search, demographic audit | B | Pending |
 | AT03 | Draft/sign locking race and preserved dated addenda | B | Pending |
 | AT04 | Ordered plan and clinician approval; current-stage clearance | B/C | Pending |
+
 | AT05 | Hold/resume/cancel, retained history and hold/start race | B/C | Pending |
 | AT06 | Availability, adjacent/overlapping booking races, atomic rescheduling | C | Pending |
 | AT07 | Assigned therapist delivery and cancellation boundaries | C | Pending |
@@ -67,6 +85,8 @@ The [TASK-CON-03 branch workflow](https://github.com/thimira20011/AyurFlow/actio
 | AT15 | 1366×768 and 1024×768, keyboard, labels, Unicode, errors | F/all | Pending |
 | AT16 | Outage re-entry and encrypted isolated restore of four record categories | A/F | Pending |
 | AT17 | Clean startup, migrations, seed, restart persistence, docs and handover | A/F | Pending |
+
+Member B's consolidated implementation and synthetic PostgreSQL CI results for PAT-01–03, CON-01–04 and CLN-01–02/05–06 are in [the 1 November completion evidence](evidence/member-b-completion-2026-11-01.md). The local PostgreSQL run is blocked by the unavailable Docker engine and Go toolchain. AT02–05 remain pending C review, live scheduling/preparation adapters and staff journey evidence.
 
 For each result record setup, steps, expected/actual behavior, tester, date, application version, environment and evidence location. Go PostgreSQL tests live beside module code as `*_integration_test.go` under the `integration` build tag; CI discovers all packages. Store browser scenarios in `tests/e2e`. Record unresolved defects rather than marking them passed.
 

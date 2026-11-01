@@ -41,9 +41,25 @@ func TestProtectedConsultationDraftFlowIntegration(t *testing.T) {
 		`{"draftText":"Denied before assignment"}`); response.Code != http.StatusNotFound {
 		t.Fatalf("unassigned create status=%d", response.Code)
 	}
-	if _, err := f.pool.Exec(t.Context(), `INSERT INTO patient_clinician_assignments(patient_id,clinician_id,granted_by)
-		VALUES ($1,$2,$3)`, patient.ID, clinician, f.actor); err != nil {
+	assignmentPath := "/api/v1/patients/" + patient.ID + "/clinical-assignments"
+	if response := protectedRequest(f.router, "POST", assignmentPath, f.token, f.csrf,
+		`{"clinicianId":"`+clinician+`"}`); response.Code != http.StatusForbidden {
+		t.Fatalf("non-admin assignment status=%d", response.Code)
+	}
+	if _, err := f.pool.Exec(t.Context(), `INSERT INTO staff_roles(staff_id,role_code) VALUES ($1,'administrator')`, f.actor); err != nil {
 		t.Fatal(err)
+	}
+	if response := protectedRequest(f.router, "POST", assignmentPath, f.token, "",
+		`{"clinicianId":"`+clinician+`"}`); response.Code != http.StatusForbidden {
+		t.Fatalf("assignment without CSRF status=%d", response.Code)
+	}
+	if response := protectedRequest(f.router, "POST", assignmentPath, f.token, f.csrf,
+		`{"clinicianId":"`+clinician+`"}`); response.Code != http.StatusCreated {
+		t.Fatalf("admin assignment status=%d body=%s", response.Code, response.Body.String())
+	}
+	if response := protectedRequest(f.router, "POST", assignmentPath, f.token, f.csrf,
+		`{"clinicianId":"`+clinician+`"}`); response.Code != http.StatusConflict {
+		t.Fatalf("duplicate assignment status=%d", response.Code)
 	}
 	if response := protectedRequest(f.router, "POST", listPath, token, "",
 		`{"draftText":"CSRF denied"}`); response.Code != http.StatusForbidden {
@@ -140,9 +156,8 @@ func TestProtectedConsultationDraftFlowIntegration(t *testing.T) {
 		!strings.Contains(response.Body.String(), "Synthetic edited draft") {
 		t.Fatalf("signed detail status=%d body=%s", response.Code, response.Body.String())
 	}
-	if _, err := f.pool.Exec(t.Context(), `UPDATE patient_clinician_assignments
-		SET revoked_at=clock_timestamp(), revoked_by=$2 WHERE patient_id=$1 AND clinician_id=$2`, patient.ID, clinician); err != nil {
-		t.Fatal(err)
+	if response := protectedRequest(f.router, "DELETE", assignmentPath+"/"+clinician, f.token, f.csrf, ""); response.Code != http.StatusNoContent {
+		t.Fatalf("admin revocation status=%d", response.Code)
 	}
 	response = protectedRequest(f.router, "GET", detailPath, token, "", "")
 	if response.Code != http.StatusNotFound {

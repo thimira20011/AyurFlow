@@ -28,6 +28,8 @@
   width: 100%;
 }
 .workspace textarea { min-height: 8rem; resize: vertical; white-space: pre-wrap; }
+.workspace input[type="checkbox"] { min-height: auto; width: auto; }
+.workspace fieldset { border: 1px solid var(--line); border-radius: 8px; margin: 1rem 0; }
 .workspace button {
   background: var(--accent);
   border: 1px solid var(--accent);

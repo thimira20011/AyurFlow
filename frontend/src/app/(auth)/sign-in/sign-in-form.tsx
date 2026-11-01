@@ -15,7 +15,7 @@ export function SignInForm() {
     setIsLoading(true);
     // Smooth transition into clinic workspace
     setTimeout(() => {
-      router.push("/dashboard");
+      router.push("/reception");
     }, 400);
   };
 

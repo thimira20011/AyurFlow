@@ -56,20 +56,20 @@ Status values: **Pending** = not started; **In progress** = work underway but co
 
 | Task | Deliverable | Owner slot | Peer reviewer | Status | Evidence |
 | --- | --- | --- | --- | --- | --- |
-| TASK-PAT-01 | Patient schema and identifier rules | B | C | In progress | [PR #19](https://github.com/thimira20011/AyurFlow/pull/19); isolated PostgreSQL schema test passed; A number, C/DEC02 review and AT02 integration pending |
-| TASK-PAT-02 | Registration, search and audited updates | B | C | In progress | [PR #22](https://github.com/thimira20011/AyurFlow/pull/22); [PostgreSQL CI passed](https://github.com/thimira20011/AyurFlow/actions/runs/40089021544); AUTH-03/CSRF, DEC02, C review and AT02 integration pending |
-| TASK-PAT-03 | Registration, search and detail screens | B | C | In progress | [PR #29](https://github.com/thimira20011/AyurFlow/pull/29) merged; development-only synthetic preview; [CI passed](https://github.com/thimira20011/AyurFlow/actions/runs/40177536481); shared sign-in/UI, DEC02/07, C review and AT02 journey pending |
-| TASK-CON-01 | Consultation/addendum schema and drafts | B | C | In progress | [PR #32](https://github.com/thimira20011/AyurFlow/pull/32) merged; follow-up `member-b/con-01-clinical-access` proposes assignment source, protected draft handlers and tests; A migration number, DEC02 grant authority, live registration, C review and AT03 pending |
-| TASK-CON-02 | Signing, immutable text and dated addenda | B | C | In progress | `member-b/signing-addenda`; follow-up [PR #42](https://github.com/thimira20011/AyurFlow/pull/42) passed [protected HTTP and PostgreSQL CI](https://github.com/thimira20011/AyurFlow/actions/runs/40652220332); live registration, A migration number, DEC02, C review and AT03 pending |
-| TASK-CON-03 | Consultation editor, sign and history UI | B | C | In progress | `member-b/consultation-screens`: editor/history and development-only synthetic preview; [branch CI passed](https://github.com/thimira20011/AyurFlow/actions/runs/40399408858); protected clinical HTTP, DEC02, F shared UI, C review and AT03 pending |
-| TASK-CON-04 | AT02–03 patient/consultation verification | B | C | Pending | — |
+| TASK-PAT-01 | Patient schema and identifier rules | B | C | In progress | [PR #19](https://github.com/thimira20011/AyurFlow/pull/19) merged; [PR #49](https://github.com/thimira20011/AyurFlow/pull/49) adds DOB/gender/address and display code; signed DEC02 source and AT02 integration pending |
+| TASK-PAT-02 | Registration, search and audited updates | B | C | In progress | [PR #22](https://github.com/thimira20011/AyurFlow/pull/22) merged; [PR #49](https://github.com/thimira20011/AyurFlow/pull/49) extends audited demographics, phone normalization and exact no-ID confirmation; postal fallback and AT02 remain |
+| TASK-PAT-03 | Registration, search and detail screens | B | C | In progress | [PR #29](https://github.com/thimira20011/AyurFlow/pull/29) merged; [PR #49](https://github.com/thimira20011/AyurFlow/pull/49) adds new fields, code lookup, preview access and stale-record clearing; shared sign-in and AT02 journey pending |
+| TASK-CON-01 | Consultation/addendum schema and drafts | B | C | In progress | [PR #32](https://github.com/thimira20011/AyurFlow/pull/32) and [PR #39](https://github.com/thimira20011/AyurFlow/pull/39) merged; [PR #49](https://github.com/thimira20011/AyurFlow/pull/49) adds administrator assignment workflow and live protected draft wiring; AT03 journey and source/review evidence pending |
+| TASK-CON-02 | Signing, immutable text and dated addenda | B | C | In progress | [PR #36](https://github.com/thimira20011/AyurFlow/pull/36) and [PR #42](https://github.com/thimira20011/AyurFlow/pull/42) merged; [PR #49](https://github.com/thimira20011/AyurFlow/pull/49) wires protected signing/addenda; AT03 journey and source/review evidence pending |
+| TASK-CON-03 | Consultation editor, sign and history UI | B | C | In progress | [PR #38](https://github.com/thimira20011/AyurFlow/pull/38) merged; [PR #49](https://github.com/thimira20011/AyurFlow/pull/49) supplies live protected HTTP/assignment integration; shared sign-in and AT03 screen journey pending |
+| TASK-CON-04 | AT02–03 patient/consultation verification | B | C | In progress | `member-b/con-04-patient-consultation-verification` adds protected HTTP duplicate-registration and sign/edit races; [PostgreSQL CI passed](https://github.com/thimira20011/AyurFlow/actions/runs/41236381647). [Implementation test record](testing.md#task-con-04-patient-and-consultation-verification) distinguishes these checks from pending AT02–03 staff journeys and C review. |
 
 ## 5. Clinical plans and approvals (weeks 3–4)
 
 | Task | Deliverable | Owner slot | Peer reviewer | Status | Evidence |
 | --- | --- | --- | --- | --- | --- |
 | TASK-CLN-01 | One pathway and ordered plan/stage schema | B | C | In progress | `member-b/cln-01-pathway-schema` adds schema and PostgreSQL test; A migration number, DEC02 labels/checklist and C review pending |
-| TASK-CLN-02 | Plan, approval and guarded advancement | B | C | Pending | — |
+| TASK-CLN-02 | Plan, approval and guarded advancement | B | C | In progress | `member-b/cln-02-plan-approval` adds transactional service/tests; DEC02 completion evidence, C session integration, protected HTTP and AT04 pending |
 | TASK-CLN-03 | Hold, resume, cancel and history | B with C | C | Pending | — |
 | TASK-CLN-04 | Shared clearance and plan/start concurrency | B with C | C | Pending | — |
 | TASK-CLN-05 | Plan timeline and clinician actions UI | B | C | Pending | — |
@@ -127,7 +127,7 @@ Status values: **Pending** = not started; **In progress** = work underway but co
 | --- | --- | --- | --- | --- | --- |
 | TASK-OPS-01 | Compose, configuration, HTTPS and pilot deployment | A | F | Pending | — |
 | TASK-OPS-02 | Encrypted daily backup and isolated restore | A | F; clinic operations review | Pending | — |
-| TASK-OPS-03 | Usage, outage, API/setup and migration guides | F assembles; each owner writes module | A | In progress | B's [patient and clinical staff guide](guides/member-b-staff.md) on `member-b/ops-03-usage-guide` ready for synthetic walkthrough; F/A assembly and verification pending |
+| TASK-OPS-03 | Usage, outage, API/setup and migration guides | F assembles; each owner writes module | A | In progress | B's [patient/clinical guide](guides/member-b-staff.md) and A's [administration guide](guides/member-a-administration.md)/[operations runbook](operations.md), A slice on `codex/ops-03-admin-runbook`; A's reviewer is F. Named-member walkthroughs and F/A assembly/review pending |
 | TASK-OPS-04 | Clean startup, migrations, seed and restart | A with F | F | Pending | — |
 | TASK-OPS-05 | Data authorization, custody and support decisions | Team lead; A handles operations | Clinic/institution | Pending | — |
 | TASK-OPS-06 | Training, release and handover | F; all owners teach modules | A; clinic recipient | Pending | — |
