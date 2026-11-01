@@ -1,6 +1,6 @@
 # Member B patient and clinical contract — TASK-SET-06 review draft
 
-**Status:** proposed for A (shared API/migrations), C (scheduling and reviewer), and F (UI) review. This is a synthetic-development contract, not an implemented API, an approved clinic rule, or AT evidence. The implemented endpoints remain in [openapi.yaml](openapi.yaml). Owner of this contribution: B; TASK-SET-06 coordinator: A; B feature reviewer: C.
+**Status:** B's review contract, updated for the user-supplied DEC02 text recorded in [decisions.md](../decisions.md). The signed clinic source and A/C/F handoff evidence are not attached. Patient routes are implemented behind explicit authentication configuration; clinical handlers have PostgreSQL tests but are not registered in the running API. This is not AT evidence. The published endpoints remain in [openapi.yaml](openapi.yaml). Owner of this contribution: B; TASK-SET-06 coordinator: A; B feature reviewer: C.
 
 **Requirements and proof:** PAT-01–02 / AT02; CON-01–03 / AT03; CLN-01–06 / AT04–05; SCH-04–06 / AT06–07 for the session join; AT01/13 for access and audit. TASK-PAT-01–03, CON-01–04 and CLN-01–06 implement these slices later. DEC02 (fields, access, pathway), DEC07 (shared wire/auth policy), and DEC08 (session transitions) remain open; see [clinic-rules-review.md](../clinic-rules-review.md) and [decisions.md](../decisions.md). An unresolved choice below must be reviewed before its affected endpoint or acceptance case is released.
 
@@ -10,9 +10,9 @@ Use server-generated UUIDs for stored records and UTC `timestamptz` for instants
 
 | Record | Key and links | Invariants / review need |
 | --- | --- | --- |
-| `patients` | `id` UUID PK; `display_name`; optional contact fields; created/updated actor and UTC time | Name is nonblank Unicode. Contact fields, allowed edits and lengths need DEC02. Search needs a stable `(display_name, id)` or equivalent indexed ordering. |
+| `patients` | `id` UUID PK; unique `registry_number` displayed as `AYUR-PT-XXXXX`; `display_name`, DOB, gender, phone, optional address; created/updated actor and UTC time | New registrations require Unicode name, ISO DOB, one of `MALE`/`FEMALE`/`OTHER`/`UNDISCLOSED`, and a Sri Lankan mobile stored as `+947XXXXXXXX`. Existing rows need a reviewed backfill before database `NOT NULL` constraints. Search is bounded to permitted records. |
 | `patient_identities` | `id` UUID PK; `patient_id` FK; `identity_type`, `original_value`, `canonical_value` | A supplied identity has nonempty canonical text and a unique `(identity_type, canonical_value)` constraint. Missing identity creates no row. One or several identities per patient needs DEC02; start with at most one for synthetic work. Preserve the supplied value. Do not merge NIC and passport namespaces. |
-| `patient_clinician_assignments` | `patient_id` FK, `clinician_id` FK to `staff_accounts`; grant/revoke actor and time | Candidate record-access mechanism: only an active assigned clinician can access another clinician's patient record. Assignment authority and historical access need DEC02/A review. Until this is enforced, clinical routes stay unregistered. |
+| `patient_clinician_assignments` | `patient_id` FK, `clinician_id` FK to `staff_accounts`; grant/revoke actor and time | Active assigned clinicians have note access. Administrators manage assignments without receiving note access. Historical access after revocation still needs clinic evidence. |
 | `consultations` | `id` UUID PK; `patient_id` FK; author clinician FK; draft/signed state; version; draft text; signed actor/time | A consultation can exist without a plan. Signing freezes the original text. Store no signed-note overwrite path. Version guards edit/sign races. Required clinical fields need DEC02. |
 | `consultation_addenda` | `id` UUID PK; `consultation_id` FK; author, UTC time, reason and body | Insert-only after signing; no update/delete route. Reason rule needs DEC02. |
 | `care_plans` | `id` UUID PK; `patient_id` FK; optional source consultation FK; active/held/cancelled/completed state; current stage ordinal; version; created clinician/time | One ordered pathway per plan. Whether another plan may follow a completed/cancelled plan requires review. A consultation never requires a plan. Keep plan status separate from stage status. |
@@ -22,14 +22,15 @@ Use server-generated UUIDs for stored records and UTC `timestamptz` for instants
 
 The provisional synthetic identity canonicalization in `clinic-rules-review.md` trims outer whitespace, removes ASCII spaces/hyphens, and uppercases ASCII letters. Validation must reject an empty result. The exact function and identity types require DEC02 before AT02; whichever function is approved must be applied consistently for writes and lookups, with a PostgreSQL uniqueness constraint as the final race guard. A duplicate registration returns a generic 409 without the other patient's ID or name.
 
-## Proposed API surface, not registered
+## Patient and consultation API surface; plan actions proposed
 
-Every path is under `/api/v1`. A authenticates sessions and supplies CSRF for unsafe methods. Each handler validates shape; its service enforces role **and record** access before repository work. Inaccessible records return 404 when existence must be hidden; a known forbidden action can return 403. Use the shared 400/401/403/404/409/422 error envelope and bounded `items`/`nextCursor` lists from [shared-contract.md](shared-contract.md). No path below belongs in `openapi.yaml` until implemented and reviewed.
+Every path is under `/api/v1`. A authenticates sessions and supplies CSRF for unsafe methods. Patient and consultation paths below are registered when authentication is explicitly configured; plan paths remain proposals. Each service enforces role and record access before clinical data is returned. Inaccessible records return 404 when existence must be hidden; a known forbidden action can return 403. Patient lists return at most 25 permitted records; cursor pagination remains a contract review item. Only reviewed endpoints belong in `openapi.yaml`.
 
 | Proposed method/path | Input and result | Minimum backend access / conflict rule |
 | --- | --- | --- |
-| `POST /patients` | `displayName`, optional `identity: {type, value}`, agreed optional contacts → server `id` and permitted demographics | Authorised registration role; normalize identity in transaction; unique conflict 409. Audit create atomically. |
-| `GET /patients?query=&limit=&cursor=` | Bounded permitted demographic summaries, stable sort and opaque cursor | Authorized search role; filter by record permission **before** pagination. Never include notes. Query by ID, name, supplied identity and approved contacts. |
+| `POST /patients` | `displayName`, `birthDate`, `gender`, `phone`, optional `address` and `identity: {type, value}` → server `id`, `patientCode` and permitted demographics | Authorised registration role; normalize phone, constrain supplied identity, unique identity conflict 409. Audit create atomically. |
+| `GET /patients?q=` | Up to 25 permitted demographic records; no cursor yet | Authorized search role; filter by record permission before returning. Never include notes. Query by UUID, display code, name, supplied identity or phone. |
+| `POST /patient-identity-confirmations` | `displayName`, `birthDate`, `phone` → one permitted patient or safe 404/409 | Receptionist session and CSRF; all three attributes must match after name space/case and phone normalization. No automatic merge. |
 | `GET /patients/{patientId}` | Permitted demographic detail | Role and patient-record check; hide inaccessible patient with 404. |
 | `PATCH /patients/{patientId}` | Allowed demographic fields plus `version` → updated detail/version | Field-level role/record rule; stale version 409; normalize changed identity and audit in same transaction. |
 | `POST /patients/{patientId}/consultations` | Draft clinical fields → consultation ID/version | Active clinician with patient access; no plan required; audit creation. |
@@ -37,6 +38,8 @@ Every path is under `/api/v1`. A authenticates sessions and supplies CSRF for un
 | `PATCH /consultations/{id}` | Draft fields and `version` → new version | Authorized clinician; draft only; stale/signed conflict 409. |
 | `POST /consultations/{id}/sign` | `version` and required signing fields → signer/time and immutable original | Authorized clinician; row/version lock; competing edit/sign returns 409; critical audit shares transaction. |
 | `POST /consultations/{id}/addenda` | `reason`, `body` → separate dated addendum | Authorized clinician; signed consultation only; append and audit in one transaction. |
+| `POST /patients/{patientId}/clinical-assignments` | `clinicianId` → assignment ID | Active administrator only; clinician must be active with clinician role; CSRF, uniqueness and transactional audit. No note body is returned. |
+| `DELETE /patients/{patientId}/clinical-assignments/{clinicianId}` | No body → 204 | Active administrator only; revoke in audited transaction; in-flight clinical operations serialize on the assignment row. |
 | `POST /patients/{patientId}/plans` | Ordered stage proposal and source consultation ID if used → plan ID/version | Authorized clinician; validate same patient; provisional stage labels only for synthetic work. |
 | `GET /patients/{patientId}/plans` and `GET /plans/{id}` | Bounded plan summaries or authorized timeline/decisions | Clinical record access; therapist receives only C's minimum session clearance projection. |
 | `POST /plans/{id}/stages/{stageId}/approve` | `version`, approved decision/checklist → actor/time | Authorized clinician; current stage only; no prior-stage skip; 409 on stale/invalid state. |
@@ -52,12 +55,15 @@ These payloads fix names for review, not clinic-approved field requirements. Omi
 ```json
 {
   "displayName": "Synthetic Patient",
+  "birthDate": "1990-04-12",
+  "gender": "UNDISCLOSED",
   "identity": {"type": "NIC", "value": "1999 12345678 V"},
-  "phone": null
+  "phone": "+94770000101",
+  "address": null
 }
 ```
 
-The provisional registration response is `201` with `{"id":"<server-uuid>","displayName":"Synthetic Patient","identity":{"type":"NIC","value":"1999 12345678 V"},"phone":null,"version":1,"createdAt":"<UTC-RFC3339>"}`. Never return `canonical_value` as a patient-facing identity. An absent identity is represented as `null`; a blank supplied identity is 422. A repeated canonical type/value is 409 even under simultaneous requests. Name is nonblank after trimming; preserve its Unicode content. Phone format, maximum length and whether it is stored at all remain DEC02.
+The registration response is `201` with a server UUID, unique `patientCode` display reference, supplied demographics, `version: 1` and UTC timestamps. Never return `canonical_value` as a patient-facing identity. An absent identity is `null`; a blank supplied identity is 422. A repeated canonical type/value is 409 even under simultaneous requests. Name is nonblank Unicode; the service accepts local `07` mobile input and stores the E.164 `+947` form. The exact three-attribute confirmation route is implemented; the phone-absent postal fallback still needs a structured postal field and reviewed example.
 
 ```json
 {

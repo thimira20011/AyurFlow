@@ -58,6 +58,9 @@ func NewRouter(db DatabaseChecker, authRoutes ...AuthRoutes) *gin.Engine {
 		if authRoutes[0].Signing != nil {
 			registerConsultationSigning(protected, authRoutes[0].Signing)
 		}
+		if authRoutes[0].Assignments != nil {
+			registerClinicalAssignments(protected, authRoutes[0].Assignments)
+		}
 		if authRoutes[0].Administration != nil {
 			registerAdministration(protected, authRoutes[0].Administration)
 		}

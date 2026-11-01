@@ -5,37 +5,56 @@
     {
       "fixtureId": "b-no-identity",
       "displayName": "Synthetic Patient No ID",
+      "birthDate": "1990-04-12",
+      "gender": "UNDISCLOSED",
       "identity": null,
-      "phone": null
+      "phone": "+94770000101",
+      "address": null
     },
     {
       "fixtureId": "b-unicode",
       "displayName": "ආදර්ශ රෝගියා",
+      "birthDate": "1991-05-13",
+      "gender": "FEMALE",
       "identity": null,
-      "phone": null
+      "phone": "+94770000102",
+      "address": null
     },
     {
       "fixtureId": "b-nic-first",
       "displayName": "Synthetic NIC One",
+      "birthDate": "1992-06-14",
+      "gender": "MALE",
       "identity": { "type": "NIC", "value": "1999 12345678 V" },
-      "phone": null
+      "phone": "+94770000103",
+      "address": null
     },
     {
       "fixtureId": "b-nic-equivalent-conflict",
       "displayName": "Synthetic NIC Duplicate",
+      "birthDate": "1993-07-15",
+      "gender": "OTHER",
       "identity": { "type": "NIC", "value": "1999-12345678v" },
-      "phone": null
+      "phone": "+94770000104",
+      "address": null
     },
     {
       "fixtureId": "b-passport-distinct",
       "displayName": "Synthetic Passport",
+      "birthDate": "1994-08-16",
+      "gender": "UNDISCLOSED",
       "identity": { "type": "PASSPORT", "value": "1999-12345678v" },
-      "phone": null
+      "phone": "+94770000105",
+      "address": null
     }
   ],
   "pathwayExample": {
-    "status": "provisional-dec02",
-    "stages": ["Preparatory", "Primary", "Recovery"]
+    "status": "member-b-supplied-dec02-source-pending",
+    "stages": [
+      { "label": "Preparatory", "requiredChecks": ["Initial consultation signed", "Pre-treatment vitals and contraindications recorded", "Attending clinician approval"] },
+      { "label": "Primary", "requiredChecks": ["Primary sessions completed", "Botanical preparations accounted for", "Interim clinician evaluation approved"] },
+      { "label": "Recovery", "requiredChecks": ["Recovery sessions delivered", "Discharge assessment signed", "Final clinician review recorded"] }
+    ]
   },
   "actors": [
     { "fixtureId": "b-reception", "role": "receptionist" },

@@ -18,10 +18,24 @@ type PatientService interface {
 	Create(context.Context, string, patients.RegistrationInput) (patients.Patient, error)
 	Get(context.Context, string, string) (patients.Patient, error)
 	Search(context.Context, string, string) ([]patients.Patient, error)
+	ConfirmNoID(context.Context, string, patients.IdentityConfirmation) (patients.Patient, error)
 	Update(context.Context, string, string, patients.UpdateInput) (patients.Patient, error)
 }
 
 func registerPatients(group *gin.RouterGroup, service PatientService) {
+	group.POST("/patient-identity-confirmations", func(c *gin.Context) {
+		var input *patients.IdentityConfirmation
+		if !patientJSON(c, &input) || input == nil {
+			badPatientRequest(c)
+			return
+		}
+		patient, err := service.ConfirmNoID(c.Request.Context(), ActorID(c), *input)
+		if err != nil {
+			patientError(c, err, false)
+			return
+		}
+		c.JSON(http.StatusOK, patient)
+	})
 	group.POST("/patients", func(c *gin.Context) {
 		var input *patients.RegistrationInput
 		if !patientJSON(c, &input) || input == nil {
@@ -55,7 +69,10 @@ func registerPatients(group *gin.RouterGroup, service PatientService) {
 		var wire struct {
 			Version     int64           `json:"version"`
 			DisplayName json.RawMessage `json:"displayName"`
+			BirthDate   json.RawMessage `json:"birthDate"`
+			Gender      json.RawMessage `json:"gender"`
 			Phone       json.RawMessage `json:"phone"`
+			Address     json.RawMessage `json:"address"`
 			Identity    json.RawMessage `json:"identity"`
 		}
 		if !patientJSON(c, &wire) {
@@ -72,6 +89,27 @@ func registerPatients(group *gin.RouterGroup, service PatientService) {
 		if len(wire.Phone) > 0 {
 			input.Phone.Set = true
 			if strictJSON(wire.Phone, &input.Phone.Value) != nil {
+				badPatientRequest(c)
+				return
+			}
+		}
+		if len(wire.BirthDate) > 0 {
+			input.BirthDate.Set = true
+			if strictJSON(wire.BirthDate, &input.BirthDate.Value) != nil {
+				badPatientRequest(c)
+				return
+			}
+		}
+		if len(wire.Gender) > 0 {
+			input.Gender.Set = true
+			if strictJSON(wire.Gender, &input.Gender.Value) != nil {
+				badPatientRequest(c)
+				return
+			}
+		}
+		if len(wire.Address) > 0 {
+			input.Address.Set = true
+			if strictJSON(wire.Address, &input.Address.Value) != nil {
 				badPatientRequest(c)
 				return
 			}
@@ -124,7 +162,7 @@ func patientError(c *gin.Context, err error, hideRecord bool) {
 		c.JSON(http.StatusForbidden, failure("forbidden", "This action is not permitted."))
 	case errors.Is(err, patients.ErrInvalidPatient):
 		c.JSON(http.StatusUnprocessableEntity, failure("validation_failed", "Check the patient fields."))
-	case errors.Is(err, patients.ErrDuplicateIdentity), errors.Is(err, patients.ErrStaleVersion):
+	case errors.Is(err, patients.ErrDuplicateIdentity), errors.Is(err, patients.ErrStaleVersion), errors.Is(err, patients.ErrAmbiguousIdentity):
 		c.JSON(http.StatusConflict, failure("conflict", "This action conflicts with the current record state."))
 	default:
 		c.JSON(http.StatusServiceUnavailable, failure("unavailable", "The request could not be completed."))

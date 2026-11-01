@@ -24,10 +24,9 @@ func TestReadPatientCommittedSnapshotIntegration(t *testing.T) {
 		t.Fatal(err)
 	}
 	service := NewService(pool, &testAccess{})
-	before, err := service.Create(ctx, actor, RegistrationInput{
-		DisplayName: "Synthetic before",
-		Identity:    &IdentityInput{Type: "NIC", Value: "before-identity"},
-	})
+	input := syntheticRegistration("Synthetic before")
+	input.Identity = &IdentityInput{Type: "NIC", Value: "before-identity"}
+	before, err := service.Create(ctx, actor, input)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -98,9 +97,9 @@ func TestReadPatientNullableIdentityIntegration(t *testing.T) {
 		{name: "cleared identity", identity: &IdentityInput{Type: "NIC", Value: "synthetic-clear"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			created, err := service.Create(ctx, actor, RegistrationInput{
-				DisplayName: "Synthetic nullable", Identity: tc.identity,
-			})
+			input := syntheticRegistration("Synthetic nullable")
+			input.Identity = tc.identity
+			created, err := service.Create(ctx, actor, input)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -116,8 +115,8 @@ func TestReadPatientNullableIdentityIntegration(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if current.Identity != nil || current.Phone != nil {
-				t.Fatalf("nullable values changed: patient=%+v", current)
+			if current.Identity != nil || current.Phone == nil {
+				t.Fatalf("optional identity or mandatory phone changed: patient=%+v", current)
 			}
 		})
 	}

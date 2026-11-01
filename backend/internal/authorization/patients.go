@@ -34,7 +34,8 @@ func (p *PatientPolicy) CanEdit(ctx context.Context, tx pgx.Tx, actor, id string
 		return patients.ErrForbidden
 	}
 	for _, field := range fields {
-		if field != "display_name" && field != "phone" && field != "identity" {
+		if field != "display_name" && field != "birth_date" && field != "gender" &&
+			field != "phone" && field != "address" && field != "identity" {
 			return patients.ErrForbidden
 		}
 	}
