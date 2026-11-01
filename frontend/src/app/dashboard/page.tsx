@@ -224,6 +224,14 @@ export default function DashboardPage() {
 
           <div className="flex flex-wrap items-center gap-2.5 sm:gap-3 shrink-0">
             <Link
+              href="/reception"
+              id="dashboard-reception-desk-btn"
+              className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#f3efe6] hover:bg-white text-[#143826] text-xs sm:text-sm font-bold shadow-md transition-all transform hover:-translate-y-0.5 active:translate-y-0"
+              title="Open Living Heritage Reception Desk workspace"
+            >
+              <span>🌿 Reception Desk</span>
+            </Link>
+            <Link
               href="/patients?action=register"
               id="dashboard-register-patient-btn"
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#23745b] to-[#10b981] hover:from-[#2d9170] hover:to-[#34d399] text-white text-xs sm:text-sm font-semibold shadow-md shadow-emerald-950/40 transition-all transform hover:-translate-y-0.5 active:translate-y-0"

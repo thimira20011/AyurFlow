@@ -20,8 +20,10 @@ async function request<T>(resource: string, method: string, body?: unknown, csrf
   }
   const response = await fetch(`/api/v1${resource}`, {
     method, credentials: "same-origin", cache: "no-store", signal,
-    headers: { Accept: "application/json", ...(method !== "GET" && { "Content-Type": "application/json" }),
-      ...(csrf && { "X-CSRF-Token": csrf }) },
+    headers: {
+      Accept: "application/json", ...(method !== "GET" && { "Content-Type": "application/json" }),
+      ...(csrf && { "X-CSRF-Token": csrf })
+    },
     ...(body !== undefined && { body: JSON.stringify(body) }),
   });
   if (!response.ok) {
@@ -62,6 +64,7 @@ export async function apiMutation<T>(resource: string, body?: unknown, method: "
 }
 
 export const staffAreas = [
+  { href: "/reception", title: "Reception desk", roles: ["receptionist"] },
   { href: "/patients", title: "Patient records", roles: ["receptionist"] },
   { href: "/clinical", title: "Clinical pathway", roles: ["clinician"] },
   { href: "/scheduling", title: "Scheduling", roles: ["receptionist", "therapist"] },
