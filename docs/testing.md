@@ -56,6 +56,15 @@ TASK-CON-03 implementation check (27 October 2026, `member-b/consultation-screen
 
 The [TASK-CON-03 branch workflow](https://github.com/thimira20011/AyurFlow/actions/runs/40399408858) for implementation commit `ba3dc3a` passed frontend lint/tests/typecheck/Turbopack production build, backend checks, PostgreSQL integration/race tests and security scanning on GitHub Actions Ubuntu with synthetic data. This confirms build and regression checks for the branch; it does not supply protected clinical HTTP or AT03 journey evidence.
 
+## TASK-CON-04 patient and consultation verification
+
+- **Status and scope (1 November 2026):** B-owned TASK-CON-04, SRS PAT-01–02 and CON-01–03, partial AT02–03. C reviews. Automated protected API and PostgreSQL behavior passed; the complete staff journeys remain pending.
+- **Setup:** synthetic receptionist, administrator and assigned clinician sessions against an isolated migrated PostgreSQL 17.11 schema in GitHub Actions Ubuntu; Go 1.27.3. Version: commit `a489342` on `member-b/con-04-patient-consultation-verification`.
+- **Steps:** run `go test -race -tags=integration -shuffle=on -count=1 -timeout=5m -json ./...` and the CI no-skipped-tests gate. `TestAT02DuplicateIdentityHTTPIntegration` sends two simultaneous authenticated, CSRF-protected NIC registrations with equivalent normalized values. `TestAT03SignEditHTTPRaceIntegration` assigns a clinician through the protected administrator route, creates a draft, then sends simultaneous version-1 edit and sign requests. Existing patient and consultation tests also exercise Unicode search, no-ID matching, demographic audit rollback, denied note access, immutable signed originals and dated addenda.
+- **Expected:** each race has one committed winner and one safe conflict; the losing registration leaves no patient, identity or audit row; signing and editing cannot produce a mixed or overwritten consultation; each committed mutation has its audit event.
+- **Actual, tester and evidence:** both new cases and the repository integration suite passed with real PostgreSQL and race detection in [CI run 41236381647](https://github.com/thimira20011/AyurFlow/actions/runs/41236381647). Backend formatting, vet, unit/race, lint and build, plus frontend, security and deployment jobs also passed. Tester: Codex-authored cases executed by GitHub Actions. Local execution was unavailable because Go and the Docker engine are not running in this workspace.
+- **Still required for AT02–03 and TASK-CON-04 closure:** complete the browser login → registration/search → consultation/sign/addendum journeys with the shared sign-in, record results and screenshots, obtain C's review and the signed DEC02 source, and resolve the phone-absent postal fallback. No AT02 or AT03 pass is claimed from CI alone.
+
 | Test | Scope | Proposed owner | Status |
 | --- | --- | --- | --- |
 | AT01 | Accounts, sessions, CSRF, roles and record restrictions | A | Pending |
