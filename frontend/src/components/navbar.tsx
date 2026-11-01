@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useStaffSession } from "@/features/administration/session";
+import { canOpenArea } from "@/lib/api-client";
 
 const navTabs = [
   { name: "Dashboard", href: "/dashboard" },
@@ -16,6 +18,7 @@ const navTabs = [
 
 export function Navbar() {
   const pathname = usePathname();
+  const { session, signOut, signingOut } = useStaffSession();
 
   // On auth and standalone workspace pages, don't display the top clinic navbar
   if (pathname.startsWith("/sign-in") || pathname.startsWith("/sign-up") || pathname.startsWith("/reception")) {
@@ -47,22 +50,24 @@ export function Navbar() {
           </div>
 
           {/* Mobile staff badge */}
-          <Link
-            href="/sign-in"
+          <button
+            type="button"
+            disabled={signingOut}
+            onClick={() => void signOut()}
             className="lg:hidden text-xs font-medium text-slate-500 hover:text-emerald-800 flex items-center gap-1.5"
             title="Sign out"
           >
-            <span>Exit</span>
+            <span>{signingOut ? "Signing out…" : "Sign out"}</span>
             <svg className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd" d="M3 3a1 1 0 00-1 1v12a1 1 0 102 0V4a1 1 0 00-1-1zm10.293 9.293a1 1 0 001.414 1.414l3-3a1 1 0 000-1.414l-3-3a1 1 0 10-1.414 1.414L14.586 9H7a1 1 0 100 2h7.586l-1.293 1.293z" clipRule="evenodd" />
             </svg>
-          </Link>
+          </button>
         </div>
 
         {/* ── Module Navigation Tabs ── */}
         <div className="flex items-center gap-3 w-full lg:w-auto overflow-x-auto pb-1 lg:pb-0 scrollbar-none justify-between lg:justify-end">
           <nav className="flex items-center gap-1.5 sm:gap-2 text-xs font-semibold">
-            {navTabs.map((tab) => {
+            {navTabs.filter(tab => canOpenArea(tab.href, session?.roles ?? [])).map((tab) => {
               const active = isActive(tab.href);
               return (
                 <Link
@@ -82,14 +87,16 @@ export function Navbar() {
 
           {/* Desktop Staff / Sign out indicator */}
           <div className="hidden lg:flex items-center pl-2 border-l border-green-900/10">
-            <Link
-              href="/sign-in"
+            <button
+              type="button"
+              disabled={signingOut}
+              onClick={() => void signOut()}
               className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:text-red-700 hover:bg-red-50/60 transition"
               title="Sign out of current staff session"
             >
               <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-              <span>Sign out</span>
-            </Link>
+              <span>{signingOut ? "Signing out…" : "Sign out"}</span>
+            </button>
           </div>
         </div>
       </div>
