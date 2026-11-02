@@ -3,7 +3,7 @@ import { apiGet, apiMutation } from "@/lib/api-client";
 export type Plan = {
   id: string;
   patientId: string;
-  status: "active" | "held" | "cancelled" | "completed";
+  status: "draft" | "active" | "held" | "cancelled" | "completed";
   currentStageOrdinal: number;
   version: number;
   pathwayState: string;
@@ -42,6 +42,10 @@ export function getPlan(id: string): Promise<PlanDetail> {
 
 export function createPlan(patientId: string, sourceConsultationId: string): Promise<Plan> {
   return apiMutation<Plan>(`/patients/${encodeURIComponent(patientId)}/plans`, { sourceConsultationId });
+}
+
+export function startPlan(plan: PlanDetail): Promise<Plan> {
+  return apiMutation<Plan>(`/plans/${encodeURIComponent(plan.id)}/start`, { version: plan.version });
 }
 
 export function approveStage(plan: PlanDetail, stage: PlanStage): Promise<Plan> {
