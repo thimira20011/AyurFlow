@@ -198,7 +198,13 @@ test("critical audit events exist and controlled logs/audit omit credential and 
   expect(Boolean(database)).toBe(true);
   let audits: string;
   try {
-    audits = execFileSync("psql", ["-X", "-A", "-t", "-v", "ON_ERROR_STOP=1", "-c", "SELECT coalesce(json_agg(audit_events), '[]'::json)::text FROM audit_events"], { env: { ...process.env, PGDATABASE: database }, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
+    const connection = new URL(database!);
+    audits = execFileSync("psql", ["-X", "-A", "-t", "-v", "ON_ERROR_STOP=1", "-c", "SELECT coalesce(json_agg(audit_events), '[]'::json)::text FROM audit_events"], {
+      env: { ...process.env, PGHOST: connection.hostname, PGPORT: connection.port || "5432",
+        PGDATABASE: decodeURIComponent(connection.pathname.slice(1)), PGUSER: decodeURIComponent(connection.username),
+        PGPASSWORD: decodeURIComponent(connection.password), PGSSLMODE: connection.searchParams.get("sslmode") ?? "prefer" },
+      encoding: "utf8", stdio: ["ignore", "pipe", "pipe"],
+    });
   } catch { throw new Error("Private audit inspection failed; no database contents are printed."); }
   const events = JSON.parse(audits) as { action: string }[];
   for (const action of ["staff.created", "staff.roles_changed", "staff.disabled", "patient.created", "consultation.created"]) expect(events.some(event => event.action === action)).toBe(true);

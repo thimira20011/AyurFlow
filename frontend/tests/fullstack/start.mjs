@@ -32,8 +32,12 @@ function run(command, args, extra = {}) {
 const executable = name => path.join(cache, name + (process.platform === "win32" ? ".exe" : ""));
 const tables = spawnSync("psql", ["-X", "-A", "-t", "-v", "ON_ERROR_STOP=1", "-c",
   "SELECT count(*) FROM information_schema.tables WHERE table_schema NOT IN ('pg_catalog', 'information_schema')"],
-{ env: { ...process.env, PGDATABASE: database.href }, encoding: "utf8" });
-if (tables.status !== 0 || tables.stdout.trim() !== "0") throw new Error("AUTH-06 requires an empty disposable database; no existing records are changed.");
+{ env: { ...process.env, PGHOST: database.hostname, PGPORT: database.port || "5432",
+  PGDATABASE: decodeURIComponent(database.pathname.slice(1)), PGUSER: decodeURIComponent(database.username),
+  PGPASSWORD: decodeURIComponent(database.password), PGSSLMODE: database.searchParams.get("sslmode") ?? "prefer" }, encoding: "utf8" });
+if (tables.error) throw new Error(`Cannot start psql (${tables.error.code}); install the PostgreSQL client.`);
+if (tables.status !== 0) throw new Error("Disposable database connection/inspection failed; check local client and database settings.");
+if (tables.stdout.trim() !== "0") throw new Error("AUTH-06 requires an empty disposable database; no existing records are changed.");
 for (const name of ["api", "migrate", "seedstaff"]) run("go", ["build", "-o", executable(name), `./cmd/${name}`]);
 run(executable("migrate"), []);
 const password = `Synthetic-only-${randomBytes(24).toString("hex")}`;
