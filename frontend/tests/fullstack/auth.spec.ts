@@ -9,7 +9,24 @@ let fixture: { accounts: Record<string, string>; password: string; prefix: strin
 const canaries: string[] = [];
 test.beforeAll(() => {
   fixture = JSON.parse(readFileSync(path.join(cache, "fixture.json"), "utf8"));
-  canaries.push(fixture.password);
+});
+test.beforeEach(() => { canaries.splice(0, canaries.length, fixture.password, "synthetic-wrong-password", `Synthetic-note-canary-${fixture.prefix}`); });
+
+function readAudits(): string {
+  try {
+    const connection = new URL(process.env.AUTH_E2E_DATABASE_URL!);
+    return execFileSync("psql", ["-X", "-A", "-t", "-v", "ON_ERROR_STOP=1", "-c", "SELECT coalesce(json_agg(audit_events), '[]'::json)::text FROM audit_events"], {
+      env: { ...process.env, PGHOST: connection.hostname, PGPORT: connection.port || "5432",
+        PGDATABASE: decodeURIComponent(connection.pathname.slice(1)), PGUSER: decodeURIComponent(connection.username),
+        PGPASSWORD: decodeURIComponent(connection.password), PGSSLMODE: connection.searchParams.get("sslmode") ?? "prefer" },
+      encoding: "utf8", stdio: ["ignore", "pipe", "pipe"],
+    });
+  } catch { throw new Error("Private audit inspection failed; no database contents are printed."); }
+}
+test.afterEach(() => {
+  const output = readFileSync(path.join(cache, "services.log"), "utf8") + readAudits();
+  expect(canaries.length).toBeGreaterThanOrEqual(2);
+  expect(canaries.some(value => output.includes(value))).toBe(false);
 });
 
 async function login(api: APIRequestContext, role: string) {
@@ -37,6 +54,7 @@ async function signIn(page: Page, role: string) {
   await page.getByRole("button", { name: "Sign in", exact: true }).click();
   const response = await submitted;
   expect(response.status()).toBe(200);
+  canaries.push((await response.json()).csrfToken);
   const setCookie = (await response.allHeaders())["set-cookie"] ?? "";
   expect(setCookie.startsWith("__Host-ayurflow_session=") && /; Secure/i.test(setCookie) && /; HttpOnly/i.test(setCookie) && /; SameSite=Lax/i.test(setCookie) && /; Path=\//i.test(setCookie) && !/; Domain=/i.test(setCookie)).toBe(true);
   await expect(page).toHaveURL(`${origin}/workspace`);
@@ -68,7 +86,9 @@ for (const role of ["administrator", "receptionist", "clinician", "therapist", "
     expect(page.url().includes(fixture.password)).toBe(false);
     const session = await page.request.get("/api/v1/auth/session");
     expect(session.headers()["cache-control"]).toBe("no-store");
-    expect((await session.json()).roles).toEqual([role]);
+    const restored = await session.json();
+    canaries.push(restored.csrfToken);
+    expect(restored.roles).toEqual([role]);
     expect((await page.request.get("/api/v1/admin/staff")).status()).toBe(role === "administrator" ? 200 : 403);
     expect((await page.request.get("/api/v1/patients?q=Synthetic")).status()).toBe(role === "receptionist" ? 200 : 403);
     if (role !== "administrator") await expect(page.getByRole("link", { name: "Staff administration", exact: true })).toHaveCount(0);
@@ -186,7 +206,7 @@ test("real absolute expiry rejects a session despite repeated refreshes", async 
     const response = await request.get("/api/v1/auth/session");
     if (response.status() === 200) {
       const current = await response.json();
-      expect(current.expiresAt).toBe(original.expiresAt);
+      expect(Date.parse(current.expiresAt)).toBe(Date.parse(original.expiresAt));
       canaries.push(current.csrfToken);
     }
     return response.status();
@@ -194,21 +214,6 @@ test("real absolute expiry rejects a session despite repeated refreshes", async 
 });
 
 test("critical audit events exist and controlled logs/audit omit credential and note canaries", async () => {
-  const database = process.env.AUTH_E2E_DATABASE_URL;
-  expect(Boolean(database)).toBe(true);
-  let audits: string;
-  try {
-    const connection = new URL(database!);
-    audits = execFileSync("psql", ["-X", "-A", "-t", "-v", "ON_ERROR_STOP=1", "-c", "SELECT coalesce(json_agg(audit_events), '[]'::json)::text FROM audit_events"], {
-      env: { ...process.env, PGHOST: connection.hostname, PGPORT: connection.port || "5432",
-        PGDATABASE: decodeURIComponent(connection.pathname.slice(1)), PGUSER: decodeURIComponent(connection.username),
-        PGPASSWORD: decodeURIComponent(connection.password), PGSSLMODE: connection.searchParams.get("sslmode") ?? "prefer" },
-      encoding: "utf8", stdio: ["ignore", "pipe", "pipe"],
-    });
-  } catch { throw new Error("Private audit inspection failed; no database contents are printed."); }
-  const events = JSON.parse(audits) as { action: string }[];
+  const events = JSON.parse(readAudits()) as { action: string }[];
   for (const action of ["staff.created", "staff.roles_changed", "staff.disabled", "patient.created", "consultation.created"]) expect(events.some(event => event.action === action)).toBe(true);
-  const output = readFileSync(path.join(cache, "services.log"), "utf8") + audits;
-  expect(canaries.length).toBeGreaterThan(10);
-  expect(canaries.some(value => output.includes(value))).toBe(false);
 });
