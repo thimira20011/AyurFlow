@@ -1,0 +1,21 @@
+Member B local PostgreSQL migration check — 2026-11-02, Asia/Colombo
+Tester: Codex, synthetic disposable WSL database ayurflow_test
+Environment: Ubuntu 24.04 WSL, PostgreSQL 16.15, role ravindu
+Command: rg --files backend/db/migrations | Sort-Object; for each path run wsl -d Ubuntu-24.04 -- psql -X -v ON_ERROR_STOP=1 -d ayurflow_test -f <path>
+Expected: every forward migration applies without SQL error to an empty disposable database.
+Actual output:
+PASS backend/db/migrations/000001_foundation.up.sql
+PASS backend/db/migrations/000002_reference_roles.up.sql
+PASS backend/db/migrations/000003_auth_login_attempts.up.sql
+PASS backend/db/migrations/000004_audit_integrity.up.sql
+PASS backend/db/migrations/000004_billing.up.sql
+PASS backend/db/migrations/000005_patients.up.sql
+PASS backend/db/migrations/000006_consultation_drafts.up.sql
+PASS backend/db/migrations/000007_consultation_signing.up.sql
+PASS backend/db/migrations/000008_clinical_assignments.up.sql
+PASS backend/db/migrations/000009_care_pathway.up.sql
+PASS backend/db/migrations/000010_patient_demographics.up.sql
+PASS backend/db/migrations/000011_patient_postal_code.up.sql
+PASS backend/db/migrations/000012_pathway_stage_codes.up.sql
+PASS backend/db/migrations/000013_plan_start_decision.up.sql
+Result: 14/14 SQL migration files applied. This is a local SQL check, not a local Go AT02–AT04 test result.

@@ -18,23 +18,23 @@ For every new B task contribution, start a **new branch** from the latest integr
 | B-owned task | Status | Branch | Depends on / acceptance gate |
 | --- | --- | --- | --- |
 | TASK-SET-02 | Done for development planning | `member-b/confirm-clinic-rules` (existing) | DEC01–02 clinic decisions remain gates for affected UAT |
-| TASK-PAT-01 | In progress | `member-b/patient-schema` / PR #19 | Isolated PostgreSQL schema test passed in CI; A migration-number confirmation, C review, DEC02 and AT02 integration pending |
-| TASK-PAT-02 | In progress | `member-b/registration-search` / PR #22 | Registration, search and audited-update core passed PostgreSQL CI; AUTH-03/CSRF, DEC02, C review and AT02 integration remain |
-| TASK-PAT-03 | In progress | `member-b/patient-screens` / [PR #29](https://github.com/thimira20011/AyurFlow/pull/29), merged | Screens wired to protected patient API; CI passed; shared sign-in/UI, DEC02/07, C review and integrated AT02 remain |
-| TASK-CON-01 | In progress | `member-b/consultation-drafts` / [PR #32](https://github.com/thimira20011/AyurFlow/pull/32); follow-up [PR #39](https://github.com/thimira20011/AyurFlow/pull/39), merged | Draft core, proposed assignment source and protected draft handlers merged; A migration number, DEC02 grant authority, live route registration and AT03 pending |
-| TASK-CON-02 | In progress | `member-b/signing-addenda`; follow-up `member-b/con-02-signing-http` / [PR #42](https://github.com/thimira20011/AyurFlow/pull/42) | [Protected HTTP and PostgreSQL CI passed](https://github.com/thimira20011/AyurFlow/actions/runs/40652220332); live registration, A migration number, DEC02, C review and integrated AT03 pending |
-| TASK-CON-03 | In progress | `member-b/consultation-screens` | Editor/history and synthetic preview built; [branch CI passed](https://github.com/thimira20011/AyurFlow/actions/runs/40399408858); protected clinical HTTP, DEC02, C/F review, UI-06 and AT03 remain |
-| TASK-CON-04 | In progress | `member-b/con-04-patient-consultation-verification` | Protected HTTP/PostgreSQL races pass in [CI](https://github.com/thimira20011/AyurFlow/actions/runs/41236381647); staff screen journeys, AT02–03 and C review remain |
-| TASK-CLN-01 | In progress | `member-b/cln-01-pathway-schema` | Plan/stage/decision schema and PostgreSQL test; A migration number, C review and DEC02 approved labels/checklist pending |
-| TASK-CLN-02 | In progress | `member-b/cln-02-plan-approval` | Transactional create/approve/advance service and PostgreSQL tests; DEC02 completion policy, C session integration, protected HTTP and AT04 pending |
-| TASK-CLN-03 | Pending | `member-b/hold-resume-cancel` | CLN-02, SCH-01, DEC08; AT05 |
-| TASK-CLN-04 | Pending | `member-b/session-clearance` | CLN-02/03, SCH-03; start/hold race |
-| TASK-CLN-05 | Pending | `member-b/plan-screens` | CLN-02/04, UI-02/06; clinician actions |
-| TASK-CLN-06 | Pending | `member-b/clinical-transition-tests` | CLN-03/05, SCH-04; AT04–05 and C review |
+| TASK-PAT-01 | Pending C Review & Integration Evidence | `member-b/patient-clinical-completion` | Schema, identity normalization and phone-absent postal fallback implemented; signed DEC02 source and AT02 sign-off pending |
+| TASK-PAT-02 | Pending C Review & Integration Evidence | `member-b/patient-clinical-completion` | Protected registration/search and audited updates tested in PostgreSQL CI; browser journey and AT02 sign-off pending |
+| TASK-PAT-03 | Pending C Review & Integration Evidence | `member-b/patient-clinical-completion` | Patient screens integrated; protected browser journey and C/F review pending |
+| TASK-CON-01 | Pending C Review & Integration Evidence | `member-b/patient-clinical-completion` | Protected draft creation/editing and assignment rules implemented; AT03 staff journey pending |
+| TASK-CON-02 | Pending C Review & Integration Evidence | `member-b/patient-clinical-completion` | Signing, database immutability and dated addenda tested; AT03 and C review pending |
+| TASK-CON-03 | Pending C Review & Integration Evidence | `member-b/patient-clinical-completion` | Consultation editor and signed-history screen integrated; browser journey and C/F review pending |
+| TASK-CON-04 | Pending C Review & Integration Evidence | `member-b/patient-clinical-completion` | Protected PostgreSQL identity and edit/sign races pass CI; staff journey and C review pending |
+| TASK-CLN-01 | Pending C Review & Integration Evidence | `member-b/patient-clinical-completion` | Fixed NOT_STARTED → PREPARATORY → PRIMARY → RECOVERY → COMPLETED sequence and terminal guard implemented; C review pending |
+| TASK-CLN-02 | Pending C Review & Integration Evidence | `member-b/patient-clinical-completion` | Versioned approval and transition service tested; C/D completion adapters and AT04 pending |
+| TASK-CLN-03 | Pending C Review & Integration Evidence | `member-b/patient-clinical-completion` | Reasoned hold/resume/cancel service tested; C cancellation adapter and AT05 pending |
+| TASK-CLN-04 | Pending C Review & Integration Evidence | `member-b/patient-clinical-completion` | Transactional current-stage clearance hook and hold/start race tested; C session-start join pending |
+| TASK-CLN-05 | Pending C Review & Integration Evidence | `member-b/patient-clinical-completion` | Clinician plan screen integrated; browser walkthrough and C/F review pending |
+| TASK-CLN-06 | Pending C Review & Integration Evidence | `member-b/patient-clinical-completion` | PostgreSQL pathway, lifecycle and protected HTTP tests pass CI; integrated AT04–05 execution pending |
 
-### Consolidated completion branch (1 November 2026)
+### Consolidated completion branch (2 November 2026)
 
-`member-b/patient-clinical-completion` carries the remaining B-owned code for PAT-01–03, CON-01–04 and CLN-01–02/05–06. It adds the phone-absent postal confirmation fallback, a fixed three-treatment-stage pathway, protected plan handlers, clinician plan screen, versioned decisions, hold/resume/cancel services, and B's session-clearance hook. The formal task-board status remains **Pending C Review & Integration Evidence**. C's scheduling completion/cancellation adapter, D's preparation evidence contract, the protected browser journeys, and AT02–05 reviewer sign-off are separate integration gates. The commit history of this branch is the review source; the older per-task rows above describe earlier work and do not assert closure.
+`member-b/patient-clinical-completion` carries the remaining B-owned code for PAT-01–03, CON-01–04 and CLN-01–06. It adds the phone-absent postal confirmation fallback, the fixed pathway with explicit start and terminal states, protected plan handlers, clinician plan screen, versioned decisions, hold/resume/cancel services, and B's session-clearance hook. The [2 November evidence record](evidence/member-b-completion-2026-11-02.md) links the passing PostgreSQL CI run. The formal task-board status remains **Pending C Review & Integration Evidence**. C's scheduling completion/cancellation adapter, D's preparation evidence contract, protected browser journeys, and AT02–05 reviewer sign-off are separate integration gates.
 
 Tasks may be prepared while decisions are pending, but they cannot be marked Done until their dependencies, integration evidence and reviewer checks pass. Do not use provisional pathway or field choices as clinic approval.
 
