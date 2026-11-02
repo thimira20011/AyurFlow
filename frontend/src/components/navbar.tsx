@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 
 const navTabs = [
   { name: "Dashboard", href: "/dashboard" },
+  { name: "Reception Desk", href: "/reception" },
   { name: "Patient Records", href: "/patients" },
   { name: "Clinical Pathway", href: "/clinical" },
   { name: "Scheduling", href: "/scheduling" },
@@ -16,8 +17,8 @@ const navTabs = [
 export function Navbar() {
   const pathname = usePathname();
 
-  // On auth pages, don't display the clinic navbar
-  if (pathname.startsWith("/sign-in") || pathname.startsWith("/sign-up")) {
+  // On auth and standalone workspace pages, don't display the top clinic navbar
+  if (pathname.startsWith("/sign-in") || pathname.startsWith("/sign-up") || pathname.startsWith("/reception")) {
     return null;
   }
 
