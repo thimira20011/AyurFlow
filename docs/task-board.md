@@ -50,7 +50,7 @@ Status values: **Pending** = not started; **In progress** = work underway but co
 | TASK-AUTH-03 | Backend role/record checks, cookies and CSRF | A | F | Pending | — |
 | TASK-AUTH-04 | Login, account/role screens and disabling | A with F | F | Pending | — |
 | TASK-AUTH-05 | Transactional audit and restricted retrieval | A | F | In review | `codex/auth-05-audit`; [PostgreSQL/race CI passed](https://github.com/thimira20011/AyurFlow/actions/runs/39791162419); AUTH-03/module integration/F/full AT13 pending |
-| TASK-AUTH-06 | AT01 identity/access and safe-log verification | A | F | In progress | Merged initial verification; `codex/auth-06-integration-repair` restores sign-in/session/navigation/logout behavior with synthetic Chromium regressions. [Evidence](testing.md#auth-06qa-04-frontend-integration-repair-2-november-2026); real HTTPS/full AT01 and F review pending |
+| TASK-AUTH-06 | AT01 identity/access and safe-log verification | A | F | In progress | Merged frontend repair; `codex/auth-06-fullstack-verification` adds 15 real HTTPS/Next/Go/PostgreSQL cases. [All six CI jobs passed](https://github.com/thimira20011/AyurFlow/actions/runs/41527635069) on `ea2aa3a`; [execution record](auth-06-verification.md#real-full-stack-browser-verification-3-november-2026). F review, trusted deployment, final policy/module gates and full AT01 remain open |
 
 ## 4. Patients and consultations (weeks 1–4)
 
