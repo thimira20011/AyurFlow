@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"ayurflow/backend/internal/testutil"
 
@@ -74,6 +75,24 @@ func TestPlanHoldResumeCancelAndClearanceIntegration(t *testing.T) {
 	}
 	if err := clearance(); err != nil {
 		t.Fatalf("approved current stage denied: %v", err)
+	}
+	startTx, err := pool.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := RequireSessionClearance(ctx, startTx, plan.ID, stageID); err != nil {
+		startTx.Rollback(ctx)
+		t.Fatalf("session start clearance: %v", err)
+	}
+	blockedCtx, stop := context.WithTimeout(ctx, 300*time.Millisecond)
+	_, blockedErr := service.Hold(blockedCtx, clinician, plan.ID, plan.Version, "Concurrent pause")
+	stop()
+	if !errors.Is(blockedErr, context.DeadlineExceeded) {
+		startTx.Rollback(ctx)
+		t.Fatalf("hold did not wait for session-start transaction: %v", blockedErr)
+	}
+	if err := startTx.Commit(ctx); err != nil {
+		t.Fatal(err)
 	}
 	plan, err = service.Hold(ctx, clinician, plan.ID, plan.Version, "Synthetic clinical pause")
 	if err != nil || plan.Status != "held" {
