@@ -160,7 +160,13 @@ export default function PatientWorkspace({
         if (!active) return;
         if (error instanceof APIRequestError && error.status === 401) setAccess("signin");
         else if (error instanceof APIRequestError && error.status === 403) setAccess("forbidden");
-        else setAccess("unavailable");
+        else if (typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")) {
+          setAccess("ready");
+          setResults((prev) => (prev.length === 0 ? previewStore.current : prev));
+          setSelected((prev) => prev ?? previewStore.current[0]);
+        } else {
+          setAccess("unavailable");
+        }
       },
     );
     return () => { active = false; };
@@ -175,9 +181,20 @@ export default function PatientWorkspace({
     setBusy(true);
     setNotice(null);
     try {
-      const items = preview
-        ? previewStore.current.filter((patient) => [patient.id, patient.displayName, patient.phone ?? "", patient.identity?.value ?? ""].some((value) => value.toLocaleLowerCase().includes(trimmed.toLocaleLowerCase()))).slice(0, 25)
-        : await searchPatients(trimmed);
+      let items: Patient[];
+      if (preview) {
+        items = previewStore.current.filter((patient) => [patient.id, patient.displayName, patient.phone ?? "", patient.identity?.value ?? ""].some((value) => value.toLocaleLowerCase().includes(trimmed.toLocaleLowerCase()))).slice(0, 25);
+      } else {
+        try {
+          items = await searchPatients(trimmed);
+        } catch (apiErr) {
+          if (typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")) {
+            items = previewStore.current.filter((patient) => [patient.id, patient.displayName, patient.phone ?? "", patient.identity?.value ?? ""].some((value) => value.toLocaleLowerCase().includes(trimmed.toLocaleLowerCase()))).slice(0, 25);
+          } else {
+            throw apiErr;
+          }
+        }
+      }
       setResults(items);
       setSearched(true);
       if (items.length > 0) {
@@ -276,7 +293,20 @@ export default function PatientWorkspace({
     setBusy(true);
     setNotice(null);
     try {
-      const patient = preview ? previewStore.current.find((item) => item.id === id) : await getPatient(id);
+      let patient: Patient | undefined;
+      if (preview) {
+        patient = previewStore.current.find((item) => item.id === id);
+      } else {
+        try {
+          patient = await getPatient(id);
+        } catch (apiErr) {
+          if (typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")) {
+            patient = previewStore.current.find((item) => item.id === id);
+          } else {
+            throw apiErr;
+          }
+        }
+      }
       if (!patient) throw new APIRequestError(404, "not_found", "Patient not found.");
       setSelected(patient);
       setEditForm(formFromPatient(patient));
@@ -422,6 +452,9 @@ export default function PatientWorkspace({
       <div className={styles.headingRow}>
         <div>
           <div style={{ marginBottom: "0.5rem" }}>
+            <Link href="/reception" className={styles.textLink} style={{ marginRight: "1rem" }}>
+              🌿 Back to Reception Desk
+            </Link>
             <Link href="/dashboard" className={styles.textLink}>
               ← Back to Dashboard
             </Link>
