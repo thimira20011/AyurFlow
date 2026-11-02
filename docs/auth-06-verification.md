@@ -4,6 +4,14 @@ Owner A; reviewer F. SRS IAM-01–05 and audit confidentiality, partial AT01/AT1
 
 ## Automated evidence map
 
+### Real full-stack browser verification (3 November 2026)
+
+On `codex/auth-06-fullstack-verification`, A adds 15 real HTTPS/Chromium → Next rewrite → Go → PostgreSQL cases. Setup, exact test-only expiry/throttle values, isolation guards, credential handling and scope are in [the runner instructions](../frontend/tests/fullstack/README.md). CI's `auth-browser` job uses PostgreSQL 17.11 and retains only safe JSON case results. The existing simulated API suite remains separate. Production code, endpoints, migrations and DEC07 choices are unchanged.
+
+Expected: seven single-role accounts sign in and restore correctly; protected reads enforce backend roles/clinical assignments; stale/missing CSRF and foreign origins leave staff unchanged; account changes/logout revoke sessions; real idle/absolute expiry and identifier cooldown hold; critical audit events exist without secret/note canaries in controlled service output or audit rows. A repeat synthetic seed must preserve the original account's password and role. Local lint/type checks and discovery of all 15 cases passed; the missing-URL guard rejects startup before touching a database. Full execution requires CI because local PostgreSQL/Docker and the pinned Go toolchain are unavailable. Remote actual results/version/run URL will be recorded after execution; no pass is claimed yet.
+
+Still open: F review; trusted deployed HTTPS/proxy/host evidence; DEC07 final security/recovery settings; owner-provided therapist/session/report adapters and full AT01/AT13 acceptance. The isolated self-signed certificate is accepted only by this test configuration.
+
 These tests are executable checks, not a claim that the full browser acceptance scenario passed. Run from `backend`: `go test ./...`; then, against an isolated disposable database, set `TEST_DATABASE_URL` and run `go test -race -tags=integration -shuffle=on -count=1 -timeout=5m ./...` on a supported race toolchain. CI already runs both suites, checks for skipped integration tests and retains JSON results.
 
 | Expected behavior | Test/evidence location |

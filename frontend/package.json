@@ -10,6 +10,7 @@
   "scripts": {
     "test": "node --experimental-strip-types --test tests/*.test.mjs",
     "test:browser": "playwright test",
+    "test:fullstack": "playwright test --config playwright.fullstack.config.ts",
     "dev": "next dev --hostname 127.0.0.1",
     "build": "next build",
     "start": "next start --hostname 0.0.0.0",

@@ -119,6 +119,59 @@ jobs:
           path: backend/integration-results.json
           if-no-files-found: ignore
 
+  auth-browser:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17.11-alpine
+        env:
+          POSTGRES_DB: ayurflow_auth_e2e
+          POSTGRES_USER: ayurflow_test
+          POSTGRES_PASSWORD: synthetic-ci-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ayurflow_test -d ayurflow_auth_e2e"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      AUTH_E2E_DATABASE_URL: postgres://ayurflow_test:synthetic-ci-only@127.0.0.1:5432/ayurflow_auth_e2e?sslmode=disable
+      NEXT_TELEMETRY_DISABLED: '1'
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: '1.27.3'
+          cache-dependency-path: backend/go.sum
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: '.nvmrc'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm install --global npm@10.9.8 --no-audit --no-fund
+      - run: npm ci --no-audit --no-fund
+      - run: npm run build
+        env:
+          BACKEND_URL: http://127.0.0.1:8080
+      - run: npx playwright install --with-deps chromium
+      - name: Verify real HTTPS browser, API and PostgreSQL identity boundaries
+        run: npm run test:fullstack
+      - name: Preserve redacted test results only
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: auth-browser-results
+          path: .cache/auth-e2e/results.json
+          if-no-files-found: ignore
+      - name: Remove ephemeral fixture credentials and TLS key
+        if: always()
+        run: rm -f ../.cache/auth-e2e/fixture.json ../.cache/auth-e2e/tls.key ../.cache/auth-e2e/tls.pem
+
   security:
     runs-on: ubuntu-latest
     timeout-minutes: 15
