@@ -74,15 +74,15 @@ func TestReceiptRetryPayloadIntegration(t *testing.T) {
 	request := PostReceiptRequest{
 		OperationID: receiptOperation(t, pool), AmountMinor: 10, PaymentMethod: "cash", Label: "synthetic-reference",
 	}
-	original, err := service.PostReceipt(t.Context(), billingTestActor, invoice.ID, request)
-	if err != nil {
-		t.Fatal(err)
+	original, existedOriginal, err := service.PostReceipt(t.Context(), billingTestActor, invoice.ID, request)
+	if err != nil || existedOriginal {
+		t.Fatalf("initial post failed or incorrectly flagged as existing: existed=%v err=%v", existedOriginal, err)
 	}
 	retry := request
 	retry.OperationID = strings.ToUpper(retry.OperationID)
-	repeated, err := service.PostReceipt(t.Context(), billingTestActor, invoice.ID, retry)
-	if err != nil || repeated.ID != original.ID {
-		t.Fatalf("identical retry did not return original receipt: %v", err)
+	repeated, existedRetry, err := service.PostReceipt(t.Context(), billingTestActor, invoice.ID, retry)
+	if err != nil || repeated.ID != original.ID || !existedRetry {
+		t.Fatalf("identical retry did not return original receipt or flagged wrong: existed=%v err=%v", existedRetry, err)
 	}
 	for _, tc := range []struct {
 		name    string
@@ -97,7 +97,7 @@ func TestReceiptRetryPayloadIntegration(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			changed := request
 			tc.change(&changed)
-			_, err := service.PostReceipt(t.Context(), billingTestActor, tc.invoice, changed)
+			_, _, err := service.PostReceipt(t.Context(), billingTestActor, tc.invoice, changed)
 			if !errors.Is(err, ErrConflict) {
 				t.Fatalf("changed retry should conflict: %v", err)
 			}
@@ -147,7 +147,7 @@ func TestConcurrentReceiptOperationsIntegration(t *testing.T) {
 				go func() {
 					defer workers.Done()
 					<-start
-					receipt, err := service.PostReceipt(ctx, billingTestActor, invoice.ID, request)
+					receipt, _, err := service.PostReceipt(ctx, billingTestActor, invoice.ID, request)
 					results <- outcome{receipt: receipt, err: err}
 				}()
 			}
@@ -183,13 +183,13 @@ func TestConcurrentReceiptOperationsIntegration(t *testing.T) {
 func TestReceiptOverpaymentCannotOverflowIntegration(t *testing.T) {
 	service, pool := billingFixture(t)
 	invoice := issuedTestInvoice(t, service, math.MaxInt64)
-	_, err := service.PostReceipt(t.Context(), billingTestActor, invoice.ID, PostReceiptRequest{
+	_, _, err := service.PostReceipt(t.Context(), billingTestActor, invoice.ID, PostReceiptRequest{
 		OperationID: receiptOperation(t, pool), AmountMinor: 10, PaymentMethod: "cash",
 	})
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = service.PostReceipt(t.Context(), billingTestActor, invoice.ID, PostReceiptRequest{
+	_, _, err = service.PostReceipt(t.Context(), billingTestActor, invoice.ID, PostReceiptRequest{
 		OperationID: receiptOperation(t, pool), AmountMinor: math.MaxInt64, PaymentMethod: "cash",
 	})
 	if !errors.Is(err, ErrConflict) {
@@ -211,7 +211,7 @@ func TestReceiptAuditFailureRollsBackIntegration(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, err = service.PostReceipt(t.Context(), billingTestActor, invoice.ID, PostReceiptRequest{
+	_, _, err = service.PostReceipt(t.Context(), billingTestActor, invoice.ID, PostReceiptRequest{
 		OperationID: receiptOperation(t, pool), AmountMinor: 10, PaymentMethod: "cash",
 	})
 	if err == nil {
@@ -429,7 +429,7 @@ func TestDirectReceiptsDepositsAndBalanceIntegration(t *testing.T) {
 		PaymentMethod: "direct_deposit",
 		Label:         "Advance deposit BOC-slip-882",
 	}
-	rec1, err := service.PostReceipt(t.Context(), billingTestActor, invoice.ID, req1)
+	rec1, _, err := service.PostReceipt(t.Context(), billingTestActor, invoice.ID, req1)
 	if err != nil {
 		t.Fatalf("failed to post direct deposit: %v", err)
 	}
@@ -454,7 +454,7 @@ func TestDirectReceiptsDepositsAndBalanceIntegration(t *testing.T) {
 		PaymentMethod: "cash",
 		Label:         "Counter settlement",
 	}
-	rec2, err := service.PostReceipt(t.Context(), billingTestActor, invoice.ID, req2)
+	rec2, _, err := service.PostReceipt(t.Context(), billingTestActor, invoice.ID, req2)
 	if err != nil {
 		t.Fatalf("failed to post cash receipt: %v", err)
 	}
@@ -473,7 +473,7 @@ func TestDirectReceiptsDepositsAndBalanceIntegration(t *testing.T) {
 
 	// 6. Overpayment attempt must be rejected with ErrConflict
 	op3 := receiptOperation(t, pool)
-	_, err = service.PostReceipt(t.Context(), billingTestActor, invoice.ID, PostReceiptRequest{
+	_, _, err = service.PostReceipt(t.Context(), billingTestActor, invoice.ID, PostReceiptRequest{
 		OperationID:   op3,
 		AmountMinor:   5000,
 		PaymentMethod: "cash",
