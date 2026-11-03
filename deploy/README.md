@@ -18,6 +18,8 @@ psql -X -v ON_ERROR_STOP=1 -v app_role=ayurflow_app -v schema=public -f deploy/r
 
 Provide the non-secret connection host/database/user through libpq configuration. Do not pass a credential-bearing URI on the command line. Rerun grants after each reviewed migration before restarting the API. New tables require an explicit grant-script review; no default grant silently exposes them. Database privileges isolate schema/history administration; backend role/record checks still enforce each staff member's permissions. Existing immutable clinical/billing triggers remain in force.
 
+Clinical assignment and care plan operations require SELECT/INSERT/UPDATE on `patient_clinician_assignments`, `care_plans` and `plan_stages`. Decision history receives SELECT/INSERT only. Patient registration also requires USAGE on `patient_registry_numbers`. These explicit grants cover the merged migrations through `000013`. New inventory or scheduling tables require a further review.
+
 ## Configure and start
 
 1. Select the DEC06 host, DNS name, database/firewall and persistent storage. Route DNS to the host; allow inbound 80/443 for Caddy certificate issuance/HTTPS. Restrict SSH to operators. Preserve Caddy `/data` and `/config` volumes across restarts. Choose a reviewed Caddy image pinned by version and digest in `CADDY_IMAGE`.
@@ -43,6 +45,8 @@ Check `https://<host>/api/v1/health` and `/ready`, certificate validity, HTTP-to
 On failure, stop/restrict traffic and retain committed data. Inspect service status and redacted logs; do not automatically reverse applied migrations or delete volumes. Roll forward with a reviewed fix or use the separately tested recovery procedure once available.
 
 ## Evidence
+
+4 November 2026, TASK-OPS-01 follow-up, owner A, reviewer F pending. The runtime privilege regression now creates a synthetic patient with its generated registry number, grants/revokes a clinician assignment, creates/approves/starts a plan and appends a decision with an audit event under the restricted role. It forces deferred constraints to be checked and verifies denied decision-history changes, clinical deletion and registry reset. Local Go integration compilation and vet passed on Go 1.27.1/Windows. PostgreSQL execution skipped locally because `TEST_DATABASE_URL` is unavailable. CI execution results are recorded separately once available. AT01/AT17 and deployment acceptance remain open.
 
 28 October 2026, Codex automation, Windows: Go unit tests, vet and all-package integration compilation passed. The PostgreSQL integration test applies the actual grant script in an isolated schema with a distinct unprivileged role and checks allowed DML/reads and denied DDL/history modification. CI also renders pilot Compose and validates Caddy syntax. Docker/PostgreSQL execution is unavailable locally; remote execution outcomes are recorded after checks. Live deployment, DNS/certificates, firewall, runtime secret permissions and F acceptance remain pending.
 
