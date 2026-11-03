@@ -14,6 +14,7 @@ type PlanService interface {
 	Create(context.Context, string, string, string) (clinical.Plan, error)
 	List(context.Context, string, string) ([]clinical.Plan, error)
 	Get(context.Context, string, string) (clinical.Detail, error)
+	Start(context.Context, string, string, int64) (clinical.Plan, error)
 	Approve(context.Context, string, string, string, int64, []string) (clinical.Plan, error)
 	Advance(context.Context, string, string, int64) (clinical.Plan, error)
 	Hold(context.Context, string, string, int64, string) (clinical.Plan, error)
@@ -47,6 +48,21 @@ func registerPlans(group *gin.RouterGroup, service PlanService) {
 	})
 	group.GET("/plans/:id", func(c *gin.Context) {
 		plan, err := service.Get(c.Request.Context(), ActorID(c), c.Param("id"))
+		if err != nil {
+			planError(c, err)
+			return
+		}
+		c.JSON(http.StatusOK, plan)
+	})
+	group.POST("/plans/:id/start", func(c *gin.Context) {
+		var input *struct {
+			Version int64 `json:"version"`
+		}
+		if !consultationJSON(c, &input) || input == nil {
+			badConsultationRequest(c)
+			return
+		}
+		plan, err := service.Start(c.Request.Context(), ActorID(c), c.Param("id"), input.Version)
 		if err != nil {
 			planError(c, err)
 			return

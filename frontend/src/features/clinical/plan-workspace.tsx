@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState, type FormEvent } from "react";
 import { APIRequestError } from "@/lib/api-client";
 import { formatColombo, validPatientId } from "./validation";
-import { advancePlan, approveStage, changePlanState, createPlan, getPlan, listPlans, type Plan, type PlanDetail } from "./plans-api";
+import { advancePlan, approveStage, changePlanState, createPlan, getPlan, listPlans, startPlan, type Plan, type PlanDetail } from "./plans-api";
 import styles from "./consultation-workspace.module.css";
 
 function errorMessage(error: unknown): string {
@@ -89,6 +89,9 @@ export default function PlanWorkspace({ initialPatientId = "" }: { initialPatien
         {!selected ? <p>Select a plan to see its stages and decisions.</p> : <>
           <div className={styles.sectionHead}><h2>{selected.pathwayState}</h2><span className={styles.badge}>{selected.status}</span></div>
           <p className={styles.meta}>Version {selected.version} · Current stage {selected.currentStageOrdinal}</p>
+          {selected.status === "draft" && <div className={styles.actions}>
+            <button disabled={busy} onClick={() => mutate(() => startPlan(selected), "Preparatory stage started.")}>Start preparatory stage</button>
+          </div>}
           <ol>{selected.stages.map(stage => <li key={stage.id}>
             <strong>{stage.label}</strong> — {stage.status}
             <ul>{stage.requiredChecks.map(check => <li key={check}>{check}{stage.confirmedChecks.includes(check) ? " ✓" : ""}</li>)}</ul>

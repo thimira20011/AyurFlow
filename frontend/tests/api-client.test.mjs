@@ -58,6 +58,8 @@ test("administrator navigation grants no clinical or patient permission", () => 
   assert.equal(canOpenArea("/administration", ["administrator"]), true);
   assert.equal(canOpenArea("/clinical", ["administrator"]), false);
   assert.equal(canOpenArea("/patients", ["administrator"]), false);
+  assert.equal(canOpenArea("/reception", ["administrator"]), false);
+  assert.equal(canOpenArea("/reception", ["receptionist"]), true);
   assert.equal(canOpenArea("/patients/details", ["receptionist"]), true);
   assert.equal(canOpenArea("/clinical", []), false);
 });
