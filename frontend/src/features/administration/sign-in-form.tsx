@@ -4,17 +4,19 @@ import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { APIRequestError } from "@/lib/api-client";
 import { useStaffSession } from "./session";
+import styles from "./heritage.module.css";
 
 export function SignInForm() {
   const { signIn, session, loading, error: sessionError } = useStaffSession();
   const router = useRouter();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const summary = useRef<HTMLParagraphElement>(null);
   useEffect(() => { if (session) router.replace("/workspace"); }, [session, router]);
   useEffect(() => { if (error) summary.current?.focus(); }, [error]);
 
-  return <form method="post" className="auth-form" aria-busy={busy} onSubmit={async event => {
+  return <form id="sign-in-form" method="post" className={styles.signInForm} aria-busy={busy} onSubmit={async event => {
     event.preventDefault();
     if (busy) return;
     const form = event.currentTarget;
@@ -29,15 +31,15 @@ export function SignInForm() {
         : "Sign in is unavailable. Check the connection and ask your administrator to confirm HTTPS and authentication setup.");
     } finally { setBusy(false); }
   }}>
-    {error && <p ref={summary} tabIndex={-1} role="alert" className="auth-notice">{error}</p>}
-    {!error && sessionError && <p role="status" className="auth-notice">{sessionError}</p>}
-    <div className="auth-field-group"><label htmlFor="signin-login" className="auth-label">Login identifier</label>
-      <input id="signin-login" name="loginIdentifier" className="auth-input" autoComplete="username" required maxLength={64} autoCapitalize="none" spellCheck={false} />
+    {error && <p ref={summary} tabIndex={-1} role="alert" className={styles.error}>{error}</p>}
+    {!error && sessionError && <p role="status" className={styles.error}>{sessionError}</p>}
+    <div className={styles.field}><label htmlFor="signin-login">Login identifier</label>
+      <input id="signin-login" name="loginIdentifier" className={styles.input} placeholder="Enter your login identifier" autoComplete="username" required maxLength={64} autoCapitalize="none" spellCheck={false} />
     </div>
-    <div className="auth-field-group"><label htmlFor="signin-password" className="auth-label">Password</label>
-      <input id="signin-password" name="password" type="password" className="auth-input" autoComplete="current-password" required maxLength={1024} />
+    <div className={styles.field}><label htmlFor="signin-password">Password</label>
+      <input id="signin-password" name="password" type={showPassword ? "text" : "password"} className={styles.input} placeholder="Enter your password" autoComplete="current-password" required maxLength={1024} />
     </div>
-    <button type="submit" className="auth-btn-primary" disabled={busy || loading}>{busy ? "Signing in…" : loading ? "Checking session…" : "Sign in"}</button>
-    <p className="auth-field-hint">Use the account assigned by your administrator. For access or password help, contact them directly.</p>
+    <label className={styles.passwordVisibility}><input type="checkbox" className={styles.checkbox} checked={showPassword} onChange={event => setShowPassword(event.target.checked)} />Show password</label>
+    <button id="signin-submit" type="submit" className={`${styles.primary} ${styles.signInSubmit}`} disabled={busy || loading}>{busy ? "Signing in…" : loading ? "Checking session…" : "Sign in"}</button>
   </form>;
 }

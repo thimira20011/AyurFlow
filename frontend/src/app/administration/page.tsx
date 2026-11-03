@@ -1,13 +1,16 @@
 "use client";
 
+/* eslint-disable @next/next/no-img-element -- Preserve the intrinsic fractional dimensions of the Figma SVG exports. */
+
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { apiGet, apiMutation, APIRequestError } from "@/lib/api-client";
 import { useStaffSession } from "@/features/administration/session";
+import styles from "@/features/administration/heritage.module.css";
 
 type Staff = { id: string; loginIdentifier: string; active: boolean; roles: string[]; createdAt: string };
 type Role = { code: string; name: string };
-type Page = { items: Staff[]; roles: Role[]; nextCursor?: string };
+type StaffPage = { items: Staff[]; roles: Role[]; nextCursor?: string };
 
 function messageFor(error: unknown) {
   if (error instanceof APIRequestError) {
@@ -20,95 +23,141 @@ function messageFor(error: unknown) {
   return "The result could not be confirmed. Refresh the list before trying the change again.";
 }
 
-function RoleChoices({ roles, selected, onChange, disabled, legend }: { roles: Role[]; selected: string[]; onChange: (value: string[]) => void; disabled: boolean; legend: string }) {
-  return <fieldset className="my-3 rounded-lg border p-3" disabled={disabled}>
-    <legend className="px-1 font-semibold">{legend}</legend>
-    <div className="flex flex-wrap gap-x-5 gap-y-2">{roles.map(role => <label key={role.code} className="flex min-h-10 items-center gap-2">
-      <input type="checkbox" value={role.code} checked={selected.includes(role.code)} onChange={event => onChange(event.target.checked ? [...selected, role.code] : selected.filter(value => value !== role.code))} />{role.name}
+function RoleChoices({ roles, selected, onChange, disabled }: { roles: Role[]; selected: string[]; onChange: (value: string[]) => void; disabled: boolean }) {
+  const order = ["receptionist", "clinician", "therapist", "dispensary", "billing", "administrator", "report_reader"];
+  return <fieldset className={styles.roleChoices} disabled={disabled}>
+    <legend>Assign roles explicitly</legend>
+    <div className={styles.roleGrid}>{[...roles].sort((a, b) => order.indexOf(a.code) - order.indexOf(b.code)).map(role => <label key={role.code}>
+      <input type="checkbox" className={styles.checkbox} value={role.code} checked={selected.includes(role.code)} onChange={event => onChange(event.target.checked ? [...selected, role.code] : selected.filter(value => value !== role.code))} />{role.name}
     </label>)}</div>
   </fieldset>;
 }
 
-function StaffRow({ staff, roles, actor, busy, change, disable }: { staff: Staff; roles: Role[]; actor?: string; busy: boolean; change: (roles: string[]) => void; disable: () => void }) {
-  const [selected, setSelected] = useState(staff.roles);
-  return <li className="rounded-xl border border-green-900/15 bg-white p-5">
-    <div className="flex flex-wrap items-center justify-between gap-3"><h3 className="font-semibold break-all">{staff.loginIdentifier}{actor === staff.id ? " (you)" : ""}</h3><span>{staff.active ? "Active" : "Disabled"}</span></div>
-    <form method="post" onSubmit={event => { event.preventDefault(); change(selected); }}>
-      <RoleChoices roles={roles} selected={selected} onChange={setSelected} disabled={busy || !staff.active} legend={`Roles for ${staff.loginIdentifier}`} />
-      <div className="flex flex-wrap gap-3"><button className="rounded-lg border px-4 py-2 disabled:opacity-50" disabled={busy || !staff.active}>Save roles</button>
-        <button type="button" className="rounded-lg border border-red-800 px-4 py-2 text-red-900 disabled:opacity-50" disabled={busy || !staff.active || actor === staff.id} onClick={disable}>Disable account</button></div>
-    </form>
-  </li>;
+function StaffDialog({ busy, close, children }: { busy: boolean; close: () => void; children: React.ReactNode }) {
+  const dialog = useRef<HTMLDialogElement>(null);
+  useEffect(() => {
+    const element = dialog.current;
+    const opener = document.activeElement;
+    element?.showModal();
+    return () => { element?.close(); if (opener instanceof HTMLElement && opener.isConnected) opener.focus(); };
+  }, []);
+  return <dialog ref={dialog} className={`${styles.theme} ${styles.dialog}`} aria-labelledby="staff-dialog-title" onCancel={event => { event.preventDefault(); if (!busy) close(); }}>{children}</dialog>;
 }
 
 export default function AdministrationPage() {
-  const { session } = useStaffSession();
-  const [page, setPage] = useState<Page>({ items: [], roles: [] });
+  const { session, signOut, signingOut } = useStaffSession();
+  const [page, setPage] = useState<StaffPage>({ items: [], roles: [] });
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [roles, setRoles] = useState<string[]>([]);
+  const [selectedRoles, setSelectedRoles] = useState<string[]>([]);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  const [editing, setEditing] = useState<Staff | "create" | null>(null);
+  const [date, setDate] = useState("");
   const summary = useRef<HTMLParagraphElement>(null);
+  const createButton = useRef<HTMLButtonElement>(null);
   const load = useCallback(async (after = "") => {
-    try {
-      const value = await apiGet<Page>(`/admin/staff${after ? `?after=${encodeURIComponent(after)}` : ""}`);
-      setPage(value);
-    }
+    try { setPage(await apiGet<StaffPage>(`/admin/staff${after ? `?after=${encodeURIComponent(after)}` : ""}`)); }
     catch (error) { setError(messageFor(error)); }
     finally { setLoading(false); }
   }, []);
   useEffect(() => {
     const controller = new AbortController();
-    apiGet<Page>("/admin/staff", controller.signal)
+    apiGet<StaffPage>("/admin/staff", controller.signal)
       .then(value => { if (!controller.signal.aborted) setPage(value); })
       .catch(error => { if (!controller.signal.aborted) setError(messageFor(error)); })
-      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+      .finally(() => { if (!controller.signal.aborted) {
+        setLoading(false);
+        setDate(new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Colombo" }).format(new Date()));
+      } });
     return () => controller.abort();
   }, []);
   useEffect(() => { if (error) summary.current?.focus(); }, [error]);
 
+  const closeDialog = () => { setEditing(null); setError(""); };
   const mutate = async (action: () => Promise<unknown>, success: string) => {
     if (busy) return;
     setBusy(true); setError(""); setNotice("");
-    try { await action(); setNotice(success); setLoading(true); await load(); }
+    try { await action(); setEditing(null); setNotice(success); setLoading(true); await load(); }
     catch (error) { setError(messageFor(error)); }
     finally { setBusy(false); }
   };
+  const errorMessage = error && <p ref={summary} tabIndex={-1} role="alert" className={styles.error}>{error}</p>;
+  const target = editing && editing !== "create" ? editing : null;
 
-  return <section>
-    <h1 className="text-3xl font-semibold">Staff administration</h1>
-    <p className="my-3">Create assigned staff accounts and manage their access. Role changes and disabling an account end that staff member’s sessions.</p>
-    <p className="my-3"><Link className="underline" href="/administration/clinical-assignments">Manage clinician patient assignments</Link></p>
-    {error && <p ref={summary} tabIndex={-1} role="alert" className="my-4 rounded-lg border border-red-800 p-4">{error}</p>}
-    {notice && <p role="status" className="my-4 rounded-lg border p-4">{notice}</p>}
-    <form method="post" className="my-6 rounded-xl border bg-white p-5" aria-busy={busy} onSubmit={event => {
-      event.preventDefault();
-      if (busy) return;
-      const form = event.currentTarget;
-      const data = new FormData(form);
-      const password = String(data.get("password") ?? "");
-      if ([...password].length < 15 || new TextEncoder().encode(password).length > 1024) { setError("Use at least 15 password characters. That password may also exceed the system’s size limit."); return; }
-      void mutate(async () => {
-        await apiMutation<Staff>("/admin/staff", { loginIdentifier: String(data.get("loginIdentifier") ?? ""), password, roles });
-        form.reset(); setRoles([]);
-      }, "Staff account created. Share the initial password privately with the staff member.");
-    }}>
-      <h2 className="text-xl font-semibold">Create staff account</h2>
-      <div className="mt-4 grid gap-4 sm:grid-cols-2">
-        <label className="auth-field-group">Login identifier<input name="loginIdentifier" className="auth-input" maxLength={64} required autoComplete="off" autoCapitalize="none" spellCheck={false} disabled={busy || loading} /></label>
-        <label className="auth-field-group">Initial password<input name="password" type="password" className="auth-input" minLength={15} maxLength={1024} required autoComplete="new-password" disabled={busy || loading} /><span className="auth-field-hint">Use at least 15 characters. Password recovery is not available yet.</span></label>
-      </div>
-      <RoleChoices roles={page.roles} selected={roles} onChange={setRoles} disabled={busy || loading} legend="Assign roles" />
-      <button className="auth-btn-primary" disabled={busy || loading || roles.length === 0}>{busy ? "Saving…" : "Create account"}</button>
-    </form>
-    <div className="mb-4 flex flex-wrap items-center gap-3"><h2 className="mr-auto text-xl font-semibold">Staff accounts</h2>
-      <button className="rounded-lg border px-4 py-2" disabled={busy || loading} onClick={() => { setError(""); setLoading(true); void load(); }}>Refresh first page</button>
-      {page.nextCursor && <button className="rounded-lg border px-4 py-2" disabled={busy || loading} onClick={() => { setLoading(true); void load(page.nextCursor); }}>Next page</button>}
+  return <div className={`${styles.theme} ${styles.staffPage}`}>
+    <aside className={styles.sidebar} aria-label="Administration navigation">
+      <Link className={styles.wordmark} href="/workspace"><span className={styles.sprout}><img src="/brand/sprout.svg" alt="" /></span>AyurFlow</Link>
+      <p className={styles.eyebrow}>STAFF WORKSPACE</p>
+      <div className={styles.sidebarDivider} aria-hidden="true"><img src="/brand/divider.svg" alt="" /></div>
+      <nav className={styles.sideNav}>
+        <Link href="/administration" aria-current="page">Staff &amp; roles</Link>
+        <button disabled title="Reference-data management is not implemented">Reference data</button>
+        <button disabled title="Audit retrieval requires a reviewed access policy">Audit history</button>
+      </nav>
+      <div className={styles.sideBotanical} aria-hidden="true"><img src="/brand/botanical-admin.svg" alt="" /></div>
+      <footer className={styles.sidebarFooter}><p className={styles.eyebrow}>SINGLE CLINIC</p><p>Thoughtful care.<br />Connected records.</p><Link href="/administration/clinical-assignments">Clinician assignments →</Link><Link href="/workspace">Return to workspace</Link></footer>
+    </aside>
+    <div className={styles.staffWorkspace}>
+      <header className={styles.staffHeader}>
+        <span>Staff &amp; roles</span><span className={styles.date}>{date && `${date} · Asia/Colombo`}</span>
+        <span className={styles.identity}>Administrator<small>Staff account</small></span>
+        <button className={styles.signOut} type="button" disabled={signingOut} onClick={() => void signOut()}>{signingOut ? "Signing out…" : "Sign out"}</button>
+      </header>
+      <section className={styles.content} aria-label="Staff administration">
+        <span className={styles.leafStart} aria-hidden="true"><img src="/brand/leaf.svg" alt="" /></span>
+        <header className={styles.contentHeading}>
+          <div><p className={styles.eyebrow}>ADMINISTRATION</p><h1>The people behind the care.</h1><p>Create controlled staff access with explicitly assigned roles.</p></div>
+          <button ref={createButton} type="button" className={styles.primary} disabled={busy || loading} onClick={() => { setError(""); setSelectedRoles([]); setEditing("create"); }}>+ Create staff account</button>
+        </header>
+        <p className={styles.notice}>Administrator access does not include clinical notes.</p>
+        {!editing && errorMessage}
+        {notice && <p role="status" className={styles.notice}>{notice}</p>}
+        {loading && <p role="status">Loading staff…</p>}
+        <div className={styles.tableWrap}><table className={styles.staffTable} aria-label="Staff accounts" aria-busy={loading || busy}>
+          <thead><tr><th scope="col">Staff member</th><th scope="col">Login</th><th scope="col">Assigned roles</th><th scope="col">Status</th><th scope="col">Action</th></tr></thead>
+          <tbody>{page.items.map(staff => <tr key={staff.id}>
+            <td>{session?.staffId === staff.id ? "Your account" : "Staff account"}</td><td>{staff.loginIdentifier}</td>
+            <td>{staff.roles.map(code => page.roles.find(role => role.code === code)?.name ?? code).join(", ")}</td>
+            <td><span className={`${styles.status} ${!staff.active ? styles.disabledStatus : ""}`}>{staff.active ? "Active" : "Disabled"}</span></td>
+            <td><button type="button" className={styles.textButton} disabled={busy || loading} aria-label={`${staff.active ? "Manage access" : "View account"} for ${staff.loginIdentifier}`} onClick={() => { setError(""); setSelectedRoles(staff.roles); setEditing(staff); }}>{staff.active ? "Manage access →" : "View account →"}</button></td>
+          </tr>)}{!loading && !page.items.length && <tr><td colSpan={5}>No staff accounts on this page.</td></tr>}</tbody>
+        </table></div>
+        <div className={styles.accountControls}><p className={styles.accountInfo}>Disabling an account ends its active sessions. Roles are never inferred from a staff title.</p>
+        <nav className={styles.pagination} aria-label="Staff list pages"><button type="button" className={styles.textButton} disabled={busy || loading} onClick={() => { setError(""); setLoading(true); void load(); }}>Refresh first page</button>{page.nextCursor && <button type="button" className={styles.textButton} disabled={busy || loading} onClick={() => { setLoading(true); void load(page.nextCursor); }}>Next page →</button>}</nav>
+        </div>
+        <span className={styles.leafEnd} aria-hidden="true"><img src="/brand/leaf.svg" alt="" /></span>
+      </section>
     </div>
-    {loading && <p role="status">Loading staff…</p>}
-    <ul className="space-y-4" aria-busy={loading || busy}>{page.items.map(staff => <StaffRow key={`${staff.id}:${staff.active}:${staff.roles.join(",")}`} staff={staff} roles={page.roles} actor={session?.staffId} busy={busy || loading}
-      change={roles => void mutate(() => apiMutation(`/admin/staff/${staff.id}/roles`, { roles }, "PUT"), "Roles saved. The staff member must sign in again.")}
-      disable={() => { if (window.confirm(`Disable sign-in for ${staff.loginIdentifier}? Their active sessions will end.`)) void mutate(() => apiMutation(`/admin/staff/${staff.id}/disable`), "Account disabled and sessions ended."); }} />)}</ul>
-  </section>;
+    {editing && <StaffDialog busy={busy} close={closeDialog}>
+      <form method="post" aria-busy={busy} onSubmit={event => {
+        event.preventDefault();
+        if (busy) return;
+        if (editing === "create") {
+          const form = event.currentTarget, data = new FormData(form);
+          const password = String(data.get("password") ?? "");
+          if ([...password].length < 15 || new TextEncoder().encode(password).length > 1024) { setError("Use at least 15 password characters and at most 1024 UTF-8 bytes."); return; }
+          void mutate(async () => { await apiMutation<Staff>("/admin/staff", { loginIdentifier: String(data.get("loginIdentifier") ?? ""), password, roles: selectedRoles }); form.reset(); }, "Staff account created. Share the initial password privately with the staff member.");
+        } else {
+          void mutate(() => apiMutation(`/admin/staff/${editing.id}/roles`, { roles: selectedRoles }, "PUT"), "Roles saved. The staff member must sign in again.");
+        }
+      }}>
+        <p className={styles.eyebrow}>CONTROLLED STAFF ACCESS</p>
+        <h2 id="staff-dialog-title">{editing === "create" ? "Create a staff account" : `Access for ${editing.loginIdentifier}`}</h2>
+        <p>{editing === "create" ? "Assign only the roles this person needs. Clinical access also requires the appropriate record permissions." : "Role changes and disabling end this staff member’s active sessions."}</p>
+        {errorMessage}
+        {editing === "create" && <>
+          <div className={styles.field}><label htmlFor="create-login">Login identifier *</label><input id="create-login" name="loginIdentifier" className={styles.input} placeholder="Enter a staff login identifier" maxLength={64} required autoComplete="off" autoCapitalize="none" spellCheck={false} disabled={busy} /></div>
+          <div className={styles.field}><label htmlFor="create-password">Initial password *</label><input id="create-password" name="password" type="password" className={styles.input} placeholder="At least 15 characters" minLength={15} maxLength={1024} required autoComplete="new-password" disabled={busy} /></div>
+        </>}
+        <RoleChoices roles={page.roles} selected={selectedRoles} onChange={setSelectedRoles} disabled={busy || Boolean(target && !target.active)} />
+        <p className={styles.dialogHint}>Additional report access is granted by report category. Password recovery is not available yet.</p>
+        <div className={styles.dialogActions}>
+          <button className={styles.primary} disabled={busy || !selectedRoles.length || Boolean(target && !target.active)}>{busy ? "Saving…" : editing === "create" ? "Create staff account" : "Save roles"}</button>
+          <button type="button" className={styles.secondary} disabled={busy} onClick={() => { closeDialog(); createButton.current?.focus(); }}>Cancel</button>
+        </div>
+        {target && <button type="button" className={styles.secondary} disabled={busy || !target.active || target.id === session?.staffId} onClick={() => { if (window.confirm(`Disable sign-in for ${target.loginIdentifier}? Their active sessions will end.`)) void mutate(() => apiMutation(`/admin/staff/${target.id}/disable`), "Account disabled and sessions ended."); }}>Disable account</button>}
+      </form>
+    </StaffDialog>}
+  </div>;
 }
