@@ -105,14 +105,59 @@ func (s *Service) Create(ctx context.Context, actor, patientID, sourceConsultati
 				return err
 			}
 		}
-		if _, err := tx.Exec(ctx, `UPDATE care_plans SET status='active',current_stage_ordinal=1 WHERE id=$1`, plan.ID); err != nil {
-			return err
-		}
 		if err := audit.Write(ctx, tx, audit.Event{ActorID: actor, Action: "plan.created",
 			Object: audit.Object{Type: "care_plan", ID: plan.ID}}); err != nil {
 			return err
 		}
-		plan.PatientID, plan.Status, plan.CurrentOrdinal, plan.Version, plan.PathwayState = patientID, "active", 1, 1, "PREPARATORY"
+		plan.PatientID, plan.Status, plan.CurrentOrdinal, plan.Version, plan.PathwayState = patientID, "draft", 0, 1, "NOT_STARTED"
+		return nil
+	})
+	return plan, err
+}
+
+func (s *Service) Start(ctx context.Context, actor, planID string, version int64) (Plan, error) {
+	if !validUUID(actor) {
+		return Plan{}, ErrForbidden
+	}
+	if !validUUID(planID) {
+		return Plan{}, ErrNotFound
+	}
+	if version < 1 {
+		return Plan{}, ErrConflict
+	}
+	if s == nil || s.pool == nil {
+		return Plan{}, ErrForbidden
+	}
+	var plan Plan
+	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
+		var err error
+		plan, err = lockPlan(ctx, tx, actor, planID)
+		if err != nil {
+			return err
+		}
+		if plan.Status != "draft" || plan.Version != version {
+			return ErrConflict
+		}
+		var stageID string
+		if err := tx.QueryRow(ctx, `SELECT id::text FROM plan_stages
+			WHERE plan_id=$1 AND ordinal=1 AND stage_code='PREPARATORY'`, planID).Scan(&stageID); err != nil {
+			if errors.Is(err, pgx.ErrNoRows) {
+				return ErrConflict
+			}
+			return err
+		}
+		if _, err := tx.Exec(ctx, `UPDATE care_plans SET status='active',current_stage_ordinal=1,
+			record_version=record_version+1,updated_at=clock_timestamp(),updated_by=$2 WHERE id=$1`, planID, actor); err != nil {
+			return err
+		}
+		if err := recordDecision(ctx, tx, actor, planID, stageID, "start", "draft", "active"); err != nil {
+			return err
+		}
+		if err := audit.Write(ctx, tx, audit.Event{ActorID: actor, Action: "plan.started",
+			Object: audit.Object{Type: "care_plan", ID: planID}, ChangedFields: []string{"status", "current_stage_ordinal"}}); err != nil {
+			return err
+		}
+		plan.Status, plan.CurrentOrdinal, plan.Version, plan.PathwayState = "active", 1, plan.Version+1, "PREPARATORY"
 		return nil
 	})
 	return plan, err

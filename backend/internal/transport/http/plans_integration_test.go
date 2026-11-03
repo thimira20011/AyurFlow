@@ -58,10 +58,26 @@ func TestProtectedPlanPathwayIntegration(t *testing.T) {
 	if err := json.Unmarshal(response.Body.Bytes(), &plan); err != nil {
 		t.Fatal(err)
 	}
-	if plan.PathwayState != "PREPARATORY" || plan.CurrentOrdinal != 1 {
+	if plan.PathwayState != "NOT_STARTED" || plan.CurrentOrdinal != 0 {
 		t.Fatalf("wrong pathway entry: %+v", plan)
 	}
 	planPath := "/api/v1/plans/" + plan.ID
+	if response := protectedRequest(f.router, http.MethodPost, planPath+"/start", f.token, f.csrf,
+		`{"version":1}`); response.Code != 404 {
+		t.Fatalf("reception started clinical plan: %d", response.Code)
+	}
+	if response := protectedRequest(f.router, http.MethodPost, planPath+"/start", token, "",
+		`{"version":1}`); response.Code != 403 {
+		t.Fatalf("plan start without CSRF: %d", response.Code)
+	}
+	response = protectedRequest(f.router, http.MethodPost, planPath+"/start", token, session.CSRFToken,
+		`{"version":1}`)
+	if response.Code != http.StatusOK {
+		t.Fatalf("start plan status=%d body=%s", response.Code, response.Body.String())
+	}
+	if err := json.Unmarshal(response.Body.Bytes(), &plan); err != nil || plan.PathwayState != "PREPARATORY" || plan.Version != 2 {
+		t.Fatalf("start plan=%+v err=%v", plan, err)
+	}
 	if response := protectedRequest(f.router, http.MethodGet, planPath, f.token, "", ""); response.Code != 404 {
 		t.Fatalf("reception read clinical plan: %d", response.Code)
 	}
@@ -78,14 +94,14 @@ func TestProtectedPlanPathwayIntegration(t *testing.T) {
 	}
 	futurePath := planPath + "/stages/" + detail.Stages[1].ID + "/approve"
 	if response := protectedRequest(f.router, http.MethodPost, futurePath, token, session.CSRFToken,
-		`{"version":1,"confirmedChecks":["All scheduled primary therapy sessions completed","Botanical preparations confirmed or accounted for","Attending clinician interim evaluation approval"]}`); response.Code != 409 {
+		`{"version":2,"confirmedChecks":["All scheduled primary therapy sessions completed","Botanical preparations confirmed or accounted for","Attending clinician interim evaluation approval"]}`); response.Code != 409 {
 		t.Fatalf("future stage approved: %d", response.Code)
 	}
 	firstPath := planPath + "/stages/" + detail.Stages[0].ID + "/approve"
 	checks, _ := json.Marshal(struct {
 		Version         int64    `json:"version"`
 		ConfirmedChecks []string `json:"confirmedChecks"`
-	}{Version: 1, ConfirmedChecks: detail.Stages[0].RequiredChecks})
+	}{Version: 2, ConfirmedChecks: detail.Stages[0].RequiredChecks})
 	if response := protectedRequest(f.router, http.MethodPost, firstPath, token, session.CSRFToken,
 		string(checks)); response.Code != 409 {
 		t.Fatalf("unsigned consultation allowed approval: %d", response.Code)
@@ -108,20 +124,20 @@ func TestProtectedPlanPathwayIntegration(t *testing.T) {
 		t.Fatalf("first stage approval status=%d body=%s", response.Code, response.Body.String())
 	}
 	if response := protectedRequest(f.router, http.MethodPost, planPath+"/advance", token, session.CSRFToken,
-		`{"version":2}`); response.Code != 409 {
+		`{"version":3}`); response.Code != 409 {
 		t.Fatalf("missing C completion evidence advanced: %d", response.Code)
 	}
 	response = protectedRequest(f.router, http.MethodPost, planPath+"/hold", token, session.CSRFToken,
-		`{"version":2,"reason":"Synthetic clinical pause"}`)
+		`{"version":3,"reason":"Synthetic clinical pause"}`)
 	if response.Code != 200 || !strings.Contains(response.Body.String(), `"status":"held"`) {
 		t.Fatalf("hold status=%d body=%s", response.Code, response.Body.String())
 	}
 	if response := protectedRequest(f.router, http.MethodPost, planPath+"/resume", token, session.CSRFToken,
-		`{"version":3,"reason":"Synthetic reassessment"}`); response.Code != 200 {
+		`{"version":4,"reason":"Synthetic reassessment"}`); response.Code != 200 {
 		t.Fatalf("resume status=%d body=%s", response.Code, response.Body.String())
 	}
 	if response := protectedRequest(f.router, http.MethodPost, planPath+"/cancel", token, session.CSRFToken,
-		`{"version":4,"reason":"Synthetic cancellation"}`); response.Code != 409 {
+		`{"version":5,"reason":"Synthetic cancellation"}`); response.Code != 409 {
 		t.Fatalf("missing C cancellation hook cancelled plan: %d", response.Code)
 	}
 }

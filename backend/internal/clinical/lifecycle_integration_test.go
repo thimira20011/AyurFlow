@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"ayurflow/backend/internal/testutil"
 
@@ -49,8 +50,12 @@ func TestPlanHoldResumeCancelAndClearanceIntegration(t *testing.T) {
 	}
 	service := NewService(pool, MemberBPathway(), &syntheticCompletion{allowed: true}, syntheticCancellation{})
 	plan, err := service.Create(ctx, clinician, patient, "")
-	if err != nil || plan.PathwayState != "PREPARATORY" {
+	if err != nil || plan.PathwayState != "NOT_STARTED" {
 		t.Fatalf("create pathway: %+v %v", plan, err)
+	}
+	plan, err = service.Start(ctx, clinician, plan.ID, plan.Version)
+	if err != nil || plan.PathwayState != "PREPARATORY" {
+		t.Fatalf("start pathway: %+v %v", plan, err)
 	}
 	var stageID, stageCode string
 	if err := pool.QueryRow(ctx, `SELECT id::text,stage_code FROM plan_stages
@@ -68,12 +73,30 @@ func TestPlanHoldResumeCancelAndClearanceIntegration(t *testing.T) {
 	if _, err := service.Hold(ctx, clinician, plan.ID, 1, " "); !errors.Is(err, ErrConflict) {
 		t.Fatalf("blank hold reason accepted: %v", err)
 	}
-	plan, err = service.Approve(ctx, clinician, plan.ID, stageID, 1, MemberBPathway()[0].RequiredChecks)
+	plan, err = service.Approve(ctx, clinician, plan.ID, stageID, plan.Version, MemberBPathway()[0].RequiredChecks)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if err := clearance(); err != nil {
 		t.Fatalf("approved current stage denied: %v", err)
+	}
+	startTx, err := pool.Begin(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := RequireSessionClearance(ctx, startTx, plan.ID, stageID); err != nil {
+		startTx.Rollback(ctx)
+		t.Fatalf("session start clearance: %v", err)
+	}
+	blockedCtx, stop := context.WithTimeout(ctx, 300*time.Millisecond)
+	_, blockedErr := service.Hold(blockedCtx, clinician, plan.ID, plan.Version, "Concurrent pause")
+	stop()
+	if !errors.Is(blockedErr, context.DeadlineExceeded) {
+		startTx.Rollback(ctx)
+		t.Fatalf("hold did not wait for session-start transaction: %v", blockedErr)
+	}
+	if err := startTx.Commit(ctx); err != nil {
+		t.Fatal(err)
 	}
 	plan, err = service.Hold(ctx, clinician, plan.ID, plan.Version, "Synthetic clinical pause")
 	if err != nil || plan.Status != "held" {

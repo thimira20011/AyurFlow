@@ -62,8 +62,38 @@ func TestPlanActionsIntegration(t *testing.T) {
 		t.Fatalf("reception create: %v", err)
 	}
 	plan, err := service.Create(ctx, clinician, patient, "")
-	if err != nil || plan.Status != "active" || plan.CurrentOrdinal != 1 || plan.Version != 1 {
+	if err != nil || plan.Status != "draft" || plan.PathwayState != "NOT_STARTED" || plan.CurrentOrdinal != 0 || plan.Version != 1 {
 		t.Fatalf("create: %+v %v", plan, err)
+	}
+	if _, err := service.Approve(ctx, clinician, plan.ID, "00000000-0000-4000-8000-000000000001", plan.Version, pathway[0].RequiredChecks); !errors.Is(err, ErrConflict) {
+		t.Fatalf("draft stage approved: %v", err)
+	}
+	if _, err := pool.Exec(ctx, `CREATE FUNCTION reject_start_audit() RETURNS trigger LANGUAGE plpgsql AS $$
+		BEGIN IF NEW.action='plan.started' THEN RAISE EXCEPTION 'synthetic start audit failure'; END IF;
+		RETURN NEW; END $$`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, `CREATE TRIGGER reject_start_audit BEFORE INSERT ON audit_events
+		FOR EACH ROW EXECUTE FUNCTION reject_start_audit()`); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.Start(ctx, clinician, plan.ID, plan.Version); err == nil {
+		t.Fatal("plan start committed despite failed audit")
+	}
+	var startStatus string
+	var startVersion int64
+	if err := pool.QueryRow(ctx, `SELECT status,record_version FROM care_plans WHERE id=$1`, plan.ID).Scan(&startStatus, &startVersion); err != nil || startStatus != "draft" || startVersion != 1 {
+		t.Fatalf("failed start changed plan status=%s version=%d err=%v", startStatus, startVersion, err)
+	}
+	if _, err := pool.Exec(ctx, `DROP TRIGGER reject_start_audit ON audit_events`); err != nil {
+		t.Fatal(err)
+	}
+	plan, err = service.Start(ctx, clinician, plan.ID, plan.Version)
+	if err != nil || plan.Status != "active" || plan.PathwayState != "PREPARATORY" || plan.CurrentOrdinal != 1 || plan.Version != 2 {
+		t.Fatalf("start: %+v %v", plan, err)
+	}
+	if _, err := service.Start(ctx, clinician, plan.ID, 1); !errors.Is(err, ErrConflict) {
+		t.Fatalf("stage restarted: %v", err)
 	}
 	var first, second, third string
 	if err := pool.QueryRow(ctx, `SELECT id::text FROM plan_stages WHERE plan_id=$1 AND ordinal=1`, plan.ID).Scan(&first); err != nil {
@@ -75,13 +105,13 @@ func TestPlanActionsIntegration(t *testing.T) {
 	if err := pool.QueryRow(ctx, `SELECT id::text FROM plan_stages WHERE plan_id=$1 AND ordinal=3`, plan.ID).Scan(&third); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := service.Approve(ctx, clinician, plan.ID, second, 1, pathway[1].RequiredChecks); !errors.Is(err, ErrConflict) {
+	if _, err := service.Approve(ctx, clinician, plan.ID, second, plan.Version, pathway[1].RequiredChecks); !errors.Is(err, ErrConflict) {
 		t.Fatalf("future stage approved: %v", err)
 	}
-	if _, err := service.Approve(ctx, clinician, plan.ID, first, 1, nil); !errors.Is(err, ErrConflict) {
+	if _, err := service.Approve(ctx, clinician, plan.ID, first, plan.Version, nil); !errors.Is(err, ErrConflict) {
 		t.Fatalf("missing checklist approved: %v", err)
 	}
-	if _, err := service.Approve(ctx, receptionist, plan.ID, first, 1, pathway[0].RequiredChecks); !errors.Is(err, ErrForbidden) {
+	if _, err := service.Approve(ctx, receptionist, plan.ID, first, plan.Version, pathway[0].RequiredChecks); !errors.Is(err, ErrForbidden) {
 		t.Fatalf("reception approval: %v", err)
 	}
 	if _, err := pool.Exec(ctx, `CREATE FUNCTION reject_plan_audit() RETURNS trigger LANGUAGE plpgsql AS $$
@@ -93,7 +123,7 @@ func TestPlanActionsIntegration(t *testing.T) {
 		FOR EACH ROW EXECUTE FUNCTION reject_plan_audit()`); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := service.Approve(ctx, clinician, plan.ID, first, 1, pathway[0].RequiredChecks); err == nil {
+	if _, err := service.Approve(ctx, clinician, plan.ID, first, plan.Version, pathway[0].RequiredChecks); err == nil {
 		t.Fatal("approval committed despite audit failure")
 	}
 	if _, err := pool.Exec(ctx, `DROP TRIGGER reject_plan_audit ON audit_events`); err != nil {
@@ -107,33 +137,33 @@ func TestPlanActionsIntegration(t *testing.T) {
 	if err := pool.QueryRow(ctx, `SELECT record_version FROM care_plans WHERE id=$1`, plan.ID).Scan(&version); err != nil {
 		t.Fatal(err)
 	}
-	if status != "pending" || version != 1 {
+	if status != "pending" || version != 2 {
 		t.Fatalf("failed audit changed stage=%s version=%d", status, version)
 	}
-	plan, err = service.Approve(ctx, clinician, plan.ID, first, 1, pathway[0].RequiredChecks)
-	if err != nil || plan.Version != 2 {
+	plan, err = service.Approve(ctx, clinician, plan.ID, first, 2, pathway[0].RequiredChecks)
+	if err != nil || plan.Version != 3 {
 		t.Fatalf("approve: %+v %v", plan, err)
 	}
-	if _, err := service.Approve(ctx, clinician, plan.ID, first, 1, pathway[0].RequiredChecks); !errors.Is(err, ErrConflict) {
+	if _, err := service.Approve(ctx, clinician, plan.ID, first, 2, pathway[0].RequiredChecks); !errors.Is(err, ErrConflict) {
 		t.Fatalf("stale approval: %v", err)
 	}
-	if _, err := service.Advance(ctx, clinician, plan.ID, 2); !errors.Is(err, ErrCompletionPending) {
+	if _, err := service.Advance(ctx, clinician, plan.ID, 3); !errors.Is(err, ErrCompletionPending) {
 		t.Fatalf("completion gate bypassed: %v", err)
 	}
 	completion.allowed = true
-	plan, err = service.Advance(ctx, clinician, plan.ID, 2)
-	if err != nil || plan.CurrentOrdinal != 2 || plan.Version != 3 {
+	plan, err = service.Advance(ctx, clinician, plan.ID, 3)
+	if err != nil || plan.CurrentOrdinal != 2 || plan.Version != 4 {
 		t.Fatalf("advance: %+v %v", plan, err)
 	}
-	if _, err := service.Advance(ctx, clinician, plan.ID, 3); !errors.Is(err, ErrConflict) {
+	if _, err := service.Advance(ctx, clinician, plan.ID, 4); !errors.Is(err, ErrConflict) {
 		t.Fatalf("unapproved second stage advanced: %v", err)
 	}
-	plan, err = service.Approve(ctx, clinician, plan.ID, second, 3, pathway[1].RequiredChecks)
+	plan, err = service.Approve(ctx, clinician, plan.ID, second, 4, pathway[1].RequiredChecks)
 	if err != nil {
 		t.Fatal(err)
 	}
 	plan, err = service.Advance(ctx, clinician, plan.ID, plan.Version)
-	if err != nil || plan.Status != "active" || plan.PathwayState != "RECOVERY" || plan.Version != 5 {
+	if err != nil || plan.Status != "active" || plan.PathwayState != "RECOVERY" || plan.Version != 6 {
 		t.Fatalf("recovery transition: %+v %v", plan, err)
 	}
 	plan, err = service.Approve(ctx, clinician, plan.ID, third, plan.Version, pathway[2].RequiredChecks)
@@ -141,7 +171,7 @@ func TestPlanActionsIntegration(t *testing.T) {
 		t.Fatal(err)
 	}
 	plan, err = service.Advance(ctx, clinician, plan.ID, plan.Version)
-	if err != nil || plan.Status != "completed" || plan.PathwayState != "COMPLETED" || plan.Version != 7 {
+	if err != nil || plan.Status != "completed" || plan.PathwayState != "COMPLETED" || plan.Version != 8 {
 		t.Fatalf("finish: %+v %v", plan, err)
 	}
 	if _, err := service.Advance(ctx, clinician, plan.ID, plan.Version); !errors.Is(err, ErrConflict) {
@@ -160,7 +190,7 @@ func TestPlanActionsIntegration(t *testing.T) {
 	if err := pool.QueryRow(ctx, `SELECT count(*) FROM audit_events WHERE object_type='care_plan' AND object_id=$1`, plan.ID).Scan(&events); err != nil {
 		t.Fatal(err)
 	}
-	if decisions != 6 || events != 7 {
+	if decisions != 7 || events != 8 {
 		t.Fatalf("decision/audit history %d/%d", decisions, events)
 	}
 }
