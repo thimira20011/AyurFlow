@@ -61,6 +61,7 @@ Sources: *AyurFlow Team task plan* (1 October 2026), especially pp. 2–5 and 11
 
 - [ ] **TASK-AUTH-06 — prove identity and logging behavior.** Execute AT01 with named role accounts, direct forbidden requests, CSRF, expiry, throttling and safe-log checks. F reviews. **Done:** AT01 evidence records setup, steps, actual results, version and reviewer; failures remain open defects.
   - **In progress (28 October):** mapped existing automated coverage, added error/panic confidentiality regressions and wrote the [browser/direct API verification procedure](auth-06-verification.md) on `codex/auth-06-verification`. Full AUTH-06 remains unchecked pending current-version execution evidence, browser checks and F review.
+  - **Integration repair (2 November):** `codex/auth-06-integration-repair` reconnects styled sign-in to the real cookie API, removes fabricated localhost sessions and public workspace bypasses, wires navbar logout, restores administrator-only account provisioning guidance and labels reception's synthetic-only behavior. Twelve Chromium regressions use synthetic API responses; real HTTPS/AT01 and F review remain pending. See [verification evidence](testing.md#auth-06qa-04-frontend-integration-repair-2-november-2026).
 
 ## Weeks 4–8: integration and reliability
 

@@ -1,0 +1,152 @@
+.theme {
+  --ayur-canvas: #f7f4eb;
+  --ayur-surface: #fcf8ee;
+  --ayur-forest: #21483a;
+  --ayur-text: #263d31;
+  --ayur-muted: #596451;
+  --ayur-brass: #d3b782;
+  --ayur-border: #d6c5a6;
+  --ayur-control-border: #79816b;
+  --ayur-sage: #e7eee2;
+  --ayur-linen: #efebdf;
+  --ayur-paper: url('/brand/paper.png');
+  font-family: var(--font-dm-sans), sans-serif;
+  font-size: 14px;
+  line-height: 22px;
+  color: var(--ayur-text);
+}
+.theme p, .theme h1, .theme h2, .theme h3 { margin: 0; }
+.theme h1, .theme h2, .theme h3 { font-family: var(--font-lora), Georgia, serif; font-weight: 400; color: var(--ayur-forest); }
+.theme img { max-width: none; flex: none; }
+.authShell { display: grid; grid-template-columns: 45.39% minmax(0, 1fr); min-height: 100dvh; background: var(--ayur-canvas); }
+.welcome { min-height: 768px; padding: 48px; display: flex; flex-direction: column; align-items: flex-start; gap: 24px; color: #faf7eb; background: linear-gradient(#21483ae0,#21483ae0), var(--ayur-paper) center / cover, var(--ayur-forest); }
+.wordmark { display: flex; align-items: center; gap: 8px; height: 44px; font: 500 26px/34px var(--font-lora), Georgia, serif; color: #faf7eb; text-decoration: none; }
+.sprout { position: relative; display: block; width: 28px; height: 28px; }
+.sprout img { position: absolute; top: 2px; left: 3px; }
+.welcomeSpacer { height: 20px; flex: none; }
+.eyebrow { font-size: 10px; font-weight: 500; line-height: 16px; letter-spacing: 1.4px; }
+.welcome .eyebrow, .welcomeFooter { color: var(--ayur-brass); }
+.theme .welcomeTitle { color: #faf7eb; font-size: 56px; line-height: 68px; }
+.welcomeIntro { line-height: 22px; }
+.signature { position: relative; display: flex; align-items: center; gap: 24px; height: 240px; width: 100%; flex: none; }
+.botanicalSlot { position: relative; width: 216px; height: 240px; flex: none; opacity: .5; }
+.botanicalSlot img { position: absolute; left: 42px; top: 7px; }
+.philosophy { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
+.mortarSlot { position: absolute; left: 18px; top: 100px; width: 182px; height: 145.6px; opacity: .8; }
+.mortarSlot img { position: absolute; left: 27px; top: 15px; }
+.welcomeFooter { font-size: 12px; line-height: 18px; }
+.formPanel { padding: 64px; min-width: 0; background: linear-gradient(#f7f4eb59,#f7f4eb59),var(--ayur-paper) center / cover,var(--ayur-canvas); }
+.signInCard { padding-top: 60px; max-width: 600px; }
+.signInHeading { display: flex; flex-direction: column; gap: 24px; }
+.signInHeading h2 { font-size: 42px; line-height: 54px; }
+.signInForm { display: flex; flex-direction: column; gap: 24px; width: min(570px,100%); margin-top: 24px; }
+.field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.signInForm .field { height: 76px; }
+.field > label { font-size: 12px; font-weight: 500; line-height: 18px; }
+.input { width: 100%; height: 44px; flex: none; border: 1px solid var(--ayur-control-border); border-radius: 8px; padding: 10px 12px; background: linear-gradient(#fcf8eee0,#fcf8eee0),var(--ayur-paper) center / cover; color: var(--ayur-text); font: inherit; }
+.input::placeholder { color: var(--ayur-muted); }
+.input:focus-visible, .primary:focus-visible, .secondary:focus-visible, .textButton:focus-visible { outline: 3px solid #a27d45; outline-offset: 3px; }
+.primary, .secondary { min-height: 44px; padding: 10px 16px; border: 1px solid var(--ayur-brass); border-radius: 8px; font: 500 14px/22px var(--font-dm-sans),sans-serif; display: inline-flex; align-items: center; justify-content: center; text-align: center; text-decoration: none; cursor: pointer; }
+.primary { background: linear-gradient(#21483ae0,#21483ae0),var(--ayur-paper) center / cover,var(--ayur-forest); color: #faf7eb; }
+.primary:hover:not(:disabled) { background-color: #183a2d; }
+.welcome, .sidebar, .primary { background-blend-mode: normal, soft-light, normal; }
+.secondary { color: var(--ayur-forest); border-color: var(--ayur-control-border); background: linear-gradient(#fcf8eee0,#fcf8eee0),var(--ayur-paper) center / cover; }
+.primary:disabled, .secondary:disabled, .input:disabled { opacity: .55; cursor: not-allowed; }
+.passwordVisibility { display: flex; align-items: center; gap: 8px; min-height: 24px; font-size: 13px; line-height: 20px; cursor: pointer; }
+.checkbox { appearance: none; width: 18px; height: 18px; flex: none; border: 1px solid var(--ayur-control-border); border-radius: 4px; background: var(--ayur-surface); display: inline-grid; place-content: center; }
+.checkbox:checked { background: var(--ayur-forest); }
+.checkbox:checked::before { content: '✓'; color: #faf7eb; font-size: 14px; line-height: 16px; }
+.signInSubmit { margin-top: 28px; }
+.signInFooter { width: min(570px,100%); border-top: 1px solid var(--ayur-border); padding-top: 24px; margin-top: 24px; font-size: 13px; line-height: 20px; }
+.signInFooter a { color: inherit; text-decoration: none; }
+.signInFooter a:hover { text-decoration: underline; }
+.error { border: 1px solid #a65343; border-radius: 8px; background: #fbefdf; padding: 12px 16px; color: #713c30; }
+.notice { border-radius: 8px; padding: 16px; background: linear-gradient(#e7eee2eb,#e7eee2eb),var(--ayur-paper) center / cover; color: var(--ayur-forest); }
+.staffPage { display: grid; grid-template-columns: 224px minmax(0,1fr); min-height: 100dvh; background: linear-gradient(#f7f4eb59,#f7f4eb59),var(--ayur-paper) center / cover; }
+.sidebar { min-height: 768px; padding: 16px; display: flex; flex-direction: column; gap: 12px; background: linear-gradient(#21483ae0,#21483ae0),var(--ayur-paper) center / cover,var(--ayur-forest); color: #faf7eb; }
+.sidebar .eyebrow { color: var(--ayur-brass); }
+.sidebarDivider { position: relative; width: 192px; height: 20px; flex: none; }
+.sidebarDivider img { position: absolute; left: 16px; top: -1px; opacity: .5; }
+.sideNav { display: flex; flex-direction: column; gap: 12px; }
+.sideNav a, .sideNav button { min-height: 44px; padding: 12px; border: 1px solid transparent; border-radius: 8px; font: inherit; text-align: left; text-decoration: none; color: inherit; }
+.sideNav a[aria-current] { background: var(--ayur-sage); border-color: var(--ayur-brass); color: var(--ayur-forest); }
+.sideNav button:disabled { cursor: not-allowed; }
+.sideBotanical { min-height: 160px; flex: 1; display: flex; align-items: center; justify-content: center; opacity: .4; }
+.sidebarFooter { border-top: 1px solid var(--ayur-border); padding-top: 12px; display: flex; flex-direction: column; gap: 12px; font-size: 13px; line-height: 20px; }
+.sidebarFooter a { font-size: 12px; color: #faf7eb; }
+.staffWorkspace { min-width: 0; display: flex; flex-direction: column; }
+.staffHeader { min-height: 72px; padding: 12px 24px; border-bottom: 1px solid var(--ayur-border); display: flex; align-items: center; gap: 16px; background: linear-gradient(#fcf8eee0,#fcf8eee0),var(--ayur-paper) center / cover; }
+.staffHeader > span:first-child { margin-right: auto; }
+.date { font-size: 13px; color: var(--ayur-muted); }
+.identity { font-weight: 500; }
+.identity small { display: block; font-size: 12px; font-weight: 400; color: var(--ayur-muted); }
+.signOut { color: var(--ayur-muted); border: 0; background: transparent; cursor: pointer; font-size: 12px; }
+.content { position: relative; padding: 32px; display: flex; flex: 1; flex-direction: column; gap: 20px; }
+.contentHeading { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.contentHeading h1 { font-size: 32px; line-height: 42px; margin: 4px 0; }
+.contentHeading > .primary { flex: none; }
+.content > .notice { min-height: 60px; display: flex; align-items: center; }
+.tableWrap { overflow-x: auto; border: 1px solid var(--ayur-border); border-radius: 8px; background: linear-gradient(#fcf8eee0,#fcf8eee0),var(--ayur-paper) center / cover; }
+.staffTable { width: 100%; min-width: 740px; border-collapse: collapse; table-layout: fixed; }
+.staffTable th { font-size: 12px; line-height: 18px; font-weight: 500; color: var(--ayur-muted); background: var(--ayur-linen); text-align: left; height: 40px; padding: 11px 12px; }
+.staffTable th:nth-child(1) { width: 23.2%; }
+.staffTable th:nth-child(2) { width: 20.4%; }
+.staffTable th:nth-child(3) { width: 23.2%; }
+.staffTable th:nth-child(4) { width: 16.7%; }
+.staffTable th:nth-child(5) { width: 16.5%; }
+.staffTable td { padding: 12px; height: 56px; font-size: 13px; line-height: 20px; border-top: 1px solid var(--ayur-border); overflow-wrap: anywhere; }
+.staffTable tbody tr:first-child { background: var(--ayur-sage); }
+.staffTable td:first-child { font-size: 14px; font-weight: 500; }
+.status { display: inline-block; padding: 6px 10px; border-radius: 999px; font-size: 12px; font-weight: 500; line-height: 18px; background: var(--ayur-sage); color: var(--ayur-forest); }
+.disabledStatus { background: var(--ayur-linen); color: var(--ayur-muted); }
+.textButton { color: var(--ayur-forest); background: transparent; border: 0; padding: 0; min-height: 32px; cursor: pointer; font: inherit; }
+.accountInfo { font-size: 13px; line-height: 20px; min-height: 50px; display: flex; align-items: center; }
+.accountControls { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.pagination { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.leafStart, .leafEnd { position: absolute; pointer-events: none; opacity: .55; width: 20px; height: 20px; }
+.leafStart { top: 9px; left: 9px; }
+.leafEnd { bottom: 9px; right: 9px; transform: rotate(180deg); }
+.leafStart img, .leafEnd img { position: absolute; top: 1px; left: 1px; }
+.dialog { width: min(522px,calc(100% - 32px)); max-height: calc(100dvh - 32px); margin: auto; padding: 32px; border: 1px solid var(--ayur-border); border-radius: 16px; background: linear-gradient(#fcf8eee0,#fcf8eee0),var(--ayur-paper) center / cover; color: var(--ayur-text); }
+.dialog::backdrop { background: #102b2066; }
+.dialog h2 { font-size: 20px; font-weight: 500; line-height: 28px; }
+.dialog form, .dialogBody { display: flex; flex-direction: column; gap: 16px; }
+.roleChoices { border: 0; padding: 0; margin: 0; min-width: 0; }
+.roleChoices legend { color: var(--ayur-forest); font-weight: 500; margin-bottom: 16px; }
+.roleGrid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); column-gap: 16px; row-gap: 16px; }
+.roleGrid label { min-height: 32px; display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.dialogHint { font-size: 12px; line-height: 18px; color: var(--ayur-muted); }
+.dialogActions { display: flex; gap: 12px; }
+.dialogActions > * { flex: 1; }
+.stateShell { min-height: 100dvh; padding: 32px 16px; display: grid; place-items: center; background: linear-gradient(#f7f4eb59,#f7f4eb59),var(--ayur-paper) center / cover; }
+.stateCard { width: min(522px,100%); padding: 32px; border: 1px solid var(--ayur-border); border-radius: 16px; background: linear-gradient(#fcf8eee0,#fcf8eee0),var(--ayur-paper) center / cover; display: flex; flex-direction: column; gap: 16px; }
+.stateCard h1 { font-size: 20px; font-weight: 500; line-height: 28px; }
+.stateCard > p { color: var(--ayur-muted); }
+.stateCard > .eyebrow { color: #566547; }
+@media (max-width: 1200px) {
+  .welcome { padding: 32px; }
+  .formPanel { padding: 48px 32px; }
+  .theme .welcomeTitle { font-size: 48px; line-height: 60px; }
+  .signature { gap: 0; }
+  .botanicalSlot { width: 180px; }
+  .date { display: none; }
+}
+@media (max-width: 900px) {
+  .authShell { grid-template-columns: minmax(0,1fr); }
+  .welcome { display: none; }
+  .formPanel { padding: 32px 24px; min-height: 100dvh; }
+  .signInCard { padding-top: 32px; margin: auto; }
+  .staffPage { grid-template-columns: minmax(0,1fr); }
+  .sidebar { min-height: auto; }
+  .sideNav { flex-direction: row; flex-wrap: wrap; }
+  .sideBotanical, .sidebarFooter, .sidebarDivider { display: none; }
+  .staffHeader { flex-wrap: wrap; }
+  .content { padding: 24px 16px; }
+  .contentHeading { align-items: flex-start; flex-direction: column; }
+}
+@media (max-width: 480px) {
+  .signInHeading h2 { font-size: 36px; line-height: 46px; }
+  .dialog, .stateCard { padding: 24px; }
+  .dialogActions { flex-wrap: wrap; }
+  .roleGrid { grid-template-columns: 1fr; }
+}

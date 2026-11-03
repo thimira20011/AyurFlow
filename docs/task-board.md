@@ -27,7 +27,7 @@ Status values: **Pending** = not started; **In progress** = work underway but co
 | TASK-SET-03 | Availability, recipe/expiry and billing examples | C coordinates D/E | B; clinic review | In progress | D's [DEC03 inventory/recipe/expiry review record](inventory-rules-review.md) and [AT08–11 examples](qa/member-d-examples.md) on `member-d/task-set-03-inventory-rules`, plus E's [DEC04 billing review record](billing-rules-review.md); C availability examples and clinic review pending |
 | TASK-SET-04 | IDs, units, errors, sessions and retry conventions | A | F; all owners review | Pending | — |
 | TASK-SET-05 | Working repo, migrations, synthetic seed and checks | A | F | In progress | Scaffold exists; member startup pending |
-| TASK-SET-06 | Shared schema and OpenAPI module boundaries | A coordinates B–E | F; all owners review | In progress | B's [patient/clinical draft](api/member-b-contract.md) on `member-b/schema-api-contracts`; A/C/F review, other modules and migration sequence pending |
+| TASK-SET-06 | Shared schema and OpenAPI module boundaries | A coordinates B–E | F; all owners review | In progress | B's [patient/clinical draft](api/member-b-contract.md), D's [inventory/preparation draft](api/member-d-contract.md) on `member-d/task-set-06-inventory-contract`, and E's [billing draft](api/member-e-contract.md); A/C/F review and final migration sequence pending |
 
 ## 2. UI and interaction design (weeks 1–6)
 
@@ -50,7 +50,7 @@ Status values: **Pending** = not started; **In progress** = work underway but co
 | TASK-AUTH-03 | Backend role/record checks, cookies and CSRF | A | F | Pending | — |
 | TASK-AUTH-04 | Login, account/role screens and disabling | A with F | F | Pending | — |
 | TASK-AUTH-05 | Transactional audit and restricted retrieval | A | F | In review | `codex/auth-05-audit`; [PostgreSQL/race CI passed](https://github.com/thimira20011/AyurFlow/actions/runs/39791162419); AUTH-03/module integration/F/full AT13 pending |
-| TASK-AUTH-06 | AT01 identity/access and safe-log verification | A | F | Pending | — |
+| TASK-AUTH-06 | AT01 identity/access and safe-log verification | A | F | In progress | Merged initial verification; `codex/auth-06-integration-repair` restores sign-in/session/navigation/logout behavior with synthetic Chromium regressions. [Evidence](testing.md#auth-06qa-04-frontend-integration-repair-2-november-2026); real HTTPS/full AT01 and F review pending |
 
 ## 4. Patients and consultations (weeks 1–4)
 
