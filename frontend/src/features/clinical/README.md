@@ -6,4 +6,6 @@ The client API calls in `api.ts` follow B's contract in `docs/api/member-b-contr
 
 `/clinical/plans` shows the assigned clinician the fixed pathway, explicit draft-to-preparatory start action, stage checklist, version, hold/resume/cancel reason form and dated decision history. It calls the protected B plan API. A 409 on advancement or cancellation means required scheduling/preparation integration evidence is unavailable; the screen must not imply the plan changed. The backend remains the authority for record access and stage prerequisites.
 
+Hold and cancellation now require an explicit confirmation after the clinician enters a reason. A conflicting or inaccessible mutation clears the selected plan so stale action buttons cannot be reused; the clinician can select the plan again to reload it. The clinical page uses the shared Living Heritage palette and keeps decision outcomes in an announced status or alert.
+
 `/clinical/preview` is available only in Next.js development mode. It uses synthetic consultation records and browser memory for its actions; it makes no clinical API or database writes. It is for screen review, not AT03 evidence. Signing fields, correction reason rules and record access still require clinic/team review. No real patient data belongs in the preview.

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { APIRequestError } from "@/lib/api-client";
 import {
@@ -164,35 +164,6 @@ export default function PatientWorkspace({
       },
     );
     return () => { active = false; };
-  }, [preview]);
-
-  const executeSearch = useCallback(async (term: string) => {
-    const trimmed = term.trim();
-    if (!trimmed || byteLength(trimmed) > 128) {
-      setNotice({ tone: "error", text: "Enter a search term of up to 128 bytes." });
-      return;
-    }
-    setBusy(true);
-    setNotice(null);
-    try {
-      const items = preview
-        ? previewStore.current.filter((patient) => [patient.id, patient.displayName, patient.phone ?? "", patient.identity?.value ?? ""].some((value) => value.toLocaleLowerCase().includes(trimmed.toLocaleLowerCase()))).slice(0, 25)
-        : await searchPatients(trimmed);
-      setResults(items);
-      setSearched(true);
-      if (items.length > 0) {
-        setSelected(items[0]);
-        setEditForm(formFromPatient(items[0]));
-      } else {
-        setSelected(null);
-      }
-      setPanel("detail");
-      setEditing(false);
-    } catch (error) {
-      setNotice(requestNotice(error, "search"));
-    } finally {
-      setBusy(false);
-    }
   }, [preview]);
 
   useEffect(() => {
