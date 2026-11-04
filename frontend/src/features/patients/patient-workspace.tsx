@@ -430,7 +430,6 @@ export default function PatientWorkspace({
                 <p className={styles.hint}>Search returns up to 25 permitted records. Refine the term to narrow results.</p>
               </form>
               <details className={styles.identityMatch}><summary>Confirm identity without NIC or passport</summary><form onSubmit={(event) => { void handleConfirmIdentity(event); }} className={styles.searchForm}>
-                <h3>Confirm identity without NIC or passport</h3>
                 <p className={styles.hint}>Enter all three details from the authorized handoff. A name-only search does not confirm identity.</p>
                 <label htmlFor="match-name" className={styles.label}>Full legal name</label>
                 <input id="match-name" className={styles.input} value={matchName} onChange={event => setMatchName(event.target.value)} disabled={busy} required />
