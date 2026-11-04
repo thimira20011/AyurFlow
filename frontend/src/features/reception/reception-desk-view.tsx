@@ -227,6 +227,38 @@ export function ReceptionDeskView() {
             >
               <span>Schedule</span>
             </Link>
+
+            {/* Consultations */}
+            <Link
+              href="/clinical"
+              className="flex items-center px-4 py-2.5 rounded-xl text-[#b6cbbd] hover:text-white hover:bg-[#1a4732]/50 text-sm font-medium transition-colors"
+            >
+              <span>Consultations</span>
+            </Link>
+
+            {/* Care Plans */}
+            <Link
+              href="/clinical/plans"
+              className="flex items-center px-4 py-2.5 rounded-xl text-[#b6cbbd] hover:text-white hover:bg-[#1a4732]/50 text-sm font-medium transition-colors"
+            >
+              <span>Care Plans</span>
+            </Link>
+
+            {/* Billing */}
+            <Link
+              href="/billing"
+              className="flex items-center px-4 py-2.5 rounded-xl text-[#b6cbbd] hover:text-white hover:bg-[#1a4732]/50 text-sm font-medium transition-colors"
+            >
+              <span>Billing & Invoices</span>
+            </Link>
+
+            {/* Dashboard */}
+            <Link
+              href="/dashboard"
+              className="flex items-center px-4 py-2.5 rounded-xl text-[#b6cbbd] hover:text-white hover:bg-[#1a4732]/50 text-sm font-medium transition-colors"
+            >
+              <span>Clinic Dashboard</span>
+            </Link>
           </nav>
 
           {/* Botanical Herbal Plant Drawing in Left Sidebar */}

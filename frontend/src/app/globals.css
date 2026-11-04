@@ -29,6 +29,9 @@
 
   /* Auth specific */
   --auth-input-h: 48px;
+
+  /* Typography */
+  --font-serif: "Cormorant Garamond", "Playfair Display", Georgia, "Times New Roman", serif;
 }
 
 /* ─── Global Reset & Base ───────────────────────────────────── */
