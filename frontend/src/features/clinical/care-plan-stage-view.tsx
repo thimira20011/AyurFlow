@@ -29,6 +29,7 @@ interface DecisionLog {
 }
 
 export function CarePlanStageView() {
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [planStatus, setPlanStatus] = useState<PlanStatus>("active");
   const [currentStageOrdinal, setCurrentStageOrdinal] = useState(2);
   const [holdReason, setHoldReason] = useState("");
@@ -255,7 +256,7 @@ export function CarePlanStageView() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f7f5ef] text-[#1c2e24] pb-16">
+    <div className="min-h-screen flex flex-col lg:flex-row bg-[#f6efe4] text-[#1c2820] font-sans antialiased selection:bg-[#d9e6d8] selection:text-[#143826]">
       {/* Toast Notification */}
       {toastMessage && (
         <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 bg-[#143826] text-white px-5 py-3.5 rounded-xl shadow-xl border border-emerald-500/30 text-sm font-medium animate-fade-in">
@@ -264,353 +265,516 @@ export function CarePlanStageView() {
         </div>
       )}
 
-      {/* Top Header & Breadcrumb */}
-      <header className="border-b border-[#2d513e]/15 bg-white/80 backdrop-blur-md sticky top-0 z-30 shadow-xs">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div className="flex items-center gap-3">
+      {/* Mobile Menu Backdrop */}
+      {mobileNavOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-xs lg:hidden"
+          onClick={() => setMobileNavOpen(false)}
+        />
+      )}
+
+      {/* ========================================================= */}
+      {/* LEFT PERSISTENT SIDEBAR - Exact Living Heritage Figma Theme */}
+      {/* ========================================================= */}
+      <aside
+        className={`fixed inset-y-0 left-0 z-50 w-64 bg-[#143826] text-white flex flex-col justify-between p-6 transform transition-transform duration-300 ease-in-out lg:static lg:translate-x-0 ${
+          mobileNavOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+        }`}
+      >
+        <div>
+          {/* Brand header */}
+          <div className="flex items-center justify-between">
+            <Link href="/reception" className="flex items-center gap-3 group">
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center">
+                <svg
+                  width="26"
+                  height="26"
+                  viewBox="0 0 28 28"
+                  fill="none"
+                  stroke="#d7b98d"
+                  strokeWidth="1.6"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M6 19C10 22 18 22 22 19" />
+                  <path d="M14 19V11" />
+                  <path d="M14 14C11 11 9 9 9 6C12 6 14 8 14 11Z" />
+                  <path d="M14 12C16 9 18 7 21 7C21 10 19 12 14 13Z" />
+                </svg>
+              </div>
+              <span className="text-2xl font-serif tracking-tight text-[#fdfbf7] group-hover:text-amber-100 transition-colors">
+                AyurFlow
+              </span>
+            </Link>
+
+            {/* Mobile close button */}
+            <button
+              type="button"
+              onClick={() => setMobileNavOpen(false)}
+              className="lg:hidden text-[#9ab7a4] hover:text-white p-1"
+              aria-label="Close navigation"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+
+          {/* Subtitle with botanical leaf divider */}
+          <div className="mt-2.5">
+            <p className="text-[10px] font-semibold tracking-[0.22em] text-[#799a84] uppercase">
+              Staff Workspace
+            </p>
+            <div className="flex items-center gap-2 w-full my-3">
+              <div className="h-px bg-[#234d38] flex-1" />
+              <svg width="18" height="12" viewBox="0 0 24 14" fill="none" stroke="#5a866b" strokeWidth="1.5">
+                <path d="M2 7C8 2 16 2 22 7C16 12 8 12 2 7Z" />
+                <path d="M2 7C9 7 15 6 22 7" />
+              </svg>
+              <div className="h-px bg-[#234d38] flex-1" />
+            </div>
+          </div>
+
+          {/* Navigation Links */}
+          <nav className="mt-5 space-y-1.5" aria-label="Care Plans Navigation">
             <Link
               href="/reception"
-              className="text-xs font-semibold text-emerald-800 hover:text-emerald-950 flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50 border border-emerald-200/60 transition"
+              className="flex items-center px-4 py-2.5 rounded-xl text-[#b6cbbd] hover:text-white hover:bg-[#1a4732]/50 text-sm font-medium transition-colors"
             >
-              <span>🌿</span>
-              <span>Reception Desk</span>
+              <span>Overview</span>
             </Link>
-            <span className="text-[#96a79e] text-xs">/</span>
-            <Link
-              href="/clinical"
-              className="text-xs font-semibold text-slate-600 hover:text-emerald-900 transition"
-            >
-              Signed Consultation
-            </Link>
-            <span className="text-[#96a79e] text-xs">/</span>
-            <span className="text-xs font-bold text-[#143826] bg-emerald-100/70 px-2 py-0.5 rounded">
-              Care Plan & Stage Approval
-            </span>
-          </div>
 
-          <div className="flex items-center gap-2.5">
+            <Link
+              href="/patients"
+              className="flex items-center px-4 py-2.5 rounded-xl text-[#b6cbbd] hover:text-white hover:bg-[#1a4732]/50 text-sm font-medium transition-colors"
+            >
+              <span>Patients</span>
+            </Link>
+
             <Link
               href="/scheduling"
-              className="text-xs font-bold px-4 py-2 rounded-xl bg-white text-[#143826] border border-[#143826]/25 hover:bg-emerald-50 shadow-xs transition"
+              className="flex items-center px-4 py-2.5 rounded-xl text-[#b6cbbd] hover:text-white hover:bg-[#1a4732]/50 text-sm font-medium transition-colors"
             >
-              📅 Room & Therapist Schedule →
+              <span>Schedule</span>
+            </Link>
+
+            <Link
+              href="/clinical"
+              className="flex items-center px-4 py-2.5 rounded-xl text-[#b6cbbd] hover:text-white hover:bg-[#1a4732]/50 text-sm font-medium transition-colors"
+            >
+              <span>Consultations</span>
+            </Link>
+
+            {/* Care Plans (ACTIVE) */}
+            <Link
+              href="/clinical/plans"
+              className="flex items-center px-4 py-2.5 rounded-xl bg-[#f3efe6] text-[#143826] font-semibold text-sm shadow-xs transition-colors"
+            >
+              <span>Care Plans</span>
+            </Link>
+
+            <Link
+              href="/billing"
+              className="flex items-center px-4 py-2.5 rounded-xl text-[#b6cbbd] hover:text-white hover:bg-[#1a4732]/50 text-sm font-medium transition-colors"
+            >
+              <span>Billing & Invoices</span>
+            </Link>
+
+            <Link
+              href="/dashboard"
+              className="flex items-center px-4 py-2.5 rounded-xl text-[#b6cbbd] hover:text-white hover:bg-[#1a4732]/50 text-sm font-medium transition-colors"
+            >
+              <span>Clinic Dashboard</span>
+            </Link>
+          </nav>
+
+          {/* Botanical Herbal Plant Drawing in Left Sidebar */}
+          <div className="mt-8 px-4 opacity-30 flex justify-center pointer-events-none select-none">
+            <svg width="140" height="110" viewBox="0 0 140 110" fill="none" stroke="#d7b98d" strokeWidth="1.2">
+              <path d="M70 105 V40" />
+              <path d="M70 75 C60 65 45 65 35 70 C40 60 55 58 70 70" />
+              <path d="M70 60 C80 50 95 50 105 55 C100 45 85 43 70 55" />
+              <path d="M70 45 C55 35 48 20 52 10 C62 18 66 32 70 40" />
+              <path d="M70 45 C85 35 92 20 88 10 C78 18 74 32 70 40" />
+              <circle cx="70" cy="10" r="2.5" fill="#d7b98d" />
+            </svg>
+          </div>
+        </div>
+
+        {/* User profile & clinic branch in sidebar */}
+        <div className="pt-4 border-t border-[#234d38] flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-[#1e5237] border border-[#3b7352] flex items-center justify-center text-xs font-serif text-amber-100">
+              MS
+            </div>
+            <div>
+              <p className="text-xs font-medium text-[#e1ece4]">Dr. Maya S.</p>
+              <p className="text-[10px] text-[#799a84]">Colombo Clinic</p>
+            </div>
+          </div>
+          <Link
+            href="/sign-in"
+            className="text-xs text-[#9ab7a4] hover:text-white"
+            title="Sign out of staff workspace"
+          >
+            Exit
+          </Link>
+        </div>
+      </aside>
+
+      {/* ========================================================= */}
+      {/* MAIN CONTENT AREA - Living Heritage Parchment Canvas */}
+      {/* ========================================================= */}
+      <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
+        {/* Top Header Bar */}
+        <header className="px-6 lg:px-10 py-5 flex items-center justify-between border-b border-[#e2d7c5] bg-[#fbf8f2]/90 backdrop-blur-xs sticky top-0 z-30">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => setMobileNavOpen(true)}
+              className="lg:hidden text-[#143826] p-1.5 rounded-lg hover:bg-[#ebdcc8]"
+              aria-label="Open menu"
+            >
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full bg-emerald-600 animate-pulse" />
+                <span className="text-[11px] font-semibold tracking-wider text-[#637d6e] uppercase">
+                  Living Heritage · Panchakarma Clinical Pathway
+                </span>
+              </div>
+              <h1 className="text-xl lg:text-2xl font-serif font-bold text-[#143826] tracking-tight">
+                Care Plan & Stage Approval
+              </h1>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <Link
+              href="/scheduling"
+              className="px-4 py-2 rounded-xl bg-white text-[#143826] border border-[#d8cbbb] hover:bg-[#eae3d5] text-xs font-bold shadow-xs transition"
+            >
+              📅 Schedule →
             </Link>
             <Link
               href="/clinical"
-              className="text-xs font-bold px-4 py-2 rounded-xl bg-[#143826] text-white hover:bg-[#1a4732] shadow-sm transition"
+              className="px-4 py-2 rounded-xl bg-[#143826] text-white hover:bg-[#1a4732] text-xs font-bold shadow-sm transition"
             >
-              ← Back to Consultation
+              ← Consultation Record
             </Link>
           </div>
-        </div>
-      </header>
+        </header>
 
-      {/* Main Content Area */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 space-y-6">
-        {/* Care Plan Header Card */}
-        <section className="bg-white rounded-2xl border border-[#2d513e]/15 shadow-sm p-6 relative overflow-hidden">
-          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 relative z-10">
-            <div>
-              <div className="flex flex-wrap items-center gap-3 mb-2">
-                {planStatus === "active" && (
-                  <span className="px-3 py-1 rounded-full text-xs font-bold bg-[#143826] text-white flex items-center gap-1.5 shadow-xs">
-                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-                    <span>Plan Active · Stage {currentStageOrdinal} Cleared</span>
-                  </span>
-                )}
-                {planStatus === "held" && (
-                  <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-600 text-white flex items-center gap-1.5 shadow-xs">
-                    <span>⏸</span>
-                    <span>Plan on Hold · Session Starts Blocked</span>
-                  </span>
-                )}
-                {planStatus === "completed" && (
-                  <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-700 text-white flex items-center gap-1.5 shadow-xs">
-                    <span>✓</span>
-                    <span>All Stages Completed</span>
-                  </span>
-                )}
-                {planStatus === "cancelled" && (
-                  <span className="px-3 py-1 rounded-full text-xs font-bold bg-red-700 text-white flex items-center gap-1.5 shadow-xs">
-                    <span>✕</span>
-                    <span>Care Plan Cancelled</span>
-                  </span>
-                )}
-                <span className="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-900 border border-emerald-200">
-                  Vata-Pitta Prakriti
-                </span>
-                <span className="text-xs text-slate-500 font-mono">
-                  Plan ID: PLN-2026-0082
-                </span>
-              </div>
-
-              <h1 className="text-2xl sm:text-3xl font-serif font-bold text-[#143826] tracking-tight">
-                7-Day Classical Shodhana & Shamana Panchakarma Protocol
-              </h1>
-
-              <div className="flex flex-wrap items-center gap-y-1 gap-x-5 mt-2 text-xs text-slate-600">
-                <span>
-                  <strong>Patient:</strong> Saman Kumara Jayawardena (AYUR-2026-0042)
-                </span>
-                <span>
-                  <strong>Lead Clinician:</strong> Dr. Ananya Sharma, BAMS
-                </span>
-                <span>
-                  <strong>Linked Consultation:</strong> CLN-AYUR-2026-0894 (Signed)
-                </span>
-                <span>
-                  <strong>Duration:</strong> 7 Treatment Days · 3 Stages
-                </span>
-              </div>
-            </div>
-
-            {/* Quick Actions Panel */}
-            <div className="flex flex-wrap lg:flex-col gap-2 shrink-0">
-              {planStatus === "active" && (
-                <>
-                  <button
-                    type="button"
-                    onClick={handleApproveCurrentStage}
-                    className="text-xs font-bold px-4 py-2.5 rounded-xl bg-[#143826] text-white hover:bg-[#1a4732] shadow-sm transition flex items-center justify-center gap-1.5"
-                  >
-                    <span>✓</span>
-                    <span>Approve Stage {currentStageOrdinal}</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleAdvanceStage}
-                    className="text-xs font-bold px-4 py-2.5 rounded-xl bg-emerald-700 text-white hover:bg-emerald-800 shadow-sm transition flex items-center justify-center gap-1.5"
-                  >
-                    <span>➔</span>
-                    <span>Advance to Next Stage</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowHoldModal(true)}
-                    className="text-xs font-semibold px-4 py-2 rounded-xl bg-amber-50 text-amber-900 border border-amber-300 hover:bg-amber-100 transition"
-                  >
-                    ⏸ Put Plan on Hold
-                  </button>
-                </>
-              )}
-
-              {planStatus === "held" && (
-                <>
-                  <button
-                    type="button"
-                    onClick={handleResumePlan}
-                    className="text-xs font-bold px-4 py-2.5 rounded-xl bg-[#143826] text-white hover:bg-[#1a4732] shadow-sm transition"
-                  >
-                    ▶ Resume Plan
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setShowCancelModal(true)}
-                    className="text-xs font-semibold px-4 py-2 rounded-xl bg-red-50 text-red-900 border border-red-300 hover:bg-red-100 transition"
-                  >
-                    ✕ Cancel Plan
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* Hold Notice Banner */}
-          {planStatus === "held" && (
-            <div className="mt-4 p-4 rounded-xl bg-amber-50 border border-amber-300/80 text-xs text-amber-950 flex items-start gap-3">
-              <span className="text-lg">⚠️</span>
+        {/* Content Body */}
+        <main className="p-6 lg:p-10 space-y-8 max-w-7xl w-full mx-auto">
+          {/* Plan Header Card */}
+          <section className="bg-[#fbf8f2] rounded-2xl border border-[#e2d7c5] shadow-xs p-6 relative overflow-hidden">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6 relative z-10">
               <div>
-                <p className="font-bold">Plan is currently on Hold</p>
-                <p className="mt-0.5 leading-relaxed">
-                  Therapy room sessions and stage advancements are blocked until clinical resumption is approved.
-                  Existing completed stages and prior approvals remain permanently intact in the legal audit log.
-                </p>
+                <div className="flex flex-wrap items-center gap-3 mb-2">
+                  {planStatus === "active" && (
+                    <span className="px-3 py-1 rounded-full text-xs font-bold bg-[#143826] text-white flex items-center gap-1.5 shadow-xs">
+                      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                      <span>Plan Active · Stage {currentStageOrdinal} Cleared</span>
+                    </span>
+                  )}
+                  {planStatus === "held" && (
+                    <span className="px-3 py-1 rounded-full text-xs font-bold bg-amber-600 text-white flex items-center gap-1.5 shadow-xs">
+                      <span>⏸</span>
+                      <span>Plan on Hold · Session Starts Blocked</span>
+                    </span>
+                  )}
+                  {planStatus === "completed" && (
+                    <span className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-700 text-white flex items-center gap-1.5 shadow-xs">
+                      <span>✓</span>
+                      <span>All Stages Completed</span>
+                    </span>
+                  )}
+                  {planStatus === "cancelled" && (
+                    <span className="px-3 py-1 rounded-full text-xs font-bold bg-red-700 text-white flex items-center gap-1.5 shadow-xs">
+                      <span>✕</span>
+                      <span>Care Plan Cancelled</span>
+                    </span>
+                  )}
+                  <span className="px-3 py-1 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-900 border border-emerald-200">
+                    Vata-Pitta Prakriti
+                  </span>
+                  <span className="text-xs text-slate-500 font-mono">
+                    Plan ID: PLN-2026-0082
+                  </span>
+                </div>
+
+                <h2 className="text-2xl sm:text-3xl font-serif font-bold text-[#143826] tracking-tight">
+                  7-Day Classical Shodhana & Shamana Panchakarma Protocol
+                </h2>
+
+                <div className="flex flex-wrap items-center gap-y-1 gap-x-5 mt-2 text-xs text-[#526558]">
+                  <span>
+                    <strong>Patient:</strong> Saman Kumara Jayawardena (AYUR-2026-0042)
+                  </span>
+                  <span>
+                    <strong>Lead Clinician:</strong> Dr. Ananya Sharma, BAMS
+                  </span>
+                  <span>
+                    <strong>Linked Consultation:</strong> CLN-AYUR-2026-0894 (Signed)
+                  </span>
+                  <span>
+                    <strong>Duration:</strong> 7 Treatment Days · 3 Stages
+                  </span>
+                </div>
+              </div>
+
+              {/* Quick Actions Panel */}
+              <div className="flex flex-wrap lg:flex-col gap-2 shrink-0">
+                {planStatus === "active" && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={handleApproveCurrentStage}
+                      className="text-xs font-bold px-4 py-2.5 rounded-xl bg-[#143826] text-white hover:bg-[#1a4732] shadow-sm transition flex items-center justify-center gap-1.5"
+                    >
+                      <span>✓</span>
+                      <span>Approve Stage {currentStageOrdinal}</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleAdvanceStage}
+                      className="text-xs font-bold px-4 py-2.5 rounded-xl bg-emerald-700 text-white hover:bg-emerald-800 shadow-sm transition flex items-center justify-center gap-1.5"
+                    >
+                      <span>➔</span>
+                      <span>Advance to Next Stage</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowHoldModal(true)}
+                      className="text-xs font-semibold px-4 py-2 rounded-xl bg-amber-50 text-amber-900 border border-amber-300 hover:bg-amber-100 transition"
+                    >
+                      ⏸ Put Plan on Hold
+                    </button>
+                  </>
+                )}
+
+                {planStatus === "held" && (
+                  <>
+                    <button
+                      type="button"
+                      onClick={handleResumePlan}
+                      className="text-xs font-bold px-4 py-2.5 rounded-xl bg-[#143826] text-white hover:bg-[#1a4732] shadow-sm transition"
+                    >
+                      ▶ Resume Plan
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowCancelModal(true)}
+                      className="text-xs font-semibold px-4 py-2 rounded-xl bg-red-50 text-red-900 border border-red-300 hover:bg-red-100 transition"
+                    >
+                      ✕ Cancel Plan
+                    </button>
+                  </>
+                )}
               </div>
             </div>
-          )}
-        </section>
 
-        {/* 3-Stage Ordered Panchakarma Pipeline */}
-        <section className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-serif font-bold text-[#143826] flex items-center gap-2">
-              <span>🌿</span> Ordered Panchakarma Stage Pipeline
-            </h2>
-            <span className="text-xs text-slate-500 font-medium">
-              Stages must be approved in strict chronological sequence
-            </span>
-          </div>
+            {/* Hold Notice Banner */}
+            {planStatus === "held" && (
+              <div className="mt-4 p-4 rounded-xl bg-amber-50 border border-amber-300/80 text-xs text-amber-950 flex items-start gap-3">
+                <span className="text-lg">⚠️</span>
+                <div>
+                  <p className="font-bold">Plan is currently on Hold</p>
+                  <p className="mt-0.5 leading-relaxed">
+                    Therapy room sessions and stage advancements are blocked until clinical resumption is approved.
+                    Existing completed stages and prior approvals remain permanently intact in the legal audit log.
+                  </p>
+                </div>
+              </div>
+            )}
+          </section>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {stages.map((stage) => {
-              const isCurrent = stage.status === "current";
-              const isCompleted = stage.status === "completed";
-              const isFuture = stage.status === "future";
+          {/* 3-Stage Ordered Panchakarma Pipeline */}
+          <section className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h3 className="text-base font-serif font-bold text-[#143826] flex items-center gap-2">
+                <span>🌿</span> Ordered Panchakarma Stage Pipeline
+              </h3>
+              <span className="text-xs text-[#6b7d72] font-medium">
+                Stages must be approved in strict chronological sequence
+              </span>
+            </div>
 
-              return (
-                <div
-                  key={stage.ordinal}
-                  className={`rounded-2xl border p-5 flex flex-col justify-between transition-all duration-300 ${
-                    isCurrent
-                      ? "bg-white border-emerald-600 ring-2 ring-emerald-600/20 shadow-md"
-                      : isCompleted
-                      ? "bg-emerald-900/5 border-emerald-900/20 shadow-xs"
-                      : "bg-slate-50/70 border-slate-200/80 opacity-80"
-                  }`}
-                >
-                  <div>
-                    {/* Stage Header */}
-                    <div className="flex items-center justify-between mb-2">
-                      <span className="text-[11px] font-bold uppercase tracking-wider text-slate-500">
-                        Stage {stage.ordinal}
-                      </span>
-                      {isCompleted && (
-                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-900 border border-emerald-300">
-                          ✓ Completed
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {stages.map((stage) => {
+                const isCurrent = stage.status === "current";
+                const isCompleted = stage.status === "completed";
+                const isFuture = stage.status === "future";
+
+                return (
+                  <div
+                    key={stage.ordinal}
+                    className={`rounded-2xl border p-5 flex flex-col justify-between transition-all duration-300 ${
+                      isCurrent
+                        ? "bg-white border-emerald-600 ring-2 ring-emerald-600/20 shadow-md"
+                        : isCompleted
+                        ? "bg-[#fbf8f2] border-emerald-900/20 shadow-xs"
+                        : "bg-[#f5ede0]/60 border-[#e2d7c5] opacity-80"
+                    }`}
+                  >
+                    <div>
+                      {/* Stage Header */}
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-[11px] font-bold uppercase tracking-wider text-[#6b7d72]">
+                          Stage {stage.ordinal}
                         </span>
-                      )}
-                      {isCurrent && (
-                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#143826] text-white shadow-xs">
-                          ● Current Stage
-                        </span>
-                      )}
-                      {isFuture && (
-                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-medium bg-slate-200 text-slate-700">
-                          🔒 Locked (Future)
-                        </span>
-                      )}
-                    </div>
+                        {isCompleted && (
+                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-900 border border-emerald-300">
+                            ✓ Completed
+                          </span>
+                        )}
+                        {isCurrent && (
+                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-[#143826] text-white shadow-xs">
+                            ● Current Stage
+                          </span>
+                        )}
+                        {isFuture && (
+                          <span className="px-2.5 py-0.5 rounded-full text-[10px] font-medium bg-[#e8e2d4] text-[#6b7d72]">
+                            🔒 Locked (Future)
+                          </span>
+                        )}
+                      </div>
 
-                    <h3 className="text-base font-serif font-bold text-[#143826]">
-                      {stage.name}
-                    </h3>
-                    <p className="text-xs font-semibold text-emerald-900 mt-0.5">
-                      {stage.sanskritName}
-                    </p>
-                    <p className="text-xs text-slate-600 mt-2 leading-relaxed">
-                      {stage.description}
-                    </p>
-
-                    {/* Prescribed Therapies */}
-                    <div className="mt-4 pt-4 border-t border-slate-200/80">
-                      <p className="text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-2">
-                        Assigned Procedures
+                      <h4 className="text-base font-serif font-bold text-[#143826]">
+                        {stage.name}
+                      </h4>
+                      <p className="text-xs font-semibold text-emerald-900 mt-0.5">
+                        {stage.sanskritName}
                       </p>
-                      <ul className="space-y-2">
-                        {stage.therapies.map((th, i) => (
-                          <li
-                            key={i}
-                            className="text-xs p-2.5 rounded-lg bg-white border border-slate-200/70 flex justify-between items-center"
-                          >
-                            <span className="font-semibold text-slate-800">{th.name}</span>
-                            <span className="text-[11px] text-emerald-900 font-mono">
-                              {th.duration}
-                            </span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-
-                    {/* Stage Checklist */}
-                    <div className="mt-4 pt-4 border-t border-slate-200/80">
-                      <p className="text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-2">
-                        Clinical Clearance Checklist
+                      <p className="text-xs text-[#526558] mt-2 leading-relaxed">
+                        {stage.description}
                       </p>
-                      <div className="space-y-2">
-                        {stage.checklist.map((item) => (
-                          <label
-                            key={item.id}
-                            className={`flex items-start gap-2.5 text-xs p-2 rounded-lg cursor-pointer transition ${
-                              item.checked ? "bg-emerald-50/60 text-emerald-950 font-medium" : "text-slate-600 hover:bg-slate-100"
-                            }`}
-                          >
-                            <input
-                              type="checkbox"
-                              checked={item.checked}
-                              disabled={isFuture || planStatus === "held"}
-                              onChange={() => toggleChecklist(stage.ordinal, item.id)}
-                              className="mt-0.5 rounded text-[#143826] focus:ring-[#143826]"
-                            />
-                            <span>{item.label}</span>
-                          </label>
-                        ))}
+
+                      {/* Prescribed Therapies */}
+                      <div className="mt-4 pt-4 border-t border-[#e2d7c5]">
+                        <p className="text-[11px] font-bold text-[#143826] uppercase tracking-wider mb-2">
+                          Assigned Procedures
+                        </p>
+                        <ul className="space-y-2">
+                          {stage.therapies.map((th, i) => (
+                            <li
+                              key={i}
+                              className="text-xs p-2.5 rounded-lg bg-white border border-[#e2d7c5] flex justify-between items-center"
+                            >
+                              <span className="font-semibold text-slate-800">{th.name}</span>
+                              <span className="text-[11px] text-emerald-900 font-mono">
+                                {th.duration}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+
+                      {/* Stage Checklist */}
+                      <div className="mt-4 pt-4 border-t border-[#e2d7c5]">
+                        <p className="text-[11px] font-bold text-[#143826] uppercase tracking-wider mb-2">
+                          Clinical Clearance Checklist
+                        </p>
+                        <div className="space-y-2">
+                          {stage.checklist.map((item) => (
+                            <label
+                              key={item.id}
+                              className={`flex items-start gap-2.5 text-xs p-2 rounded-lg cursor-pointer transition ${
+                                item.checked ? "bg-emerald-50 text-emerald-950 font-medium" : "text-[#526558] hover:bg-[#ede5d8]"
+                              }`}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={item.checked}
+                                disabled={isFuture || planStatus === "held"}
+                                onChange={() => toggleChecklist(stage.ordinal, item.id)}
+                                className="mt-0.5 rounded text-[#143826] focus:ring-[#143826]"
+                              />
+                              <span>{item.label}</span>
+                            </label>
+                          ))}
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  {/* Stage Footer Sign-off Info */}
-                  <div className="mt-6 pt-3 border-t border-slate-200/70 text-[11px] text-slate-500">
-                    {stage.approvedBy && (
-                      <p>
-                        Approved by <strong>{stage.approvedBy}</strong>
-                      </p>
-                    )}
-                    {stage.completedAt && (
-                      <p className="text-emerald-900 font-medium">
-                        Completed: {new Date(stage.completedAt).toLocaleDateString("en-LK")}
-                      </p>
-                    )}
-                    {isFuture && (
-                      <p className="italic">
-                        Requires successful completion of Stage {stage.ordinal - 1}
-                      </p>
-                    )}
+                    {/* Stage Footer Sign-off Info */}
+                    <div className="mt-6 pt-3 border-t border-[#e2d7c5] text-[11px] text-[#6b7d72]">
+                      {stage.approvedBy && (
+                        <p>
+                          Approved by <strong>{stage.approvedBy}</strong>
+                        </p>
+                      )}
+                      {stage.completedAt && (
+                        <p className="text-emerald-900 font-medium">
+                          Completed: {new Date(stage.completedAt).toLocaleDateString("en-LK")}
+                        </p>
+                      )}
+                      {isFuture && (
+                        <p className="italic">
+                          Requires successful completion of Stage {stage.ordinal - 1}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        </section>
-
-        {/* Clinical Decision Ledger & Audit Log */}
-        <section className="bg-white rounded-2xl border border-[#2d513e]/15 p-6 shadow-sm space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-lg font-serif font-bold text-[#143826]">
-                Immutable Decision & Audit Ledger
-              </h2>
-              <p className="text-xs text-slate-600 mt-0.5">
-                Every stage approval, advancement, hold, and cancellation is permanently recorded.
-              </p>
+                );
+              })}
             </div>
-            <span className="text-xs font-mono text-emerald-900 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">
-              Audit Verified
-            </span>
-          </div>
+          </section>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse">
-              <thead>
-                <tr className="border-b border-slate-200 bg-slate-50/80 text-slate-700 font-semibold">
-                  <th className="py-3 px-4">Timestamp (Asia/Colombo)</th>
-                  <th className="py-3 px-4">Decision / Action</th>
-                  <th className="py-3 px-4">Clinician</th>
-                  <th className="py-3 px-4">Clinical Rationale & Notes</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {decisionHistory.map((log) => (
-                  <tr key={log.id} className="hover:bg-slate-50/60 transition">
-                    <td className="py-3.5 px-4 font-mono text-slate-600">{log.timestamp}</td>
-                    <td className="py-3.5 px-4 font-bold text-[#143826]">{log.decision}</td>
-                    <td className="py-3.5 px-4 text-slate-700">
-                      <strong>{log.actor}</strong>
-                      <span className="block text-[11px] text-slate-500">{log.role}</span>
-                    </td>
-                    <td className="py-3.5 px-4 text-slate-600 leading-relaxed">{log.notes || "—"}</td>
+          {/* Clinical Decision Ledger & Audit Log */}
+          <section className="bg-[#fbf8f2] rounded-2xl border border-[#e2d7c5] p-6 shadow-xs space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-lg font-serif font-bold text-[#143826]">
+                  Immutable Decision & Audit Ledger
+                </h3>
+                <p className="text-xs text-[#6b7d72] mt-0.5">
+                  Every stage approval, advancement, hold, and cancellation is permanently recorded.
+                </p>
+              </div>
+              <span className="text-xs font-mono text-emerald-900 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200">
+                Audit Verified
+              </span>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs border-collapse">
+                <thead>
+                  <tr className="border-b border-[#e2d7c5] bg-[#f0ebd9] text-[#143826] font-semibold">
+                    <th className="py-3 px-4">Timestamp (Asia/Colombo)</th>
+                    <th className="py-3 px-4">Decision / Action</th>
+                    <th className="py-3 px-4">Clinician</th>
+                    <th className="py-3 px-4">Clinical Rationale & Notes</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      </main>
+                </thead>
+                <tbody className="divide-y divide-[#ede5d8]">
+                  {decisionHistory.map((log) => (
+                    <tr key={log.id} className="hover:bg-white/60 transition">
+                      <td className="py-3.5 px-4 font-mono text-[#526558]">{log.timestamp}</td>
+                      <td className="py-3.5 px-4 font-bold text-[#143826]">{log.decision}</td>
+                      <td className="py-3.5 px-4 text-slate-700">
+                        <strong>{log.actor}</strong>
+                        <span className="block text-[11px] text-[#6b7d72]">{log.role}</span>
+                      </td>
+                      <td className="py-3.5 px-4 text-[#526558] leading-relaxed">{log.notes || "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </main>
+      </div>
 
       {/* Modal: Put Plan on Hold */}
       {showHoldModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs animate-fade-in">
-          <div className="bg-white rounded-2xl border border-green-900/20 max-w-lg w-full p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div className="bg-[#fbf8f2] rounded-2xl border border-[#d8cbbb] max-w-lg w-full p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-[#e2d7c5] pb-3">
               <h3 className="text-base font-serif font-bold text-amber-900">
                 ⏸ Place Care Plan on Clinical Hold
               </h3>
@@ -634,7 +798,7 @@ export function CarePlanStageView() {
                   value={holdReason}
                   onChange={(e) => setHoldReason(e.target.value)}
                   placeholder="e.g. Acute fever spike, elevated systolic blood pressure, patient fatigue..."
-                  className="w-full text-xs rounded-xl border border-slate-300 p-3 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-600 leading-relaxed"
+                  className="w-full text-xs rounded-xl border border-[#d8cbbb] p-3 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-amber-600 leading-relaxed"
                 />
               </div>
 
@@ -647,7 +811,7 @@ export function CarePlanStageView() {
                 <button
                   type="button"
                   onClick={() => setShowHoldModal(false)}
-                  className="px-4 py-2 rounded-xl border border-slate-300 text-slate-700 text-xs font-semibold hover:bg-slate-50"
+                  className="px-4 py-2 rounded-xl border border-[#d8cbbb] text-slate-700 text-xs font-semibold hover:bg-slate-50"
                 >
                   Cancel
                 </button>
@@ -667,8 +831,8 @@ export function CarePlanStageView() {
       {/* Modal: Cancel Plan */}
       {showCancelModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs animate-fade-in">
-          <div className="bg-white rounded-2xl border border-green-900/20 max-w-lg w-full p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div className="bg-[#fbf8f2] rounded-2xl border border-[#d8cbbb] max-w-lg w-full p-6 shadow-2xl space-y-4">
+            <div className="flex items-center justify-between border-b border-[#e2d7c5] pb-3">
               <h3 className="text-base font-serif font-bold text-red-900">
                 ✕ Cancel Care Plan
               </h3>
@@ -692,7 +856,7 @@ export function CarePlanStageView() {
                   value={cancelReason}
                   onChange={(e) => setCancelReason(e.target.value)}
                   placeholder="e.g. Patient discharge against medical advice, transfer to secondary care..."
-                  className="w-full text-xs rounded-xl border border-slate-300 p-3 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-red-600 leading-relaxed"
+                  className="w-full text-xs rounded-xl border border-[#d8cbbb] p-3 bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-red-600 leading-relaxed"
                 />
               </div>
 
@@ -705,7 +869,7 @@ export function CarePlanStageView() {
                 <button
                   type="button"
                   onClick={() => setShowCancelModal(false)}
-                  className="px-4 py-2 rounded-xl border border-slate-300 text-slate-700 text-xs font-semibold hover:bg-slate-50"
+                  className="px-4 py-2 rounded-xl border border-[#d8cbbb] text-slate-700 text-xs font-semibold hover:bg-slate-50"
                 >
                   Back
                 </button>

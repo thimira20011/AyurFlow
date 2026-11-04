@@ -20,8 +20,15 @@ export function Navbar() {
   const pathname = usePathname();
   const { session, signOut, signingOut } = useStaffSession();
 
-  // On auth and standalone workspace pages, don't display the top clinic navbar
-  if (pathname.startsWith("/sign-in") || pathname.startsWith("/sign-up") || pathname.startsWith("/reception") || pathname === "/administration") {
+  // On auth and standalone Living Heritage workspace pages, don't display the top clinic navbar
+  if (
+    pathname.startsWith("/sign-in") ||
+    pathname.startsWith("/sign-up") ||
+    pathname.startsWith("/reception") ||
+    pathname.startsWith("/scheduling") ||
+    pathname.startsWith("/clinical") ||
+    pathname === "/administration"
+  ) {
     return null;
   }
 
