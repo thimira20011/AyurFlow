@@ -2,7 +2,7 @@
 
 ## Member B Living Heritage visual alignment (4 November 2026)
 
-The patient registry and registration, consultation draft/signed history, and care-plan states were compared with seven full-size Figma frames supplied by Member B. [Synthetic screenshots and the field-by-field scope record](evidence/member-b-figma-alignment-2026-11-04.md) show the revised layout at 1220, 1366 and 1024 pixels. Required clinical and demographic controls remain even where the illustrations omit them. The local build, lint and helper tests passed; the updated protected browser suite must pass on the revised branch before this visual revision is reviewed by C/F.
+The patient registry and registration, consultation draft/signed history, and care-plan states were compared with seven full-size Figma frames supplied by Member B. [Synthetic screenshots and the scope record](evidence/member-b-figma-alignment-2026-11-04.md) show the revised layout at 1220, 1366 and 1024 pixels. Required clinical and demographic controls remain even where the illustrations omit them. The local build, lint and helper tests and [all six updated CI jobs](https://github.com/thimira20011/AyurFlow/actions/runs/41868541275) passed, including 18/18 real protected browser cases. C/F review is still pending.
 
 ## Member B protected AT02–03 journeys and CLN-05 screen (4 November 2026)
 
