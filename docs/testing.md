@@ -1,5 +1,9 @@
 # Verification plan and evidence
 
+## Member B protected AT02–03 journeys and CLN-05 screen (4 November 2026)
+
+Owner B, reviewer C. At commit `44f2121`, the real HTTPS browser/Go/PostgreSQL suite passed all 18 cases, including receptionist registration, Unicode search, audited demographic correction and postal identity confirmation; assigned-clinician draft/edit/sign/addendum with direct non-clinical denial and signed-text immutability; and a care-plan screen walkthrough with guarded approval, hold/resume and fail-closed advancement/cancellation. The final [push](https://github.com/thimira20011/AyurFlow/actions/runs/41806538888) and [PR](https://github.com/thimira20011/AyurFlow/actions/runs/41806529461) CI workflows each passed all six jobs. Local synthetic visual review confirmed the Living Heritage care-plan layout at 1366×768 and 1024×768. Setup, steps, expected/actual results, tester, environment, version, screenshots and acceptance limits are in the [Member B evidence record](evidence/member-b-at02-at03-cln05-2026-11-04.md). C review, the signed DEC02 source and C/D plan adapters remain gates; AT02–03 formal acceptance and AT04–05 are not claimed here.
+
 ## AUTH-06 real browser/API/PostgreSQL verification (3 November 2026)
 
 - **Scope/ownership:** A, reviewer F; IAM-01–05/ADM-01, AT01/AT13 support. Implementation `ea2aa3a` on `codex/auth-06-fullstack-verification`; no production behavior, API or migration changes.

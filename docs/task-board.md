@@ -56,24 +56,24 @@ Status values: **Pending** = not started; **In progress** = work underway but co
 
 | Task | Deliverable | Owner slot | Peer reviewer | Status | Evidence |
 | --- | --- | --- | --- | --- | --- |
-| TASK-PAT-01 | Patient schema and identifier rules | B | C | In progress | [PR #19](https://github.com/thimira20011/AyurFlow/pull/19) merged; [PR #49](https://github.com/thimira20011/AyurFlow/pull/49) adds DOB/gender/address and display code; signed DEC02 source and AT02 integration pending |
-| TASK-PAT-02 | Registration, search and audited updates | B | C | In progress | [PR #22](https://github.com/thimira20011/AyurFlow/pull/22) merged; [PR #49](https://github.com/thimira20011/AyurFlow/pull/49) extends audited demographics, phone normalization and exact no-ID confirmation; postal fallback and AT02 remain |
-| TASK-PAT-03 | Registration, search and detail screens | B | C | In progress | [PR #29](https://github.com/thimira20011/AyurFlow/pull/29) merged; [PR #49](https://github.com/thimira20011/AyurFlow/pull/49) adds new fields, code lookup, preview access and stale-record clearing; shared sign-in and AT02 journey pending |
-| TASK-CON-01 | Consultation/addendum schema and drafts | B | C | In progress | [PR #32](https://github.com/thimira20011/AyurFlow/pull/32) and [PR #39](https://github.com/thimira20011/AyurFlow/pull/39) merged; [PR #49](https://github.com/thimira20011/AyurFlow/pull/49) adds administrator assignment workflow and live protected draft wiring; AT03 journey and source/review evidence pending |
-| TASK-CON-02 | Signing, immutable text and dated addenda | B | C | In progress | [PR #36](https://github.com/thimira20011/AyurFlow/pull/36) and [PR #42](https://github.com/thimira20011/AyurFlow/pull/42) merged; [PR #49](https://github.com/thimira20011/AyurFlow/pull/49) wires protected signing/addenda; AT03 journey and source/review evidence pending |
-| TASK-CON-03 | Consultation editor, sign and history UI | B | C | In progress | [PR #38](https://github.com/thimira20011/AyurFlow/pull/38) merged; [PR #49](https://github.com/thimira20011/AyurFlow/pull/49) supplies live protected HTTP/assignment integration; shared sign-in and AT03 screen journey pending |
-| TASK-CON-04 | AT02–03 patient/consultation verification | B | C | In progress | `member-b/con-04-patient-consultation-verification` adds protected HTTP duplicate-registration and sign/edit races; [PostgreSQL CI passed](https://github.com/thimira20011/AyurFlow/actions/runs/41236381647). [Implementation test record](testing.md#task-con-04-patient-and-consultation-verification) distinguishes these checks from pending AT02–03 staff journeys and C review. |
+| TASK-PAT-01 | Patient schema and identifier rules | B | C | In progress | [PR #57](https://github.com/thimira20011/AyurFlow/pull/57) merged matching rules; [PR #63](https://github.com/thimira20011/AyurFlow/pull/63) adds passing [AT02 browser evidence](evidence/member-b-at02-at03-cln05-2026-11-04.md); signed DEC02 source and C review pending |
+| TASK-PAT-02 | Registration, search and audited updates | B | C | In progress | PR #57 merged postal fallback and audited updates; PR #63 real protected AT02 browser journey passed; C acceptance review pending |
+| TASK-PAT-03 | Registration, search and detail screens | B | C | In progress | PR #57 integrated screens; PR #63 real browser journey passed; C/F review pending |
+| TASK-CON-01 | Consultation/addendum schema and drafts | B | C | In progress | PR #57 merged protected draft and assignment flow; PR #63 real AT03 browser journey passed; C review pending |
+| TASK-CON-02 | Signing, immutable text and dated addenda | B | C | In progress | PR #57 merged signing/addenda; PR #63 real browser journey and prior PostgreSQL race checks passed; C review pending |
+| TASK-CON-03 | Consultation editor, sign and history UI | B | C | In progress | PR #57 integrated editor; PR #63 real protected AT03 browser journey passed; C/F review pending |
+| TASK-CON-04 | AT02–03 patient/consultation verification | B | C | In progress | [Protected PostgreSQL races](https://github.com/thimira20011/AyurFlow/actions/runs/41236381647) and [real AT02–03 browser evidence](evidence/member-b-at02-at03-cln05-2026-11-04.md) passed; C acceptance review and signed DEC02 source pending |
 
 ## 5. Clinical plans and approvals (weeks 3–4)
 
 | Task | Deliverable | Owner slot | Peer reviewer | Status | Evidence |
 | --- | --- | --- | --- | --- | --- |
-| TASK-CLN-01 | One pathway and ordered plan/stage schema | B | C | In progress | `member-b/cln-01-pathway-schema` adds schema and PostgreSQL test; A migration number, DEC02 labels/checklist and C review pending |
-| TASK-CLN-02 | Plan, approval and guarded advancement | B | C | In progress | `member-b/cln-02-plan-approval` adds transactional service/tests; DEC02 completion evidence, C session integration, protected HTTP and AT04 pending |
-| TASK-CLN-03 | Hold, resume, cancel and history | B with C | C | Pending | — |
-| TASK-CLN-04 | Shared clearance and plan/start concurrency | B with C | C | Pending | — |
-| TASK-CLN-05 | Plan timeline and clinician actions UI | B | C | Pending | — |
-| TASK-CLN-06 | AT04–05 transition verification | B | C; clinic examples | Pending | — |
+| TASK-CLN-01 | One pathway and ordered plan/stage schema | B | C | In progress | PR #57 merged fixed pathway and PostgreSQL guards; signed DEC02 source and C review pending |
+| TASK-CLN-02 | Plan, approval and guarded advancement | B | C | In progress | PR #57 merged protected decisions; C/D completion adapters, AT04 and C review pending |
+| TASK-CLN-03 | Hold, resume, cancel and history | B with C | C | In progress | PR #57 merged reasoned transitions; C future-session cancellation adapter and AT05 pending |
+| TASK-CLN-04 | Shared clearance and plan/start concurrency | B with C | C | In progress | PR #57 merged B's transactional clearance hook and race test; C session-start join pending |
+| TASK-CLN-05 | Plan timeline and clinician actions UI | B | C | In progress | [PR #63](https://github.com/thimira20011/AyurFlow/pull/63) real clinician browser case and [1366/1024 visual review](evidence/member-b-at02-at03-cln05-2026-11-04.md) passed; C/F review pending |
+| TASK-CLN-06 | AT04–05 transition verification | B | C; clinic examples | In progress | PR #57 PostgreSQL lifecycle and HTTP tests passed; C/D joins and integrated AT04–05 pending |
 
 ## 6. Scheduling and session delivery (weeks 2–4)
 
