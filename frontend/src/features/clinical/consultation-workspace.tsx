@@ -2,6 +2,7 @@
 
 import { useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { APIRequestError } from "@/lib/api-client";
 import {
   addCorrection, createDraft, getConsultation, listConsultations, signDraft, updateDraft,
@@ -64,6 +65,7 @@ export default function ConsultationWorkspace({ preview = false, initialPatientI
   const [correctionBody, setCorrectionBody] = useState("");
   const [creating, setCreating] = useState(false);
   const [confirmSign, setConfirmSign] = useState(false);
+  const [showCorrection, setShowCorrection] = useState(false);
   const [conflicted, setConflicted] = useState(false);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<Notice | null>(null);
@@ -76,6 +78,7 @@ export default function ConsultationWorkspace({ preview = false, initialPatientI
     setCorrectionBody("");
     setCreating(false);
     setConfirmSign(false);
+    setShowCorrection(false);
     setConflicted(false);
   }
 
@@ -212,6 +215,7 @@ export default function ConsultationWorkspace({ preview = false, initialPatientI
       setSelected(record);
       setReason("");
       setCorrectionBody("");
+      setShowCorrection(false);
       setNotice({ tone: "success", text: "Dated correction added. The signed original is unchanged." });
     } catch (error) {
       handleFailure(error, "write");
@@ -224,7 +228,8 @@ export default function ConsultationWorkspace({ preview = false, initialPatientI
     <div className={styles.workspace}>
       {preview && <div className={styles.preview} role="status"><strong>Synthetic screen preview</strong><span>Preview actions use browser memory only. No clinical API or database is used.</span><Link href="/clinical">Live workspace</Link></div>}
       <header className={styles.heading}>
-        <div><p className={styles.kicker}>Clinical records</p><h1>Consultations</h1><p>Work with permitted drafts, signed originals, and dated corrections.</p>{!preview && <p><Link href={patientId ? `/clinical/plans?patientId=${encodeURIComponent(patientId)}` : "/clinical/plans"}>Care plans →</Link></p>}</div>
+        <div><p className={styles.kicker}>Assigned patient {patientId ? `/ ${patientId}` : ""}</p><h1>{selected?.status === "signed" ? "Consultation" : creating || selected?.status === "draft" ? "Record the consultation" : "Consultations"}</h1><p>{selected?.status === "signed" ? "Signed originals remain intact; corrections are dated addenda." : "Record a consultation and keep its clinical history."}</p></div>
+        {selected?.status === "signed" && <button className={styles.headingAction} type="button" onClick={() => setShowCorrection(true)}>Add dated correction</button>}
       </header>
       <form className={styles.patientForm} onSubmit={(event) => { void openPatient(event); }}>
         <div><label htmlFor="consultation-patient-id">Patient ID</label><p>Enter a patient ID from an authorized clinical handoff.</p></div>
@@ -235,7 +240,8 @@ export default function ConsultationWorkspace({ preview = false, initialPatientI
       {patientId ? <p className={styles.context}>Patient ID <strong>{patientId}</strong> · Clinical text is available only after backend record checks.</p> : <p className={styles.context}>No patient opened. Clinical records stay hidden until access is checked.</p>}
       <div className={styles.columns}>
         <section className={styles.listPanel} aria-labelledby="consultation-list-heading">
-          <div className={styles.sectionHead}><h2 id="consultation-list-heading">History</h2><button type="button" onClick={() => { setCreating(true); setSelected(null); setDraftText(""); setConflicted(false); setNotice(null); }} disabled={!patientId || busy}>New draft</button></div>
+          {selected?.status !== "signed" && <div className={styles.guidance}><Image src="/brand/botanical-admin.svg" alt="" width={72} height={100} /><h2>A durable clinical record</h2><p>Signing records your identity and the time, then locks the original note. Later corrections are added as dated addenda.</p><p>A consultation can be saved without creating a care plan.</p></div>}
+          <div className={styles.sectionHead}><h2 id="consultation-list-heading">Consultation history</h2><button type="button" onClick={() => { setCreating(true); setSelected(null); setDraftText(""); setConflicted(false); setNotice(null); }} disabled={!patientId || busy}>New draft</button></div>
           {!patientId ? <p className={styles.empty}>Open a permitted patient to see consultations.</p> : records.length === 0 ? <p className={styles.empty}>No consultations are available for this patient. A draft does not require a care plan.</p> : (
             <ul className={styles.list}>{records.map((item) => <li key={item.id}><button type="button" className={selected?.id === item.id ? styles.selected : ""} onClick={() => { void openConsultation(item.id); }} disabled={busy} aria-pressed={selected?.id === item.id}>
               <span className={styles.listTop}><strong>{item.status === "signed" ? "Signed" : "Draft"}</strong><time>{formatColombo(item.signedAt ?? item.createdAt)}</time></span>
@@ -246,7 +252,7 @@ export default function ConsultationWorkspace({ preview = false, initialPatientI
         </section>
         <section className={styles.detailPanel} aria-labelledby="consultation-detail-heading">
           {creating || selected?.status === "draft" ? <>
-            <div className={styles.sectionHead}><div><p className={styles.kicker}>Draft</p><h2 id="consultation-detail-heading">{creating ? "New consultation" : "Edit consultation"}</h2></div>{selected && !creating && <span className={styles.badge}>Version {selected.version}</span>}</div>
+            <div className={styles.sectionHead}><div><h2 id="consultation-detail-heading">Consultation note</h2></div><span className={styles.badge}>Draft</span></div>
             <p className={styles.hint}>Save a draft before signing. A care plan is not required.</p>
             <form onSubmit={(event) => { void saveDraft(event); }}>
               <label htmlFor="consultation-draft">Clinical note</label>
@@ -262,12 +268,12 @@ export default function ConsultationWorkspace({ preview = false, initialPatientI
             <div className={styles.signedText}>{selected.signedText ?? "Original text unavailable."}</div>
             <h3>Dated addenda</h3>
             {!selected.addenda?.length ? <p className={styles.empty}>No corrections have been added.</p> : <ol className={styles.addenda}>{[...selected.addenda].sort((a, b) => a.createdAt.localeCompare(b.createdAt) || a.id.localeCompare(b.id)).map((item) => <li key={item.id}><p className={styles.meta}>{formatColombo(item.createdAt)} · Clinician {item.authorId}</p><strong>Reason: {item.reason}</strong><p className={styles.addendumBody}>{item.body}</p></li>)}</ol>}
-            <form onSubmit={(event) => { void saveCorrection(event); }} className={styles.correctionForm}>
+            {showCorrection && <form onSubmit={(event) => { void saveCorrection(event); }} className={styles.correctionForm}>
               <h3>Add a correction</h3><p className={styles.hint}>A correction is appended. The signed original never changes.</p>
               <label htmlFor="correction-reason">Reason</label><input id="correction-reason" value={reason} onChange={(event) => setReason(event.target.value)} disabled={busy || conflicted} required />
               <label htmlFor="correction-body">Correction</label><textarea id="correction-body" value={correctionBody} onChange={(event) => setCorrectionBody(event.target.value)} rows={5} disabled={busy || conflicted} required />
               <div className={styles.actions}><button type="submit" disabled={busy || conflicted}>{busy ? "Saving…" : "Add dated correction"}</button>{conflicted && <button className={styles.secondary} type="button" onClick={() => { void openConsultation(selected.id); }} disabled={busy}>Reload record</button>}</div>
-            </form>
+            </form>}
           </> : <div><h2 id="consultation-detail-heading">Select a consultation</h2><p className={styles.empty}>Choose a history entry or start a draft. Signed text is never shown in the list.</p></div>}
         </section>
       </div>
