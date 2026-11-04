@@ -1,0 +1,15 @@
+{
+  "name": "ayurflow",
+  "private": true,
+  "scripts": {
+    "build": "npm --prefix frontend run build",
+    "start": "npm --prefix frontend run start",
+    "dev": "npm --prefix frontend run dev",
+    "dev:api": "node scripts/neon-backend.mjs api",
+    "db:migrate": "node scripts/neon-backend.mjs migrate"
+  },
+  "dependencies": {
+    "@neon/config": "^1.10.1",
+    "@neon/env": "^1.6.9"
+  }
+}

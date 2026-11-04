@@ -13,8 +13,14 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON
     :"schema".consultations, :"schema".consultation_addenda,
     :"schema".invoices, :"schema".invoice_items, :"schema".receipts
 TO :"app_role";
+GRANT SELECT, INSERT, UPDATE ON
+    :"schema".patient_clinician_assignments, :"schema".care_plans,
+    :"schema".plan_stages
+TO :"app_role";
+GRANT SELECT, INSERT ON :"schema".plan_decisions TO :"app_role";
 GRANT SELECT ON :"schema".roles TO :"app_role";
 GRANT SELECT, INSERT ON :"schema".audit_events TO :"app_role";
 GRANT USAGE ON SEQUENCE :"schema".audit_events_id_seq TO :"app_role";
+GRANT USAGE ON SEQUENCE :"schema".patient_registry_numbers TO :"app_role";
 -- No schema_migrations, DDL, TRUNCATE, ownership or automatic future-table grants.
 COMMIT;

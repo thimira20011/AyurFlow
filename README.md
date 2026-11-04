@@ -82,6 +82,8 @@ npm run dev
 
 Go reads environment variables directly; it does not load `.env` files automatically. Next.js reads `frontend/.env.local`. URL-encode credentials in `DATABASE_URL` when using reserved characters.
 
+For the linked Neon synthetic environment, use the [Neon setup and verification record](deploy/neon.md). Root commands `npm run db:migrate` and `npm run dev:api` load the ignored local settings and select separate restricted database credentials. Root `npm run build` builds the existing frontend.
+
 ## Checks and next implementation work
 
 Run `./scripts/check.ps1`, or run Go format/vet/test/build from `backend/` and frontend lint/typecheck/build from `frontend/`. Dependency resolution is captured in `go.sum` and `package-lock.json`.
