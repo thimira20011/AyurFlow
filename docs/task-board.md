@@ -106,7 +106,7 @@ Status values: **Pending** = not started; **In progress** = work underway but co
 | TASK-BILL-01 | Invoice/receipt schema and integer LKR | E | D | In review | Merged in PR #17; migration `000004_billing.up.sql` live in `dev` |
 | TASK-BILL-02 | Draft editing and atomic invoice issue | E | D | In review | `member-e/task-bill-02-invoice-lifecycle`; routes wired under `RequireSession` in `router.go`, atomic issue, item lines, role checks, frontend workspace, DEC04 review record; Go & Next.js test suites pass |
 | TASK-BILL-03 | Direct receipts, deposits and balance | E | D | In review | `member-e/task-bill-03-receipts-balance`; direct receipts, labelled bank deposits, derived balance, overpayment conflict guard, idempotent operation ID, HTTP routes (`/api/v1/invoices/:id/receipts`, `/api/v1/invoices/:id/balance`), transaction audit logging, and Go & Next.js test suites passing |
-| TASK-BILL-04 | Unique receipt operations and concurrency | E | D | Pending | — |
+| TASK-BILL-04 | Unique receipt operations and concurrency | E | D | In review | `member-e/task-bill-04-receipt-concurrency`; HTTP 200 OK on idempotent replay vs 201 Created on new receipt; concurrent race serialization via pg_advisory_xact_lock + FOR UPDATE locks; overpayment overflow guard; Go test suite passing |
 | TASK-BILL-05 | Invoice editor, issued view, receipt/history UI | E | D | Pending | — |
 | TASK-BILL-06 | Outstanding report and AT12 verification | E | D | Pending | — |
 

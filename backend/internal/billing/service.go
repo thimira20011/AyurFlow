@@ -345,38 +345,40 @@ func (s *Service) VoidInvoice(ctx context.Context, actorID, invoiceID string) er
 // ---------------------------------------------------------------------------
 
 // PostReceipt posts a payment receipt against an issued invoice.
-// Idempotency: if operationID already exists, the existing receipt is returned
-// without writing a duplicate (AT12 retry safety).
+// Idempotency: if operationID already exists with identical payload, the
+// existing receipt is returned (alreadyExisted=true) without writing a
+// duplicate (AT12 retry safety). Callers should respond with 200 OK on
+// replay and 201 Created on a new receipt.
 // Concurrency: the invoice row is locked FOR UPDATE before the overpayment
 // check, serializing concurrent receipt posts on the same invoice.
-func (s *Service) PostReceipt(ctx context.Context, actorID, invoiceID string, req PostReceiptRequest) (Receipt, error) {
+func (s *Service) PostReceipt(ctx context.Context, actorID, invoiceID string, req PostReceiptRequest) (Receipt, bool, error) {
 	if err := validatePostReceipt(req); err != nil {
-		return Receipt{}, err
+		return Receipt{}, false, err
 	}
 	canonicalInvoice, err := canonicalUUID(invoiceID)
 	if err != nil {
-		return Receipt{}, fmt.Errorf("%w: invoiceId must be a UUID", ErrValidation)
+		return Receipt{}, false, fmt.Errorf("%w: invoiceId must be a UUID", ErrValidation)
 	}
 	invoiceID = canonicalInvoice
 	// Validation above already checked this conversion. Canonicalize so alternate
 	// UUID spellings cannot acquire different locks for the same operation.
 	req.OperationID, err = canonicalUUID(req.OperationID)
 	if err != nil {
-		return Receipt{}, err
+		return Receipt{}, false, err
 	}
 
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
-		return Receipt{}, err
+		return Receipt{}, false, err
 	}
 	defer tx.Rollback(ctx)
 
 	if err := s.checkRole(ctx, tx, actorID, "billing"); err != nil {
-		return Receipt{}, err
+		return Receipt{}, false, err
 	}
 
 	if err := s.repo.LockReceiptOperation(ctx, tx, req.OperationID); err != nil {
-		return Receipt{}, err
+		return Receipt{}, false, err
 	}
 
 	// Idempotency check: return existing receipt if operationID already committed.
@@ -385,56 +387,57 @@ func (s *Service) PostReceipt(ctx context.Context, actorID, invoiceID string, re
 		sameTarget := existing.InvoiceID == invoiceID && existing.AmountMinor == req.AmountMinor
 		sameDetails := existing.PaymentMethod == req.PaymentMethod && existing.Label == req.Label
 		if !sameTarget || !sameDetails {
-			return Receipt{}, fmt.Errorf("%w: operationId was used with different receipt details", ErrConflict)
+			return Receipt{}, false, fmt.Errorf("%w: operationId was used with different receipt details", ErrConflict)
 		}
 		if err := tx.Commit(ctx); err != nil {
-			return Receipt{}, err
+			return Receipt{}, false, err
 		}
-		return existing, nil
+		// alreadyExisted=true signals the HTTP layer to respond 200 OK (not 201).
+		return existing, true, nil
 	}
 	if !errors.Is(err, ErrNotFound) {
-		return Receipt{}, err
+		return Receipt{}, false, err
 	}
 
 	// Lock the invoice row to serialize balance checks.
 	inv, err := s.repo.GetInvoiceForUpdate(ctx, tx, invoiceID)
 	if err != nil {
-		return Receipt{}, err
+		return Receipt{}, false, err
 	}
 	if inv.Status != StatusIssued {
-		return Receipt{}, fmt.Errorf("%w: can only post receipts against an issued invoice (status: %s)", ErrConflict, inv.Status)
+		return Receipt{}, false, fmt.Errorf("%w: can only post receipts against an issued invoice (status: %s)", ErrConflict, inv.Status)
 	}
 
 	paid, err := s.repo.SumReceipts(ctx, tx, invoiceID)
 	if err != nil {
-		return Receipt{}, err
+		return Receipt{}, false, err
 	}
 	if inv.TotalMinor == nil || paid < 0 {
-		return Receipt{}, fmt.Errorf("%w: invalid invoice balance", ErrConflict)
+		return Receipt{}, false, fmt.Errorf("%w: invalid invoice balance", ErrConflict)
 	}
 	total := *inv.TotalMinor
 	if total < 0 || paid > total {
-		return Receipt{}, fmt.Errorf("%w: invalid invoice balance", ErrConflict)
+		return Receipt{}, false, fmt.Errorf("%w: invalid invoice balance", ErrConflict)
 	}
 	if req.AmountMinor > total-paid {
-		return Receipt{}, fmt.Errorf("%w: receipt amount would exceed the invoice total (outstanding: %d minor units)", ErrConflict, *inv.TotalMinor-paid)
+		return Receipt{}, false, fmt.Errorf("%w: receipt amount would exceed the invoice total (outstanding: %d minor units)", ErrConflict, *inv.TotalMinor-paid)
 	}
 
 	rec, err := s.repo.InsertReceipt(ctx, tx, invoiceID, req.OperationID, req.AmountMinor, req.PaymentMethod, req.Label, actorID)
 	if err != nil {
-		return Receipt{}, err
+		return Receipt{}, false, err
 	}
 
 	// Audit in the same transaction; failure rolls back the receipt insert.
 	if err := s.repo.RecordAuditEvent(ctx, tx,
 		actorID, "receipt.posted", "receipt", rec.ID, ""); err != nil {
-		return Receipt{}, err
+		return Receipt{}, false, err
 	}
 
 	if err := tx.Commit(ctx); err != nil {
-		return Receipt{}, err
+		return Receipt{}, false, err
 	}
-	return rec, nil
+	return rec, false, nil
 }
 
 // GetBalance returns the derived balance for an issued invoice.
