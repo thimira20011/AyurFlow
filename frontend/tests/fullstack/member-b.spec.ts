@@ -52,7 +52,7 @@ async function assign(api: APIRequestContext, patientId: string, clinicianId: st
 test("AT02: protected browser registration, Unicode search, correction and postal confirmation", async ({ page, playwright }) => {
   await signIn(page, "receptionist");
   await page.goto("/patients");
-  await expect(page.getByRole("heading", { name: "Patient records" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Every visit begins here." })).toBeVisible();
   await page.getByRole("button", { name: "Register patient", exact: true }).first().click();
   const name = `නිමාලි ${fixture.prefix}`;
   await page.locator("#register-name").fill(name);
@@ -60,7 +60,7 @@ test("AT02: protected browser registration, Unicode search, correction and posta
   await page.locator("#register-gender").selectOption("OTHER");
   await page.locator("#register-postal-code").fill("00500");
   const registered = page.waitForResponse(response => response.url().endsWith("/api/v1/patients") && response.request().method() === "POST");
-  await page.getByRole("button", { name: "Register patient", exact: true }).last().click();
+  await page.getByRole("button", { name: "Create patient record" }).click();
   expect((await registered).status()).toBe(201);
   await expect(page.getByRole("status").filter({ hasText: "Patient registered" })).toBeVisible();
   const code = await page.getByText(/^AYUR-PT-\d+$/).first().textContent();
@@ -75,8 +75,10 @@ test("AT02: protected browser registration, Unicode search, correction and posta
   await page.locator("#edit-postal-code").fill("00600");
   await page.getByRole("button", { name: "Save changes" }).click();
   await expect(page.getByRole("status").filter({ hasText: "Demographic changes saved" })).toBeVisible();
+  await page.getByText("More demographic details").click();
   await expect(page.getByText("00600", { exact: true })).toBeVisible();
 
+  await page.getByText("Confirm identity without NIC or passport").click();
   await page.locator("#match-name").fill(name.toUpperCase());
   await page.locator("#match-birth-date").fill("1992-03-04");
   await page.locator("#match-postal-code").fill("00500");
@@ -129,9 +131,10 @@ test("AT03: assigned clinician saves, signs and corrects through the browser; ot
       headers: await csrf(clinician), data: { version: 3, draftText: "Forbidden overwrite" },
     })).status()).toBe(409);
 
+    await page.getByRole("button", { name: "Add dated correction" }).click();
     await page.getByLabel("Reason").fill("Clarify synthetic observation");
     await page.getByLabel("Correction").fill("Synthetic dated correction.");
-    await page.getByRole("button", { name: "Add dated correction" }).click();
+    await detail.getByRole("button", { name: "Add dated correction" }).click();
     await expect(page.getByRole("status").filter({ hasText: "Dated correction added" })).toBeVisible();
     await expect(detail.getByText("Synthetic revised clinical note.")).toBeVisible();
     await expect(detail.getByText("Synthetic dated correction.")).toBeVisible();
@@ -160,13 +163,13 @@ test("CLN-05: clinician plan timeline, guarded decisions and responsive layout u
     await expect(page.getByText("No plans are recorded for this patient.")).toBeVisible();
     await page.getByRole("button", { name: "Create plan" }).click();
     const detail = page.getByRole("region", { name: "Plan details" });
-    await expect(detail.getByRole("heading", { name: "Not started" })).toBeVisible();
+    await expect(detail.getByRole("heading", { name: "Treatment plan · Not started" })).toBeVisible();
     await expect(detail.getByText("Version 1 · Not started")).toBeVisible();
     const planId = (await (await clinician.get(`/api/v1/patients/${patient.id}/plans`)).json()).items[0].id as string;
     expect((await administrator.get(`/api/v1/plans/${planId}`)).status()).toBe(404);
     await detail.getByRole("button", { name: "Start preparatory stage" }).click();
-    await expect(detail.getByRole("heading", { name: "Preparatory" })).toBeVisible();
-    await expect(detail.getByText("Initial consultation signed").first()).toBeVisible();
+    await expect(detail.getByRole("heading", { name: "Treatment plan · Preparatory" })).toBeVisible();
+    await expect(detail.getByRole("checkbox", { name: "Initial consultation signed" })).toBeVisible();
     await detail.getByRole("checkbox").first().check();
     await detail.getByRole("checkbox").nth(1).check();
     await detail.getByRole("checkbox").nth(2).check();
@@ -216,15 +219,18 @@ test("CLN-05: clinician plan timeline, guarded decisions and responsive layout u
     await page.getByRole("region", { name: "Patient plans" }).getByRole("button").first().click();
     await expect(detail.getByText("Active", { exact: true })).toBeVisible();
 
-    for (const width of [1366, 1024]) {
+    for (const width of [1366, 1024, 700]) {
       await page.setViewportSize({ width, height: 768 });
-      await expect(detail.getByRole("heading", { name: "Preparatory" })).toBeVisible();
+      await expect(detail.getByRole("heading", { name: "Treatment plan · Preparatory" })).toBeVisible();
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
       const listBounds = await page.getByRole("region", { name: "Patient plans" }).boundingBox();
       const detailBounds = await detail.boundingBox();
-      expect(listBounds && detailBounds).toBeTruthy();
-      if (width === 1024) expect(detailBounds!.y).toBeGreaterThan(listBounds!.y);
-      else expect(detailBounds!.x).toBeGreaterThan(listBounds!.x);
+      const pathwayBounds = await detail.getByRole("region", { name: "Treatment pathway" }).boundingBox();
+      const decisionBounds = await detail.getByRole("region", { name: "Next clinical decision" }).boundingBox();
+      expect(listBounds && detailBounds && pathwayBounds && decisionBounds).toBeTruthy();
+      expect(detailBounds!.y).toBeGreaterThan(listBounds!.y);
+      if (width < 900) expect(decisionBounds!.y).toBeGreaterThan(pathwayBounds!.y);
+      else expect(decisionBounds!.x).toBeGreaterThan(pathwayBounds!.x);
     }
   } finally {
     await reception.dispose(); await administrator.dispose(); await clinician.dispose();

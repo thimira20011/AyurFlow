@@ -147,3 +147,74 @@
   .listPanel,
   .detailPanel { min-height: auto; }
 }
+
+/* Living Heritage patient and clinical screens */
+.workspace { --ink:#21483a; --muted:#596451; --line:#d6c5a6; --paper:#fcf8ee; --soft:#e7eee2; --accent:#21483a; font:14px/1.5 var(--font-dm-sans),Arial,sans-serif; }
+.workspace h1,.workspace h2,.workspace h3 { font-family:var(--font-lora),Georgia,serif; font-weight:400; letter-spacing:0; }
+.workspace h1 { font-size:clamp(1.8rem,3vw,2.2rem); }
+.workspace h2 { font-size:1.45rem; }
+.workspace h3 { font-size:1.15rem; }
+.heading { display:flex; align-items:center; justify-content:space-between; gap:1rem; }
+.heading .kicker { font-size:.68rem; }
+.heading p:last-child { color:var(--muted); margin:.25rem 0 0; }
+.headingAction { display:inline-flex; align-items:center; justify-content:center; min-height:44px; padding:.6rem 1rem; border:1px solid #79816b; border-radius:7px; color:var(--ink); text-decoration:none; background:linear-gradient(#fcf8eeee,#fcf8eeee),url('/brand/paper.png') center / cover; }
+.patientForm,.listPanel,.detailPanel { background:linear-gradient(#fcf8eeee,#fcf8eeee),url('/brand/paper.png') center / cover; border-color:var(--line); box-shadow:0 4px 16px #21483a12; }
+.patientForm { grid-template-columns:minmax(10rem,.45fr) minmax(12rem,1fr) auto; align-items:center; padding:.8rem 1rem; margin:1rem 0; }
+.patientForm p { font-size:.76rem; }
+.context { margin:.6rem 0 1rem; }
+.columns { grid-template-columns:minmax(0,1.75fr) minmax(16rem,.85fr); gap:1.2rem; }
+.detailPanel { order:1; min-height:0; padding:1.4rem; }
+.listPanel { order:2; min-height:0; padding:1.4rem; }
+.sectionHead { border-color:var(--line); }
+.sectionHead button { background:transparent; border:1px solid #79816b; }
+.workspace input,.workspace textarea { background:linear-gradient(#fcf8eeee,#fcf8eeee),url('/brand/paper.png') center / cover; border-color:#79816b; }
+.workspace textarea { min-height:180px; }
+.workspace button { border-color:var(--line); font-weight:500; }
+.workspace button.secondary { background:linear-gradient(#fcf8eeee,#fcf8eeee),url('/brand/paper.png') center / cover; border-color:#79816b; }
+.badge { border:0; background:#efebdf; font-weight:500; }
+.guidance { margin-bottom:1.5rem; }
+.guidance img { display:block; width:72px; height:100px; object-fit:contain; margin:0 auto .6rem; }
+.guidance h2 { margin-bottom:.6rem; }
+.guidance p { color:var(--muted); margin:.6rem 0; }
+.listPanel .sectionHead { margin-top:.8rem; }
+.signedText,.addenda li { background:linear-gradient(#efebdfaa,#efebdfaa),url('/brand/paper.png') center / cover; border-radius:7px; padding:1rem; }
+.signedText { min-height:90px; }
+.workspace :is(a,button,input,textarea):focus-visible { outline:3px solid #a27d45; outline-offset:3px; }
+@media(max-width:900px) { .columns { grid-template-columns:1fr; }.listPanel { order:2; }.patientForm { grid-template-columns:1fr; } }
+
+.workspace .headingAction { background:linear-gradient(#fcf8eeee,#fcf8eeee),url('/brand/paper.png') center / cover; color:var(--ink); border-color:#79816b; font-weight:500; }
+.headingAction:hover { background:var(--soft); }
+.createPlan { margin-left:auto; }
+.createPlan summary { cursor:pointer; color:var(--ink); font-weight:600; }
+.createPlan form { max-width:23rem; margin-top:1rem; }
+.createPlan input { margin-bottom:.5rem; }
+.planWorkspace .columns { display:block; }
+.planWorkspace .listPanel { min-height:0; display:flex; flex-wrap:wrap; align-items:center; gap:.8rem 1.2rem; margin-bottom:1rem; padding:.75rem 1rem; }
+.planWorkspace .listPanel .sectionHead { border:0; margin:0; padding:0; }
+.planWorkspace .listPanel h2 { font:500 .9rem/1.5 var(--font-dm-sans),Arial,sans-serif; }
+.planWorkspace .list { display:flex; flex-wrap:wrap; gap:.5rem; }
+.planWorkspace .list li { border:0; }
+.planWorkspace .list button { border:1px solid var(--line); background:var(--surface); min-height:40px; padding:.4rem .7rem; }
+.planWorkspace .list button.selected { background:var(--soft); }
+.planWorkspace .recordId { display:none; }
+.planWorkspace .detailPanel { padding:0; border:0; background:none; box-shadow:none; }
+.planWorkspace .detailPanel > .sectionHead { padding:.8rem 1rem; margin-bottom:.4rem; align-items:center; border:1px solid var(--line); border-radius:8px; background:linear-gradient(#fcf8eeee,#fcf8eeee),url('/brand/paper.png') center / cover; }
+.planWorkspace .detailPanel > .sectionHead h2 { font:500 .9rem/1.5 var(--font-dm-sans),Arial,sans-serif; }
+.planGrid { display:grid; grid-template-columns:minmax(0,1.85fr) minmax(16rem,.95fr); gap:1.2rem; align-items:start; }
+.pathwayPanel,.decisionPanel { min-width:0; padding:1.3rem; border:1px solid var(--line); border-radius:8px; background:linear-gradient(#fcf8eeee,#fcf8eeee),url('/brand/paper.png') center / cover; box-shadow:0 4px 16px #21483a12; }
+.pathwayPanel h2,.decisionPanel h2 { margin:0 0 .8rem; }
+.stageList { margin:.9rem 0; }
+.stageItem { min-height:64px; background:linear-gradient(#f5efe1bb,#f5efe1bb),url('/brand/paper.png') center / cover; border:0; padding:.8rem; align-items:center; }
+.stageItem[aria-current="step"] { background:linear-gradient(#f3e9d3dd,#f3e9d3dd),url('/brand/paper.png') center / cover; border:0; }
+.planWorkspace .stageItem { min-height:72px; }
+.planWorkspace .stageItem .checkList { display:none; }
+.stageNumber { background:#f7f4eb; color:var(--ink); font-weight:500; }
+.stageHead strong { font-weight:500; }
+.decisionPanel .badge { display:inline-block; margin-bottom:1rem; }
+.decisionPanel fieldset { padding:.8rem; }
+.decisionPanel fieldset legend { font-weight:600; }
+.decisionPanel form { border-top:1px solid var(--line); padding-top:1rem; }
+.decisionPanel textarea { min-height:70px; }
+.decisionPanel .actions button { width:100%; }
+.decisionPanel h3 { border-top:1px solid var(--line); padding-top:1rem; }
+@media(max-width:900px) { .planGrid { grid-template-columns:1fr; } }

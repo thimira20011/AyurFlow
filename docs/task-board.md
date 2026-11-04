@@ -58,10 +58,10 @@ Status values: **Pending** = not started; **In progress** = work underway but co
 | --- | --- | --- | --- | --- | --- |
 | TASK-PAT-01 | Patient schema and identifier rules | B | C | In progress | [PR #57](https://github.com/thimira20011/AyurFlow/pull/57) merged matching rules; [PR #63](https://github.com/thimira20011/AyurFlow/pull/63) adds passing [AT02 browser evidence](evidence/member-b-at02-at03-cln05-2026-11-04.md); signed DEC02 source and C review pending |
 | TASK-PAT-02 | Registration, search and audited updates | B | C | In progress | PR #57 merged postal fallback and audited updates; PR #63 real protected AT02 browser journey passed; C acceptance review pending |
-| TASK-PAT-03 | Registration, search and detail screens | B | C | In progress | PR #57 integrated screens; PR #63 real browser journey passed; C/F review pending |
+| TASK-PAT-03 | Registration, search and detail screens | B | C | In progress | PR #57 integrated screens; PR #63 real browser journey passed; [Living Heritage frame alignment](evidence/member-b-figma-alignment-2026-11-04.md) on the Member B follow-up branch; C/F review pending |
 | TASK-CON-01 | Consultation/addendum schema and drafts | B | C | In progress | PR #57 merged protected draft and assignment flow; PR #63 real AT03 browser journey passed; C review pending |
 | TASK-CON-02 | Signing, immutable text and dated addenda | B | C | In progress | PR #57 merged signing/addenda; PR #63 real browser journey and prior PostgreSQL race checks passed; C review pending |
-| TASK-CON-03 | Consultation editor, sign and history UI | B | C | In progress | PR #57 integrated editor; PR #63 real protected AT03 browser journey passed; C/F review pending |
+| TASK-CON-03 | Consultation editor, sign and history UI | B | C | In progress | PR #57 integrated editor; PR #63 real protected AT03 browser journey passed; [Living Heritage frame alignment](evidence/member-b-figma-alignment-2026-11-04.md) on the follow-up branch; C/F review pending |
 | TASK-CON-04 | AT02–03 patient/consultation verification | B | C | In progress | [Protected PostgreSQL races](https://github.com/thimira20011/AyurFlow/actions/runs/41236381647) and [real AT02–03 browser evidence](evidence/member-b-at02-at03-cln05-2026-11-04.md) passed; C acceptance review and signed DEC02 source pending |
 
 ## 5. Clinical plans and approvals (weeks 3–4)
@@ -72,7 +72,7 @@ Status values: **Pending** = not started; **In progress** = work underway but co
 | TASK-CLN-02 | Plan, approval and guarded advancement | B | C | In progress | PR #57 merged protected decisions; C/D completion adapters, AT04 and C review pending |
 | TASK-CLN-03 | Hold, resume, cancel and history | B with C | C | In progress | PR #57 merged reasoned transitions; C future-session cancellation adapter and AT05 pending |
 | TASK-CLN-04 | Shared clearance and plan/start concurrency | B with C | C | In progress | PR #57 merged B's transactional clearance hook and race test; C session-start join pending |
-| TASK-CLN-05 | Plan timeline and clinician actions UI | B | C | In progress | [PR #63](https://github.com/thimira20011/AyurFlow/pull/63) real clinician browser case and [1366/1024 visual review](evidence/member-b-at02-at03-cln05-2026-11-04.md) passed; C/F review pending |
+| TASK-CLN-05 | Plan timeline and clinician actions UI | B | C | In progress | [PR #63](https://github.com/thimira20011/AyurFlow/pull/63) real clinician browser case passed; [revised 1366/1024 Living Heritage comparison](evidence/member-b-figma-alignment-2026-11-04.md) awaits updated CI and C/F review |
 | TASK-CLN-06 | AT04–05 transition verification | B | C; clinic examples | In progress | PR #57 PostgreSQL lifecycle and HTTP tests passed; C/D joins and integrated AT04–05 pending |
 
 ## 6. Scheduling and session delivery (weeks 2–4)
