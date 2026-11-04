@@ -1,14 +1,11 @@
 import type { Metadata } from "next";
-import ConsultationWorkspace from "@/features/clinical/consultation-workspace";
+import { SignedConsultationView } from "@/features/clinical/signed-consultation-view";
 
 export const metadata: Metadata = {
-  title: "Consultations | AyurFlow",
-  description: "Review permitted consultation drafts and signed history.",
+  title: "Signed Clinical Consultation · AyurFlow",
+  description: "Living Heritage signed Ayurvedic clinical consultation, Ashtavidha Pariksha, and addenda ledger.",
 };
 
-export default async function Page({ searchParams }: {
-  searchParams: Promise<{ patientId?: string | string[] }>;
-}) {
-  const candidate = (await searchParams).patientId;
-  return <ConsultationWorkspace initialPatientId={typeof candidate === "string" ? candidate : ""} />;
+export default function Page() {
+  return <SignedConsultationView />;
 }
