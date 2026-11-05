@@ -1,0 +1,30 @@
+name: Backup freshness
+on:
+  schedule:
+    # 02:47 Asia/Colombo, one hour after the backup starts.
+    - cron: '17 21 * * *'
+  workflow_dispatch:
+permissions:
+  actions: read
+jobs:
+  freshness:
+    if: github.event.repository.private && vars.BACKUP_ENABLED == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    steps:
+      - name: Require a recent encrypted backup
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?per_page=100" > "$RUNNER_TEMP/artifacts.json"
+          node - "$RUNNER_TEMP/artifacts.json" <<'NODE'
+          const fs = require('node:fs');
+          const { artifacts } = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+          const recent = artifacts.some(item => /^ayurflow-daily-\d{4}-\d{2}-\d{2}$/.test(item.name) &&
+            !item.expired && Date.now() - Date.parse(item.created_at) < 26 * 60 * 60 * 1000);
+          if (!recent) {
+            console.error('::error::No encrypted backup younger than 26 hours. Inspect backup runs and storage quota.');
+            process.exit(1);
+          }
+          console.log('Recent encrypted backup is available.');
+          NODE
