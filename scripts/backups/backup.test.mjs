@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
+import { existsSync } from "node:fs";
 import { randomBytes } from "node:crypto";
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -16,6 +17,30 @@ test("direct, verified database connections are required", () => {
   assert.throws(() => connection("postgres://user:secret@remote.example/db?sslmode=require"));
   assert.equal(connection("postgres://user:secret@localhost/test?sslmode=disable").pathname, "/test");
   assert.equal(connection("postgres://user:secret@remote.example/db?sslmode=verify-full").hostname, "remote.example");
+});
+
+test("freshness monitor detects a missed daily backup", async t => {
+  const directory = await mkdtemp(path.join(tmpdir(), "ayurflow-monitor-test-"));
+  t.after(() => rm(directory, { recursive: true, force: true }));
+  const template = existsSync(path.join(root, "deploy/backups/monitor.yml"))
+    ? "deploy/backups/monitor.yml" : ".github/workflows/monitor.yml";
+  const workflow = await readFile(path.join(root, template), "utf8");
+  const match = workflow.match(/<<'NODE'\r?\n([\s\S]*?)\r?\n\s+NODE/);
+  assert.ok(match, "monitor must contain its executable Node check");
+  const artifact = { name: "ayurflow-daily-2026-11-05", expired: false, created_at: new Date().toISOString() };
+  for (const sample of [
+    { name: "recent", artifacts: [artifact], expected: 0 },
+    { name: "missing", artifacts: [], expected: 1 },
+    { name: "expired", artifacts: [{ ...artifact, expired: true }], expected: 1 },
+    { name: "missed yesterday", artifacts: [{ ...artifact, created_at: new Date(Date.now() - 25 * 3600000).toISOString() }], expected: 1 },
+  ]) {
+    await t.test(sample.name, async () => {
+      const file = path.join(directory, "artifacts.json");
+      await writeFile(file, JSON.stringify({ artifacts: sample.artifacts }));
+      const result = spawnSync(process.execPath, ["-", file], { input: match[1], encoding: "utf8" });
+      assert.equal(result.status, sample.expected, sample.name);
+    });
+  }
 });
 
 async function runScript(name, args, env) {

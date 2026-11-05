@@ -20,7 +20,7 @@ Set these private-repository Actions settings.
 | `BACKUP_RECIPIENT` | Variable | Operator's age X25519 public recipient |
 | `BACKUP_ENABLED` | Variable | `true` enables scheduled and manual jobs |
 
-The daily schedule is 01:47 Asia/Colombo. GitHub schedules can be delayed. The independent 02:47 check fails when no unexpired daily archive younger than 26 hours exists. Both workflows support manual dispatch. Enable failed-workflow notifications in the operator's GitHub notification settings and inspect the most recent artifact daily. The 26-hour check is a monitoring grace period for this synthetic setup. Record actual backup age in restore evidence.
+The daily schedule is 01:47 Asia/Colombo. GitHub schedules can be delayed. The independent 02:47 check fails when no unexpired daily archive younger than 24 hours exists, so a missing nightly run is detected at that day's check. Both workflows support manual dispatch. Enable failed-workflow notifications in the operator's GitHub notification settings and inspect the most recent artifact daily. Record actual backup age in restore evidence.
 
 The job streams `pg_dump` custom format directly into `age`. Plain dumps are never written by the backup command. It publishes `database.dump.age` and a small manifest only when both subprocesses complete successfully, the encrypted size stays within the cap and the ciphertext checksum is available. Failed exports are removed. Archive metadata contains timestamps, a source fingerprint, sizes and a digest, with no row contents or credentials.
 
@@ -64,11 +64,13 @@ Full AT16 remains open until the actual four module record categories, paper out
 
 Codex automation tested this slice on Windows with Node 22.23.2, PostgreSQL client 18.6 and age 1.3.2, against the synthetic Neon branch `production` in `small-heart-76292130`. Source baseline was merged PR #62 (`cca6f7e`) plus this branch's backup changes. Owner A, reviewer F pending. The current inventory contract names its future table `stock_batches`.
 
-The private repository was created with no application/key files committed. Only the read-only `BACKUP_DATABASE_URL` secret and public `BACKUP_RECIPIENT`/enable variables are configured in Actions. The identity file's Windows ACL was checked and grants access only to THIMIRA. An independent key copy and receipt of failure notifications require the operator's follow-through.
+The private repository contains automation code and encrypted artifacts. Only the read-only `BACKUP_DATABASE_URL` secret and public `BACKUP_RECIPIENT`/enable variables are configured in Actions. The identity file's Windows ACL was checked and grants access only to THIMIRA. An independent key copy and receipt of failure notifications require the operator's follow-through.
 
 The first private backup failed because libpq needed an explicit trusted CA-store setting. The fix selects the system trust store with verified TLS; local Windows verification uses Node's trusted CA bundle. A local integration run also found Windows command-line Unicode conversion in SQL fixture setup. Passing UTF-8 SQL through standard input and explicitly selecting UTF-8 fixed that issue. Large official client downloads were interrupted, so the required client executables/libraries were retrieved from the official archive in verified small ranges. The initial permission review for key creation timed out; its permitted retry completed. No private key content or raw dump was printed.
 
 Both local Node tests passed with no skipped cases against disposable real PostgreSQL databases. Coverage includes four synthetic fixture categories and Unicode, wrong private key, checksum mismatch, authenticated ciphertext tampering, unchanged non-empty targets, source-target collision and failed-export cleanup.
+
+Implementation `64729d2` passed all seven [project CI jobs in run 42039448747](https://github.com/thimira20011/AyurFlow/actions/runs/42039448747), including the real backup/recovery test. A later freshness regression executes the actual monitor script with recent, expired, missing and 25-hour-old artifact metadata. The 24-hour threshold ensures a skipped nightly backup fails the following 02:47 check.
 
 The [private backup run 42038337225](https://github.com/thimira20011/AyurFlow-backups/actions/runs/42038337225) succeeded, storing artifact `ayurflow-daily-2026-11-05` (68,857 bytes including packaging; encrypted archive 68,249 bytes). The [freshness run 42038834379](https://github.com/thimira20011/AyurFlow-backups/actions/runs/42038834379) passed. At this observed size, seven daily archives use under 0.5 MiB, excluding any other account usage.
 
