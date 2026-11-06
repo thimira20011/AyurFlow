@@ -28,6 +28,10 @@ For `TASK-SET-02`, Member B has recorded a provisional synthetic-development con
 
 Provisional API prefix: `/api/v1`. Error envelope: `{"error":{"code":"not_found","message":"..."}}`. These technical starter choices require team review alongside DEC07. No session timeout, clinical pathway or stock decimal scale is silently approved here.
 
+## DEC06 synthetic backup choices — 5 November 2026
+
+Member A (THIMIRA) selected private GitHub repository `AyurFlow-backups`, seven daily encrypted backups capped at 48 MiB each, and accepted responsibility for both private-key custody and restore operation. GitHub receives the public age recipient and a dedicated read-only database secret. The private key stays on the operator's computer outside Git, with an independent protected/offline copy still required. The implementation checks freshness daily and fails for backups at least 24 hours old. These settings apply to the synthetic deployment. Account usage, notifications, actual restore evidence, independent key copy and reviewer acceptance must be recorded before OPS-02 closes. Clinic/real-data retention and the remaining DEC06 handover decisions remain pending. See [backup operation instructions](../deploy/backups/README.md).
+
 ## DEC07 review packet
 
 ### AUTH-04 synthetic staff workflow (26 October 2026)
