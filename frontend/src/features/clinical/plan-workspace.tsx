@@ -38,7 +38,7 @@ export default function PlanWorkspace({ initialPatientId = "" }: { initialPatien
   async function openPatient(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const id = patientInput.trim();
-    if (!validPatientId(id)) { setNoticeIsError(true); setNotice("Enter a valid patient ID."); return; }
+    if (!validPatientId(id)) { setNoticeIsError(true); setNotice("Enter a valid patient ID."); document.getElementById("plan-patient")?.focus(); return; }
     setBusy(true); setNotice(""); setSelected(null); setItems([]); setPatientId(""); setPendingDecision(null);
     try { setItems(await listPlans(id)); setPatientId(id); }
     catch (error) { setNoticeIsError(true); setNotice(errorMessage(error)); }

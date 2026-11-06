@@ -103,6 +103,7 @@ export default function ConsultationWorkspace({ preview = false, initialPatientI
     const id = patientInput.trim();
     if (!validPatientId(id)) {
       setNotice({ tone: "error", text: "Enter a valid patient ID." });
+      document.getElementById("consultation-patient-id")?.focus();
       return;
     }
     setBusy(true);
@@ -145,6 +146,7 @@ export default function ConsultationWorkspace({ preview = false, initialPatientI
     event.preventDefault();
     if (!validClinicalText(draftText)) {
       setNotice({ tone: "error", text: "Enter a note of no more than 65,536 UTF-8 bytes." });
+      document.getElementById("consultation-draft")?.focus();
       return;
     }
     if (!patientId || conflicted) return;
@@ -200,6 +202,7 @@ export default function ConsultationWorkspace({ preview = false, initialPatientI
     event.preventDefault();
     if (!validCorrectionReason(reason) || !validClinicalText(correctionBody)) {
       setNotice({ tone: "error", text: "Enter a reason (up to 2,048 bytes) and correction (up to 65,536 bytes)." });
+      document.getElementById(!validCorrectionReason(reason) ? "correction-reason" : "correction-body")?.focus();
       return;
     }
     if (!selected || selected.status !== "signed" || conflicted) return;
