@@ -1,0 +1,47 @@
+name: Encrypted daily backup
+on:
+  schedule:
+    # 01:47 Asia/Colombo, off the busy top-of-hour boundary.
+    - cron: '17 20 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: encrypted-daily-backup
+  cancel-in-progress: false
+jobs:
+  backup:
+    if: github.event.repository.private && vars.BACKUP_ENABLED == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      BACKUP_DATABASE_URL: ${{ secrets.BACKUP_DATABASE_URL }}
+      BACKUP_RECIPIENT: ${{ vars.BACKUP_RECIPIENT }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22.23.2'
+      - name: Install PostgreSQL and encryption clients
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes postgresql-common age
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get update
+          sudo apt-get install --yes postgresql-client-18
+      - name: Export and encrypt
+        run: node scripts/backups/backup.mjs "$RUNNER_TEMP/encrypted-backup"
+      - name: Name daily backup
+        id: name
+        run: echo "artifact=ayurflow-daily-$(date -u +%F)" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: ${{ steps.name.outputs.artifact }}
+          path: ${{ runner.temp }}/encrypted-backup/
+          if-no-files-found: error
+          compression-level: 0
+          retention-days: 7
+          overwrite: true
+      - name: Remove runner files
+        if: always()
+        run: rm -rf -- "$RUNNER_TEMP/encrypted-backup"

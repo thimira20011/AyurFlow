@@ -79,6 +79,15 @@ function validateForm(form: FormValues): FieldErrors {
   return errors;
 }
 
+function focusFirstInvalid(errors: FieldErrors, prefix: "register" | "edit", form: FormValues) {
+  const first = Object.keys(errors)[0] as keyof FieldErrors | undefined;
+  if (!first) return;
+  const field = first === "displayName" ? "name" : first === "birthDate" ? "birth-date"
+    : first === "postalCode" ? "postal-code" : first === "identity"
+      ? form.identityType ? "identity-value" : "identity-type" : first;
+  document.getElementById(`${prefix}-${field}`)?.focus();
+}
+
 function formatColombo(instant: string): string {
   const date = new Date(instant);
   if (Number.isNaN(date.getTime())) return "Date unavailable";
@@ -303,7 +312,7 @@ export default function PatientWorkspace({
     event.preventDefault();
     const errors = validateForm(registerForm);
     setFieldErrors(errors);
-    if (Object.keys(errors).length) return;
+    if (Object.keys(errors).length) { focusFirstInvalid(errors, "register", registerForm); return; }
     const input: PatientDraft = {
       displayName: registerForm.displayName.trim(),
       birthDate: registerForm.birthDate,
@@ -341,7 +350,7 @@ export default function PatientWorkspace({
     if (!selected) return;
     const errors = validateForm(editForm);
     setFieldErrors(errors);
-    if (Object.keys(errors).length) return;
+    if (Object.keys(errors).length) { focusFirstInvalid(errors, "edit", editForm); return; }
     const name = editForm.displayName.trim();
     const birthDate = editForm.birthDate;
     const gender = editForm.gender as Gender;
