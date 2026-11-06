@@ -1,0 +1,661 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TASK-UI-04 · Botanical batch, recipe, preparation and traceability wireframes</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #183b32;
+      --muted: #526b62;
+      --line: #bfcec6;
+      --soft: #eef3ef;
+      --paper: #ffffff;
+      --accent: #26745b;
+      --warn-bg: #fff5db;
+      --warn-border: #b8821f;
+      --warn-ink: #6b4706;
+      --danger-bg: #fdeded;
+      --danger-border: #b53d3d;
+      --danger-ink: #7d2323;
+      --neutral-bg: #f1f5f9;
+      --neutral-ink: #334155;
+      font: 16px/1.45 Arial, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; color: var(--ink); background: #e8eeea; }
+    a { color: var(--accent); font-weight: 600; }
+    code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 0.85em; }
+    .wrap { max-width: 1366px; margin: auto; padding: 20px; }
+    .intro { background: var(--paper); border: 1px solid var(--line); padding: 20px 24px; margin-bottom: 24px; }
+    .intro h1 { margin: 0 0 8px; font: 700 28px Georgia, serif; }
+    .intro p { margin: 6px 0; }
+    .intro nav { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 12px; }
+    .frame { background: var(--paper); border: 2px solid #92a99c; margin: 0 0 28px; min-height: 640px; }
+    .frame-label { background: #d8e4dc; padding: 8px 20px; font-weight: 700; font-size: 14px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; }
+    .app-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; border-bottom: 1px solid var(--line); padding: 14px 24px; }
+    .brand { font: 700 22px Georgia, serif; }
+    .app-head .right { color: var(--muted); font-size: 14px; }
+    .app-nav { display: flex; gap: 24px; flex-wrap: wrap; padding: 8px 24px; border-bottom: 1px solid var(--line); font-size: 14px; }
+    .app-nav strong { border-bottom: 3px solid var(--accent); padding-bottom: 4px; }
+    .content { padding: 24px; }
+    .eyebrow { margin: 0; color: var(--accent); font-size: 12px; letter-spacing: .12em; font-weight: 700; text-transform: uppercase; }
+    h2 { margin: 3px 0 5px; font: 700 30px Georgia, serif; }
+    h3 { margin: 0 0 12px; font: 700 20px Georgia, serif; }
+    h4 { margin: 0 0 8px; font-size: 15px; }
+    .sub { margin: 0 0 20px; color: var(--muted); }
+    .row { display: flex; justify-content: space-between; align-items: flex-start; gap: 16px; flex-wrap: wrap; }
+    .grid { display: grid; grid-template-columns: minmax(290px, 1fr) minmax(0, 1.65fr); gap: 18px; }
+    .grid-equal { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+    .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 18px; }
+    .stat-card { border: 1px solid var(--line); background: var(--soft); padding: 12px 14px; }
+    .stat-card strong { display: block; font: 700 22px Georgia, serif; margin-top: 4px; }
+    .box { border: 1px solid var(--line); padding: 18px; background: var(--paper); min-width: 0; }
+    .box.soft { background: var(--soft); }
+    .box.prepared-card { border: 2px dashed var(--warn-border); background: #fffdf7; }
+    .box.consumed-card { border: 2px solid var(--accent); background: #f4faf7; }
+    .field { display: block; border: 1px solid #a9bdb1; background: white; padding: 10px 12px; margin: 6px 0 12px; color: #2b4238; min-height: 44px; font-family: inherit; }
+    .field.mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 14px; }
+    .field.readonly { background: var(--soft); color: var(--muted); }
+    .label { display: block; font-size: 13px; font-weight: 700; }
+    .button { display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--accent); background: var(--accent); color: white; padding: 10px 16px; min-height: 44px; font-weight: 700; font-size: 14px; }
+    .button.alt { background: white; color: var(--accent); }
+    .button.warn { border-color: var(--warn-border); background: var(--warn-bg); color: var(--warn-ink); }
+    .button.danger { border-color: var(--danger-border); background: white; color: var(--danger-ink); }
+    .button.disabled { background: #dbe3dd; border-color: #dbe3dd; color: #516159; }
+    .actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 14px; }
+    .note { padding: 10px 12px; background: var(--soft); border-left: 4px solid var(--accent); margin: 12px 0; font-size: 14px; }
+    .warning { padding: 10px 12px; background: var(--warn-bg); border-left: 4px solid var(--warn-border); color: var(--warn-ink); margin: 12px 0; font-size: 14px; }
+    .error-banner { padding: 10px 12px; background: var(--danger-bg); border-left: 4px solid var(--danger-border); color: var(--danger-ink); margin: 12px 0; font-size: 14px; }
+    .meta { font-size: 13px; color: var(--muted); margin: 4px 0; }
+    .pill { display: inline-block; border: 1px solid var(--line); background: var(--soft); padding: 3px 9px; font-size: 12px; font-weight: 700; }
+    .pill.eligible { background: #dff5eb; border-color: #26745b; color: #144938; }
+    .pill.prepared { background: var(--warn-bg); border-color: var(--warn-border); color: var(--warn-ink); }
+    .pill.consumed { background: #183b32; border-color: #183b32; color: #ffffff; }
+    .pill.blocked, .pill.expired { background: var(--danger-bg); border-color: var(--danger-border); color: var(--danger-ink); }
+    .pill.unknown { background: var(--neutral-bg); border-color: #64748b; color: var(--neutral-ink); }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 14px; }
+    th, td { border-bottom: 1px solid var(--line); padding: 10px 8px; text-align: left; vertical-align: top; }
+    th { background: var(--soft); font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+    .scope { margin-top: 20px; padding-top: 12px; border-top: 1px dashed var(--line); color: var(--muted); font-size: 13px; }
+    @media (max-width: 1024px) {
+      .grid, .grid-equal { grid-template-columns: 1fr; }
+      .stats { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media print { body { background: white; } .wrap { padding: 0; } .frame { break-after: page; margin: 0; } }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <header class="intro">
+    <h1>Botanical inventory, flat recipes, preparation snapshots and traceability wireframes</h1>
+    <p>TASK-UI-04 · Member D (`K. I. R. Perera`) proposal for F, A and E review · 1 November 2026</p>
+    <p><strong>Illustrative only:</strong> synthetic fixtures (`member-d-synthetic-v1`), fixed-precision grams (`0.001 g`), no FEFO or stock reservation. Final clinic recipe catalog, unit conversion table, and missing-expiry policy await <code>DEC03</code>.</p>
+    <nav aria-label="Wireframe sections">
+      <a href="#batches">01 · Items &amp; batches</a>
+      <a href="#recipes-preparations">02 · Flat recipes &amp; preparation snapshot</a>
+      <a href="#consumption">03 · Prepared vs. Consumed &amp; manual batch selection</a>
+      <a href="#traceability">04 · Bidirectional traceability &amp; stock report</a>
+      <a href="member-d-inventory-wireframes.md">Review notes &amp; interaction contract</a>
+    </nav>
+  </header>
+
+  <!-- SCREEN 01: BOTANICAL ITEMS & STOCK BATCHES -->
+  <section class="frame" id="batches" aria-labelledby="batches-heading">
+    <div class="frame-label">
+      <span>01 · Dispensary staff · Botanical items and stock batches (INV-01–04, AT08)</span>
+      <span>Target viewports: 1366×768 side-by-side · 1024×768 stacked</span>
+    </div>
+    <div class="app-head">
+      <span class="brand">AyurFlow</span>
+      <span class="right">Dispensary workspace · Actor: d-dispensary · Asia/Colombo (UTC+05:30)</span>
+    </div>
+    <div class="app-nav">
+      <strong>Batches &amp; Items</strong>
+      <span>Flat Recipes &amp; Preparations</span>
+      <span>Consumption Confirmation</span>
+      <span>Traceability &amp; Stock Reports</span>
+    </div>
+    <div class="content">
+      <div class="row">
+        <div>
+          <p class="eyebrow">Botanical inventory · Fixed-precision grams (NUMERIC(12,3))</p>
+          <h2 id="batches-heading">Botanical items &amp; batch receipts</h2>
+          <p class="sub">Receive positive gram batches, inspect Asia/Colombo expiry eligibility, or block a batch with an audited reason.</p>
+        </div>
+        <div class="actions" style="margin-top:0">
+          <span class="button alt">+ Register botanical item</span>
+        </div>
+      </div>
+
+      <div class="stats" aria-label="Stock summary">
+        <div class="stat-card">
+          <span class="meta">Consumable stock (Eligible)</span>
+          <strong class="mono">1,940.000 g</strong>
+          <span class="meta">4 eligible batches across 3 items</span>
+        </div>
+        <div class="stat-card">
+          <span class="meta">Blocked stock (Excluded)</span>
+          <strong class="mono">300.000 g</strong>
+          <span class="meta">1 batch blocked with reason</span>
+        </div>
+        <div class="stat-card">
+          <span class="meta">Expired stock (Excluded)</span>
+          <strong class="mono">250.000 g</strong>
+          <span class="meta">Evaluated in Asia/Colombo</span>
+        </div>
+        <div class="stat-card">
+          <span class="meta">Unknown expiry (Not consumable)</span>
+          <strong class="mono">200.000 g</strong>
+          <span class="meta">Blocked by SRS §8 / DEC03 gate</span>
+        </div>
+      </div>
+
+      <div class="grid">
+        <div class="box">
+          <h3>Receive new batch</h3>
+          <span class="label">Botanical item (active catalog)</span>
+          <div class="field">BOT-ASHWA-001 · Ashwagandha Root (g)</div>
+          <span class="label">Clinic batch reference</span>
+          <div class="field mono">CLN-BATCH-2026-A05</div>
+          <span class="label">Received quantity in grams (positive, max 3 decimals)</span>
+          <div class="field mono">1000.000</div>
+          <span class="label">Expiry date (Asia/Colombo date, inclusive)</span>
+          <div class="field mono">2027-06-30</div>
+          <p class="meta">Missing expiry is recorded as <strong>Unknown Expiry · Not Consumable</strong> until DEC03 policy or verified expiry is entered.</p>
+          <div class="actions">
+            <span class="button">Record batch receipt</span>
+          </div>
+
+          <hr style="border:0;border-top:1px solid var(--line);margin:18px 0">
+          <h3>Block selected batch (INV-02)</h3>
+          <p class="meta">Selected: <code>CLN-BATCH-2026-A03-BLK</code> · Ashwagandha Root</p>
+          <span class="label">Block reason (required for transactional audit)</span>
+          <div class="field">Packaging seal damaged during transit</div>
+          <div class="actions">
+            <span class="button danger">Block batch &amp; write audit event</span>
+          </div>
+        </div>
+
+        <div class="box">
+          <div class="row">
+            <div>
+              <h3>Batch registry &amp; eligibility status</h3>
+              <p class="meta">Manual review view (INV-03). No automatic FEFO or stock reservation.</p>
+            </div>
+            <span class="pill">Filter: All batches (6)</span>
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Batch Ref &amp; Item</th>
+                <th>Received / Remaining</th>
+                <th>Expiry (Colombo)</th>
+                <th>Eligibility Status</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>
+                  <strong class="mono">CLN-BATCH-2026-A01</strong><br>
+                  <span class="meta">Ashwagandha Root (BOT-ASHWA-001)</span>
+                </td>
+                <td class="mono">1000.000 g<br><strong>1000.000 g</strong> rem.</td>
+                <td class="mono">2027-06-30</td>
+                <td><span class="pill eligible">Eligible</span></td>
+                <td><span class="button alt" style="min-height:34px;padding:4px 10px">Block…</span></td>
+              </tr>
+              <tr>
+                <td>
+                  <strong class="mono">CLN-BATCH-2026-A02</strong><br>
+                  <span class="meta">Ashwagandha Root (BOT-ASHWA-001)</span>
+                </td>
+                <td class="mono">500.000 g<br><strong>500.000 g</strong> rem.</td>
+                <td class="mono">2027-09-15</td>
+                <td><span class="pill eligible">Eligible</span></td>
+                <td><span class="button alt" style="min-height:34px;padding:4px 10px">Block…</span></td>
+              </tr>
+              <tr>
+                <td>
+                  <strong class="mono">CLN-BATCH-2026-G01</strong><br>
+                  <span class="meta">Guduchi Stem (BOT-GUDU-002)</span>
+                </td>
+                <td class="mono">400.000 g<br><strong>400.000 g</strong> rem.</td>
+                <td class="mono">2027-08-01</td>
+                <td><span class="pill eligible">Eligible</span></td>
+                <td><span class="button alt" style="min-height:34px;padding:4px 10px">Block…</span></td>
+              </tr>
+              <tr>
+                <td>
+                  <strong class="mono">CLN-BATCH-2026-A03-BLK</strong><br>
+                  <span class="meta">Ashwagandha Root · Reason: Packaging seal damaged</span>
+                </td>
+                <td class="mono">300.000 g<br><strong>300.000 g</strong> rem.</td>
+                <td class="mono">2027-12-31</td>
+                <td><span class="pill blocked">Blocked · Ineligible</span></td>
+                <td><span class="meta">Audited</span></td>
+              </tr>
+              <tr>
+                <td>
+                  <strong class="mono">CLN-BATCH-2025-A99-EXP</strong><br>
+                  <span class="meta">Ashwagandha Root (BOT-ASHWA-001)</span>
+                </td>
+                <td class="mono">250.000 g<br><strong>250.000 g</strong> rem.</td>
+                <td class="mono">2025-12-31</td>
+                <td><span class="pill expired">Expired · Ineligible</span></td>
+                <td><span class="meta">Locked</span></td>
+              </tr>
+              <tr>
+                <td>
+                  <strong class="mono">CLN-BATCH-2026-A04-UNK</strong><br>
+                  <span class="meta">Ashwagandha Root · Missing expiry date</span>
+                </td>
+                <td class="mono">200.000 g<br><strong>200.000 g</strong> rem.</td>
+                <td class="mono">None supplied</td>
+                <td><span class="pill unknown">Unknown Expiry · Not Consumable</span></td>
+                <td><span class="meta">SRS §8 gate</span></td>
+              </tr>
+            </tbody>
+          </table>
+          <p class="scope">INV-04: Referenced batches cannot be hard-deleted. Physical waste, moisture loss, or supplier returns are recorded via the clinic's external discrepancy register (DEC03).</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SCREEN 02: FLAT RECIPES & SAVED PREPARATION SNAPSHOT -->
+  <section class="frame" id="recipes-preparations" aria-labelledby="recipes-heading">
+    <div class="frame-label">
+      <span>02 · Dispensary staff · Flat recipes and immutable preparation snapshot (PRE-01–03, AT09)</span>
+      <span>Zero stock reservation or deduction at preparation time</span>
+    </div>
+    <div class="app-head">
+      <span class="brand">AyurFlow</span>
+      <span class="right">Dispensary workspace · Patient ID: …b-no-identity · Session: …c-session-01</span>
+    </div>
+    <div class="app-nav">
+      <span>Batches &amp; Items</span>
+      <strong>Flat Recipes &amp; Preparations</strong>
+      <span>Consumption Confirmation</span>
+      <span>Traceability &amp; Stock Reports</span>
+    </div>
+    <div class="content">
+      <div class="row">
+        <div>
+          <p class="eyebrow">Recipes &amp; preparation snapshots · PRE-01–03</p>
+          <h2 id="recipes-heading">Scale flat recipe &amp; save preparation snapshot</h2>
+          <p class="sub">Scale raw botanical ingredients to a patient session's target yield using fixed-precision Round Half Up (`0.001 g`).</p>
+        </div>
+        <span class="pill prepared">Saving a preparation does NOT reserve or deduct stock</span>
+      </div>
+
+      <div class="grid">
+        <div class="box">
+          <h3>1. Flat recipe definition (PRE-01)</h3>
+          <span class="label">Selected recipe (flat botanical items only; no nested recipes)</span>
+          <div class="field">REC-ASHWA-GUDU-01 · Synthetic Ashwagandha-Guduchi Decoction Mix (v1)</div>
+          <span class="label">Base yield in grams</span>
+          <div class="field mono readonly">100.000 g</div>
+          <table>
+            <thead>
+              <tr>
+                <th>Raw Botanical Ingredient</th>
+                <th>Base Quantity (per 100.000 g yield)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Ashwagandha Root (<code>BOT-ASHWA-001</code>)</td>
+                <td class="mono"><strong>20.000 g</strong></td>
+              </tr>
+              <tr>
+                <td>Guduchi Stem (<code>BOT-GUDU-002</code>)</td>
+                <td class="mono"><strong>15.000 g</strong></td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="note">
+            <strong>Rounding check example (D-PRE-02):</strong> A <code>10.000 g</code> ingredient at <code>300.000 g</code> base yield scaled to <code>100.000 g</code> target yield rounds via Round Half Up to <code>3.333 g</code>.
+          </div>
+          <div class="actions">
+            <span class="button alt">Edit recipe (increments version; keeps prior snapshots intact)</span>
+          </div>
+        </div>
+
+        <div class="box prepared-card">
+          <div class="row">
+            <div>
+              <p class="eyebrow">2. Preparation snapshot preview (PRE-02–03)</p>
+              <h3>Save preparation for patient &amp; session</h3>
+            </div>
+            <span class="pill prepared">Status on save: Prepared · No Stock Deducted</span>
+          </div>
+
+          <div class="grid-equal" style="margin-top:10px">
+            <div>
+              <span class="label">Patient context (minimum identifier only; no clinical notes)</span>
+              <div class="field readonly">Synthetic Patient No ID (ID: …b-no-identity)</div>
+            </div>
+            <div>
+              <span class="label">Linked therapy session (same patient verified)</span>
+              <div class="field readonly">Session …c-session-01 · Stage: Primary</div>
+            </div>
+          </div>
+
+          <span class="label">Target yield in grams (positive decimal grams)</span>
+          <div class="field mono">250.000</div>
+
+          <h4>Calculated ingredient snapshot (Base × 250.000 ÷ 100.000)</h4>
+          <table>
+            <thead>
+              <tr>
+                <th>Botanical Item</th>
+                <th>Base (100.000 g)</th>
+                <th>Scale Formula</th>
+                <th>Saved Snapshot Required Grams</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Ashwagandha Root (<code>BOT-ASHWA-001</code>)</td>
+                <td class="mono">20.000 g</td>
+                <td class="mono">20.000 × 250.000 ÷ 100.000</td>
+                <td class="mono"><strong>50.000 g</strong></td>
+              </tr>
+              <tr>
+                <td>Guduchi Stem (<code>BOT-GUDU-002</code>)</td>
+                <td class="mono">15.000 g</td>
+                <td class="mono">15.000 × 250.000 ÷ 100.000</td>
+                <td class="mono"><strong>37.500 g</strong></td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="warning">
+            <strong>PRE-02 &amp; PRE-03 guarantee:</strong> Saving this preparation freezes the <code>50.000 g</code> and <code>37.500 g</code> ingredient snapshot against this patient and session. Later recipe edits will not change this snapshot, and <strong>no batch stock is deducted or reserved until consumption is explicitly confirmed</strong>.
+          </div>
+
+          <div class="actions">
+            <span class="button">Save preparation snapshot (No stock deduction)</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SCREEN 03: DISTINGUISHING PREPARED VS CONSUMED + MANUAL BATCH SELECTION -->
+  <section class="frame" id="consumption" aria-labelledby="consumption-heading">
+    <div class="frame-label">
+      <span>03 · Dispensary staff · Prepared vs. Consumed &amp; manual batch allocation (PRE-03–05, INV-02–04, AT10)</span>
+      <span>TASK-UI-04 exit check: Saved preparation and confirmed consumption are clearly distinguished</span>
+    </div>
+    <div class="app-head">
+      <span class="brand">AyurFlow</span>
+      <span class="right">Dispensary workspace · Atomic confirmation with operationId retry protection</span>
+    </div>
+    <div class="app-nav">
+      <span>Batches &amp; Items</span>
+      <span>Flat Recipes &amp; Preparations</span>
+      <strong>Consumption Confirmation</strong>
+      <span>Traceability &amp; Stock Reports</span>
+    </div>
+    <div class="content">
+      <div class="row">
+        <div>
+          <p class="eyebrow">Manual batch allocation &amp; atomic deduction · PRE-04–05</p>
+          <h2 id="consumption-heading">Preparation status &amp; actual batch consumption</h2>
+          <p class="sub">Side-by-side comparison of an unconfirmed <strong>Prepared</strong> snapshot (left) versus a locked <strong>Consumed</strong> record (right).</p>
+        </div>
+      </div>
+
+      <div class="grid-equal">
+        <!-- LEFT PANEL: PREPARED (AWAITING CONFIRMATION, NO DEDUCTION YET) -->
+        <div class="box prepared-card">
+          <div class="row">
+            <div>
+              <p class="eyebrow">State A · Editable allocation</p>
+              <h3>Preparation …d-prep-srs-scale</h3>
+            </div>
+            <span class="pill prepared">Prepared · Awaiting Confirmation (0.000 g deducted)</span>
+          </div>
+          <p class="meta">Patient: Synthetic Patient No ID (<code>…b-no-identity</code>) · Session: <code>…c-session-01</code> · Target yield: <code>250.000 g</code></p>
+          <p class="meta">Idempotency <code>operationId</code>: <code>7c4a1b9e-2001-4c9a-8a11-111111111111</code></p>
+
+          <div class="warning">
+            <strong>No stock has been deducted yet.</strong> Manually select eligible batches below so each ingredient's allocated sum equals its saved snapshot requirement. Blocked, expired, and unknown-expiry batches are excluded.
+          </div>
+
+          <h4>Ingredient 1: Ashwagandha Root — Required snapshot: <span class="mono">50.000 g</span></h4>
+          <table>
+            <thead>
+              <tr>
+                <th>Selected Eligible Batch</th>
+                <th>Batch Status &amp; Expiry</th>
+                <th>Allocate Grams</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>
+                  <strong class="mono">CLN-BATCH-2026-A01</strong><br>
+                  <span class="meta">Remaining: 1000.000 g</span>
+                </td>
+                <td><span class="pill eligible">Eligible · Exp 2027-06-30</span></td>
+                <td class="mono"><strong>30.000 g</strong></td>
+              </tr>
+              <tr>
+                <td>
+                  <strong class="mono">CLN-BATCH-2026-A02</strong><br>
+                  <span class="meta">Remaining: 500.000 g</span>
+                </td>
+                <td><span class="pill eligible">Eligible · Exp 2027-09-15</span></td>
+                <td class="mono"><strong>20.000 g</strong></td>
+              </tr>
+            </tbody>
+          </table>
+          <p class="meta">Allocated sum: <code>30.000 g + 20.000 g = 50.000 g</code> of <code>50.000 g</code> required ✓</p>
+
+          <h4>Ingredient 2: Guduchi Stem — Required snapshot: <span class="mono">37.500 g</span></h4>
+          <table>
+            <thead>
+              <tr>
+                <th>Selected Eligible Batch</th>
+                <th>Batch Status &amp; Expiry</th>
+                <th>Allocate Grams</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>
+                  <strong class="mono">CLN-BATCH-2026-G01</strong><br>
+                  <span class="meta">Remaining: 400.000 g</span>
+                </td>
+                <td><span class="pill eligible">Eligible · Exp 2027-08-01</span></td>
+                <td class="mono"><strong>37.500 g</strong></td>
+              </tr>
+            </tbody>
+          </table>
+          <p class="meta">Allocated sum: <code>37.500 g</code> of <code>37.500 g</code> required ✓</p>
+
+          <div class="error-banner">
+            <strong>Conflict / rollback state example (409 Conflict):</strong> If any selected batch becomes blocked, expires, or has insufficient remaining grams when locked (<code>FOR UPDATE</code> in <code>batch_id ASC</code> order), the entire confirmation rolls back with zero stock deducted.
+          </div>
+
+          <div class="actions">
+            <span class="button">Confirm actual consumption (Deduct stock once)</span>
+            <span class="button alt">Retry after timeout (same operationId)</span>
+          </div>
+        </div>
+
+        <!-- RIGHT PANEL: CONSUMED (LOCKED, IMMUTABLE ACTUAL CONSUMPTION) -->
+        <div class="box consumed-card">
+          <div class="row">
+            <div>
+              <p class="eyebrow">State B · Confirmed &amp; locked history</p>
+              <h3>Preparation …d-prep-srs-scale (Confirmed)</h3>
+            </div>
+            <span class="pill consumed">Consumed · Stock Deducted (Immutable)</span>
+          </div>
+          <p class="meta">Confirmed by: <code>d-dispensary</code> · 31 Oct 2026, 14:10 · Asia/Colombo</p>
+          <p class="meta">Committed <code>operationId</code>: <code>7c4a1b9e-2001-4c9a-8a11-111111111111</code> · Audit event: <code>preparation.consumed</code></p>
+
+          <div class="note">
+            <strong>Confirmed actual consumption (PRE-04–05):</strong> Stock deductions and <code>batch_consumptions</code> rows are committed and immutable. Repeating this <code>operationId</code> with the same payload returns this record without deducting again; a second confirmation is rejected (<code>409 Conflict</code>).
+          </div>
+
+          <h4>Committed batch deductions (`batch_consumptions`)</h4>
+          <table>
+            <thead>
+              <tr>
+                <th>Botanical Item</th>
+                <th>Consumed Batch Ref</th>
+                <th>Deducted Grams</th>
+                <th>Batch Balance After</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Ashwagandha Root (<code>BOT-ASHWA-001</code>)</td>
+                <td class="mono">CLN-BATCH-2026-A01</td>
+                <td class="mono"><strong>30.000 g</strong></td>
+                <td class="mono">970.000 g</td>
+              </tr>
+              <tr>
+                <td>Ashwagandha Root (<code>BOT-ASHWA-001</code>)</td>
+                <td class="mono">CLN-BATCH-2026-A02</td>
+                <td class="mono"><strong>20.000 g</strong></td>
+                <td class="mono">480.000 g</td>
+              </tr>
+              <tr>
+                <td>Guduchi Stem (<code>BOT-GUDU-002</code>)</td>
+                <td class="mono">CLN-BATCH-2026-G01</td>
+                <td class="mono"><strong>37.500 g</strong></td>
+                <td class="mono">362.500 g</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <div class="actions">
+            <span class="button disabled">Confirmation locked (Consumed once)</span>
+            <span class="button alt">View in batch traceability →</span>
+          </div>
+          <p class="scope">No edit, un-consume, or delete control exists for confirmed consumption history (SRS §12, §15.2).</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SCREEN 04: BIDIRECTIONAL TRACEABILITY & STOCK AVAILABILITY REPORT -->
+  <section class="frame" id="traceability" aria-labelledby="traceability-heading">
+    <div class="frame-label">
+      <span>04 · Dispensary &amp; Report reader · Bidirectional traceability &amp; stock report (PRE-06, REP-01, AT11)</span>
+      <span>Unconsumed preparations are excluded from consumption history · No clinical note text</span>
+    </div>
+    <div class="app-head">
+      <span class="brand">AyurFlow</span>
+      <span class="right">Traceability &amp; Reports · Permitted roles: dispensary, report_reader (plus assigned clinician for own patient)</span>
+    </div>
+    <div class="app-nav">
+      <span>Batches &amp; Items</span>
+      <span>Flat Recipes &amp; Preparations</span>
+      <span>Consumption Confirmation</span>
+      <strong>Traceability &amp; Stock Reports</strong>
+    </div>
+    <div class="content">
+      <div class="row">
+        <div>
+          <p class="eyebrow">Bidirectional traceability · PRE-06 &amp; REP-01</p>
+          <h2 id="traceability-heading">Batch-to-patient &amp; patient-to-batch traceability</h2>
+          <p class="sub">Trace any consumed batch forward to recipient patients/sessions, or trace a patient backward to actual consumed batches.</p>
+        </div>
+        <span class="pill">Applied filter: Confirmed consumptions only (status = consumed)</span>
+      </div>
+
+      <div class="grid-equal">
+        <!-- FORWARD TRACE: BATCH -> PATIENTS/SESSIONS -->
+        <div class="box">
+          <h3>Forward trace: Batch → Recipients (D-TRC-01)</h3>
+          <span class="label">Inspect stock batch</span>
+          <div class="field mono">CLN-BATCH-2026-A01 · Ashwagandha Root (Received: 1000.000 g · Remaining: 970.000 g)</div>
+          <table>
+            <thead>
+              <tr>
+                <th>Recipient Patient &amp; Session</th>
+                <th>Preparation ID</th>
+                <th>Actual Grams</th>
+                <th>Confirmed At (Colombo)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>
+                  <strong>Synthetic Patient No ID</strong><br>
+                  <span class="meta">Patient: <code>…b-no-identity</code> · Session: <code>…c-session-01</code></span>
+                </td>
+                <td class="mono">…d-prep-srs-scale</td>
+                <td class="mono"><strong>30.000 g</strong></td>
+                <td class="mono">31 Oct 2026, 14:10<br><span class="meta">Actor: d-dispensary</span></td>
+              </tr>
+            </tbody>
+          </table>
+          <p class="meta">Total confirmed consumption from batch: <code>30.000 g</code> · Matches batch deduction (<code>1000.000 g − 970.000 g</code>).</p>
+        </div>
+
+        <!-- REVERSE TRACE: PATIENT -> CONSUMED BATCHES -->
+        <div class="box">
+          <h3>Reverse trace: Patient → Consumed batches (D-TRC-02)</h3>
+          <span class="label">Inspect patient record (minimum identity only; no consultation notes)</span>
+          <div class="field">Synthetic Patient No ID (ID: …b-no-identity)</div>
+          <table>
+            <thead>
+              <tr>
+                <th>Consumed Batch &amp; Item</th>
+                <th>Session &amp; Preparation</th>
+                <th>Actual Grams</th>
+                <th>Confirmed At (Colombo)</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>
+                  <strong class="mono">CLN-BATCH-2026-A01</strong><br>
+                  <span class="meta">Ashwagandha Root (Exp 2027-06-30)</span>
+                </td>
+                <td class="mono">Session …c-session-01<br>Prep …d-prep-srs-scale</td>
+                <td class="mono"><strong>30.000 g</strong></td>
+                <td class="mono">31 Oct 2026, 14:10</td>
+              </tr>
+              <tr>
+                <td>
+                  <strong class="mono">CLN-BATCH-2026-A02</strong><br>
+                  <span class="meta">Ashwagandha Root (Exp 2027-09-15)</span>
+                </td>
+                <td class="mono">Session …c-session-01<br>Prep …d-prep-srs-scale</td>
+                <td class="mono"><strong>20.000 g</strong></td>
+                <td class="mono">31 Oct 2026, 14:10</td>
+              </tr>
+              <tr>
+                <td>
+                  <strong class="mono">CLN-BATCH-2026-G01</strong><br>
+                  <span class="meta">Guduchi Stem (Exp 2027-08-01)</span>
+                </td>
+                <td class="mono">Session …c-session-01<br>Prep …d-prep-srs-scale</td>
+                <td class="mono"><strong>37.500 g</strong></td>
+                <td class="mono">31 Oct 2026, 14:10</td>
+              </tr>
+            </tbody>
+          </table>
+          <div class="note">
+            <strong>PRE-06 exclusion rule:</strong> Unconfirmed preparation <code>…d-prep-unconsumed</code> (status: <code>Prepared · No Stock Deducted</code>) is excluded from actual consumption history because a saved recipe snapshot alone is not proof of batch consumption.
+          </div>
+        </div>
+      </div>
+      <p class="scope">IAM-04 &amp; REP-01: Report results are derived strictly from committed records, identify applied filters, and never expose clinical consultation notes.</p>
+    </div>
+  </section>
+</div>
+</body>
+</html>
