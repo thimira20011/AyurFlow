@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { apiMutation, APIRequestError } from "@/lib/api-client";
 import { validPatientId } from "./validation";
+import styles from "@/components/staff-surfaces.module.css";
 
 export default function AssignmentWorkspace() {
   const [patientId, setPatientId] = useState("");
@@ -42,22 +43,23 @@ export default function AssignmentWorkspace() {
     }
   }
 
-  return <section className="mx-auto max-w-2xl rounded-xl border border-green-900/15 bg-white p-6">
-    <h1 className="text-3xl font-semibold">Clinician assignments</h1>
-    <p className="my-3">Grant access only after an authorized patient handoff. Assignment permits a clinician to read and edit that patient’s consultations. Administrators cannot read clinical notes through this page.</p>
+  return <section className={`${styles.page} ${styles.card}`} aria-labelledby="assignment-title">
+    <p className={styles.eyebrow}>ADMINISTRATION / CLINICAL ASSIGNMENTS</p>
+    <h1 id="assignment-title" className="text-3xl font-serif text-[#21483a]">Clinician assignments</h1>
+    <p>Grant access only after an authorized patient handoff. Assignment permits a clinician to read and edit that patient’s consultations. Administrators cannot read clinical notes through this page.</p>
     <form onSubmit={event => { event.preventDefault(); void change("grant"); }} className="grid gap-4">
-      <label className="grid gap-1">Patient internal UUID
-        <input className="rounded-lg border p-2" value={patientId} onChange={event => setPatientId(event.target.value.trim())} autoComplete="off" required disabled={busy} />
+      <label className={styles.field}>Patient internal UUID
+        <input className={styles.input} value={patientId} onChange={event => setPatientId(event.target.value.trim())} autoComplete="off" required disabled={busy} />
       </label>
-      <label className="grid gap-1">Clinician staff UUID
-        <input className="rounded-lg border p-2" value={clinicianId} onChange={event => setClinicianId(event.target.value.trim())} autoComplete="off" required disabled={busy} />
+      <label className={styles.field}>Clinician staff UUID
+        <input className={styles.input} value={clinicianId} onChange={event => setClinicianId(event.target.value.trim())} autoComplete="off" required disabled={busy} />
       </label>
       <div className="flex flex-wrap gap-3">
-        <button className="rounded-lg bg-emerald-800 px-4 py-2 text-white disabled:opacity-50" disabled={busy}>Grant assignment</button>
-        <button type="button" className="rounded-lg border border-red-800 px-4 py-2 text-red-900 disabled:opacity-50" disabled={busy} onClick={() => { void change("revoke"); }}>Revoke assignment</button>
+        <button className={styles.button} disabled={busy}>Grant assignment</button>
+        <button type="button" className={styles.secondary} aria-disabled={busy} disabled={busy} onClick={() => { void change("revoke"); }}>Revoke assignment</button>
       </div>
     </form>
-    {notice && <p role="status" className="mt-4">{notice}</p>}
-    {error && <p role="alert" className="mt-4 text-red-900">{error}</p>}
+    {notice && <p role="status" className={styles.success}>{notice}</p>}
+    {error && <p role="alert" className={styles.error}>{error}</p>}
   </section>;
 }
