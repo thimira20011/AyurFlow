@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
+import { useStaffSession } from "@/features/administration/session";
 
 interface UpcomingSession {
   id: string;
@@ -52,6 +53,7 @@ const initialSessions: UpcomingSession[] = [
 ];
 
 export function ReceptionDeskView() {
+  const { signOut, signingOut } = useStaffSession();
   const [sessions, setSessions] = useState<UpcomingSession[]>(initialSessions);
   const [selectedSession, setSelectedSession] = useState<UpcomingSession | null>(null);
   const [showRegisterModal, setShowRegisterModal] = useState<boolean>(false);
@@ -130,7 +132,7 @@ export function ReceptionDeskView() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col lg:flex-row bg-[#f6efe4] text-[#1c2820] font-sans antialiased selection:bg-[#d9e6d8] selection:text-[#143826]">
+    <div className="min-h-screen flex flex-col lg:flex-row bg-[#f6efe4] text-[#1c2820] font-sans antialiased selection:bg-[#d9e6d8] selection:text-[#143826]" style={{ backgroundImage: "url('/brand/paper.png')", backgroundSize: "cover" }}>
       {/* Toast Feedback */}
       {toastMsg && (
         <div className="fixed bottom-6 right-6 z-50 bg-[#143826] text-[#f4efe6] border border-[#2d5941] px-5 py-3 rounded-xl shadow-xl flex items-center gap-3 animate-in fade-in slide-in-from-bottom-4">
@@ -143,7 +145,7 @@ export function ReceptionDeskView() {
           1. LEFT SIDEBAR (Dark Forest Green: #143826)
          ───────────────────────────────────────────────────────────── */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-64 bg-[#143826] text-white flex flex-col justify-between p-6 transform transition-transform duration-300 ease-in-out lg:static lg:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 w-56 bg-[#21483a] text-white flex flex-col justify-between p-5 transform transition-transform duration-300 ease-in-out lg:static lg:translate-x-0 ${
           mobileNavOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full lg:translate-x-0"
         }`}
       >
@@ -284,7 +286,7 @@ export function ReceptionDeskView() {
          ───────────────────────────────────────────────────────────── */}
       <div className="flex-1 flex flex-col min-w-0">
         {/* Top Header Bar */}
-        <header className="h-14 bg-[#faf7f2] border-b border-dashed border-[#ded7c8] px-6 lg:px-10 flex items-center justify-between shrink-0">
+        <header className="min-h-15 bg-[#fcf8ee] border-b border-[#d6c5a6] px-6 flex items-center justify-between gap-4 shrink-0">
           <div className="flex items-center gap-4">
             <button
               type="button"
@@ -299,17 +301,18 @@ export function ReceptionDeskView() {
             <span className="text-sm font-medium text-[#3b443c]">Overview</span>
           </div>
 
-          <div className="flex items-center gap-6 sm:gap-8">
+          <div className="flex items-center gap-4 sm:gap-6">
             <span className="hidden md:inline-block text-xs font-mono text-[#6e766e]">
               {currentDateStr}
             </span>
 
             <div className="text-right">
               <div className="text-xs sm:text-sm font-bold text-[#1c2820] leading-tight">
-                Maya · Reception
+                Reception
               </div>
               <div className="text-[11px] text-[#7a8179]">Staff account</div>
             </div>
+            <button type="button" disabled={signingOut} onClick={() => void signOut()} className="text-xs text-[#21483a] hover:underline min-h-11">{signingOut ? "Signing out…" : "Sign out"}</button>
           </div>
         </header>
 
@@ -323,7 +326,7 @@ export function ReceptionDeskView() {
                 <span>{dayHeadingStr}</span>
               </div>
               <h1 className="text-3xl sm:text-4xl font-serif text-[#1c2820] font-normal tracking-tight mt-1">
-                Good morning, Maya.
+                A thoughtful start to the day.
               </h1>
               <p className="text-sm text-[#5d675e] mt-1">
                 A clear view of the day ahead.

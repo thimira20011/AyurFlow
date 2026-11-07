@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import type { CSSProperties } from "react";
-import { Navbar } from "@/components/navbar";
 import { MainLayout } from "@/components/main-layout";
 import { StaffSessionProvider } from "@/features/administration/session";
 import "./globals.css";
@@ -21,7 +20,6 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
           Skip to content
         </a>
         <StaffSessionProvider>
-          <Navbar />
           <MainLayout>{children}</MainLayout>
         </StaffSessionProvider>
       </body>

@@ -5,6 +5,16 @@
   color-scheme: light;
   --background: #f6f7f2;
   --foreground: #183a2d;
+  --staff-forest: #21483a;
+  --staff-text: #263d31;
+  --staff-muted: #596451;
+  --staff-brass: #d3b782;
+  --staff-border: #d6c5a6;
+  --staff-surface: #fcf8ee;
+  --staff-sage: #e7eee2;
+  --staff-error: #713c30;
+  --font-lora: 'Lora', Georgia;
+  --font-dm-sans: 'DM Sans', Arial;
 
   /* Brand palette */
   --green-950: #0c1f16;

@@ -101,7 +101,7 @@ export function StaffSessionProvider({ children }: { children: React.ReactNode }
 
   let content = children;
   if (!publicPage) {
-    if (loading) content = <p role="status">Checking your session…</p>;
+    if (loading) content = <div className={`${styles.theme} ${styles.stateShell}`}><section role="status" className={styles.stateCard}><p className={styles.eyebrow}>STAFF WORKSPACE</p><h1>Checking your session…</h1></section></div>;
     else if (!session) content = <div className={`${styles.theme} ${styles.stateShell}`}><section role="status" className={styles.stateCard} aria-labelledby="session-state-title">
       <p className={styles.eyebrow}>STAFF SIGN-IN</p><h1 id="session-state-title">Sign in to continue.</h1>
       <p>{error === "Your session ended. Sign in again." ? "Your staff session has ended. Sign in again before continuing with protected records." : error || "Sign in before continuing with protected records."}</p>
@@ -115,12 +115,7 @@ export function StaffSessionProvider({ children }: { children: React.ReactNode }
     </section></div>;
   }
   return <SessionContext.Provider value={{ session, loading, error, refresh, signIn, signOut, signingOut }}>
-    {session && path !== "/administration" && !path.startsWith("/patients") && !path.startsWith("/clinical") && <nav aria-label="Staff session" className="mb-6 flex flex-wrap items-center gap-4 rounded-xl border border-green-900/15 bg-white p-4">
-      <Link href="/workspace" className="font-semibold underline">Workspace</Link>
-      <span className="text-sm">{session.roles.length ? session.roles.join(", ") : "No roles assigned"}</span>
-      <button type="button" className="ml-auto rounded-lg border px-4 py-2" disabled={signingOut} onClick={() => void signOut()}>{signingOut ? "Signing out…" : "Sign out"}</button>
-    </nav>}
-    {session && error && <p role="alert" className="mb-4 rounded-lg border border-red-800 p-3">{error}</p>}
+    {session && error && <p role="alert" className={`${styles.theme} ${styles.error}`}>{error}</p>}
     {content}
   </SessionContext.Provider>;
 }

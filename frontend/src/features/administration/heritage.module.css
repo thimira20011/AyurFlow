@@ -1,13 +1,13 @@
 .theme {
   --ayur-canvas: #f7f4eb;
-  --ayur-surface: #fcf8ee;
-  --ayur-forest: #21483a;
-  --ayur-text: #263d31;
-  --ayur-muted: #596451;
-  --ayur-brass: #d3b782;
-  --ayur-border: #d6c5a6;
+  --ayur-surface: var(--staff-surface);
+  --ayur-forest: var(--staff-forest);
+  --ayur-text: var(--staff-text);
+  --ayur-muted: var(--staff-muted);
+  --ayur-brass: var(--staff-brass);
+  --ayur-border: var(--staff-border);
   --ayur-control-border: #79816b;
-  --ayur-sage: #e7eee2;
+  --ayur-sage: var(--staff-sage);
   --ayur-linen: #efebdf;
   --ayur-paper: url('/brand/paper.png');
   font-family: var(--font-dm-sans), sans-serif;
