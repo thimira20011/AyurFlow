@@ -30,6 +30,7 @@ type AuthRoutes struct {
 	Plans          PlanService
 	Administration AdministrationService
 	Billing        BillingService
+	Inventory      InventoryService
 }
 
 func registerAuth(api *gin.RouterGroup, routes AuthRoutes) {

@@ -42,13 +42,13 @@
 
 ## 2. Relational Schema Boundaries & Migration Sequence
 
-Member D owns the inventory/preparation migrations. Coordinate exact sequence numbers with Member A against the latest `dev` (currently `000001`–`000009` are allocated):
+Member D owns the inventory/preparation migrations. Coordinate exact sequence numbers with Member A against the latest `dev` (`000001`–`000013` are allocated before Member D's migrations):
 
 | Proposed Migration | Tables & Triggers | Dependencies |
 | --- | --- | --- |
-| `000010_inventory_batches.up.sql` (`TASK-INV-01`) | `botanical_items`, `stock_batches` | `000001_foundation.up.sql` (`staff_accounts`, `audit_events`) |
-| `000011_inventory_recipes_preparations.up.sql` (`TASK-INV-02`, `TASK-INV-03`) | `recipes`, `recipe_ingredients`, `preparations`, `preparation_snapshot_items`, immutability trigger on snapshot/consumed preparation | `000005_patients.up.sql` (`patients`), `000010_inventory_batches.up.sql` |
-| `000012_inventory_consumptions.up.sql` (`TASK-INV-04`, `TASK-INV-05`) | `batch_consumptions`, `consumption_operations`, append-only immutability trigger on `batch_consumptions` | `000011_inventory_recipes_preparations.up.sql` |
+| `000014_inventory_batches.up.sql` (`TASK-INV-01` — Implemented) | `botanical_items`, `stock_batches`, `enforce_inventory_batch_retention()` trigger | `000001_foundation.up.sql` (`staff_accounts`, `audit_events`) |
+| `000015_inventory_recipes_preparations.up.sql` (`TASK-INV-02`, `TASK-INV-03`) | `recipes`, `recipe_ingredients`, `preparations`, `preparation_snapshot_items`, immutability trigger on snapshot/consumed preparation | `000005_patients.up.sql` (`patients`), `000014_inventory_batches.up.sql` |
+| `000016_inventory_consumptions.up.sql` (`TASK-INV-04`, `TASK-INV-05`) | `batch_consumptions`, `consumption_operations`, append-only immutability trigger on `batch_consumptions` | `000015_inventory_recipes_preparations.up.sql` |
 
 ### Table Definitions
 
