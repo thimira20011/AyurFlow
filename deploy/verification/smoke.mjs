@@ -42,6 +42,11 @@ function compose(command, input, extra = {}, allowFailure = false) {
   appendFileSync(log, (result.stdout ?? "") + (result.stderr ?? ""));
   if (result.error || result.status !== 0) {
     if (allowFailure) return null;
+    if (["build", "up", "--profile"].includes(command[0])) {
+      let diagnostic = (result.stderr ?? "").slice(-4000);
+      for (const value of secrets) diagnostic = diagnostic.replaceAll(value, "[redacted]");
+      console.error(diagnostic.replace(/postgres(?:ql)?:\/\/[^\s]+/g, "[database URL redacted]"));
+    }
     throw new Error(`Compose ${command[0]} failed; inspect the private local log.`);
   }
   return result.stdout.trim();
@@ -169,7 +174,7 @@ try {
   success = true;
 } catch (error) {
   appendFileSync(log, `\n${error.message}\n`);
-  console.error("FAIL: OPS-04 verification failed; inspect the private local log.");
+  console.error(`FAIL: OPS-04 check ${steps.length + 1} failed; inspect the private local log.`);
   process.exitCode = 1;
 } finally {
   let cleaned = true;
@@ -182,3 +187,4 @@ try {
   mkdirSync(path.join(root, ".cache/ops-04"), { recursive: true });
   writeFileSync(path.join(root, ".cache/ops-04/results.json"), JSON.stringify(result, null, 2));
 }
+
