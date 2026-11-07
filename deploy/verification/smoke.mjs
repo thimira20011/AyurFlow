@@ -175,6 +175,10 @@ try {
 } catch (error) {
   appendFileSync(log, `\n${error.message}\n`);
   console.error(`FAIL: OPS-04 check ${steps.length + 1} failed; inspect the private local log.`);
+  if (error.code === "ERR_ASSERTION") {
+    console.error(error.message.split("\n")[0]);
+    if (typeof error.actual === "number" && typeof error.expected === "number") console.error(`Expected ${error.expected}; received ${error.actual}.`);
+  }
   process.exitCode = 1;
 } finally {
   let cleaned = true;
@@ -187,4 +191,3 @@ try {
   mkdirSync(path.join(root, ".cache/ops-04"), { recursive: true });
   writeFileSync(path.join(root, ".cache/ops-04/results.json"), JSON.stringify(result, null, 2));
 }
-
