@@ -5,7 +5,7 @@ Proposed owner: E. Reviewer: D. SRS: BIL-01–06. AT: AT12.
 Draft/issued invoices, integer LKR minor units, direct deposits/receipts,
 balance protection and idempotent receipt operations.
 
-## Status (TASK-BILL-04 — in review)
+## Status (TASK-BILL-05 — in review)
 
 | File / Component | Status | Notes |
 |---|---|---|
@@ -16,6 +16,7 @@ balance protection and idempotent receipt operations.
 | `billing_test.go` | ✅ Implemented | Unit validation tests, balance derivation, money range, and UUID canonicalization |
 | `service_integration_test.go` | ✅ Implemented | Direct receipts, deposits, balance, overpayment conflict, retry, concurrency, and audit rollback regressions |
 | `000004_billing.up.sql` | ✅ Merged | Invoices, invoice_items, receipts with integrity constraints |
+| `frontend/src/features/billing/billing-workspace.tsx` | ✅ Implemented | Live `/api/v1` invoice editor, issued view, receipt drawer, live balance banner, outstanding aging report |
 | HTTP routes registered | ✅ Integrated | Wire routes protected by `RequireSession` in `router.go` with CSRF enforcement |
 | Role authorization | ✅ Enforced | `billing` and `receptionist` roles checked in PostgreSQL transactions |
 | AT12 evidence | ⏳ In progress | Service and HTTP integration tests passing; UAT evidence pending DEC04 |
@@ -40,5 +41,5 @@ and `go test -tags=integration -count=1 ./internal/billing` with a disposable
 
 ## Branch
 
-`member-e/task-bill-04-receipt-concurrency`
+`member-e/task-bill-05-billing-ui`
 
