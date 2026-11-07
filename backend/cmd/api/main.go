@@ -17,6 +17,7 @@ import (
 	"ayurflow/backend/internal/clinical"
 	"ayurflow/backend/internal/config"
 	"ayurflow/backend/internal/consultations"
+	"ayurflow/backend/internal/inventory"
 	"ayurflow/backend/internal/patients"
 	"ayurflow/backend/internal/platform/database"
 	transport "ayurflow/backend/internal/transport/http"
@@ -60,6 +61,7 @@ func run() error {
 			Plans:          clinical.NewService(pool, clinical.MemberBPathway(), nil),
 			Administration: administration.NewService(pool),
 			Billing:        billing.NewService(pool),
+			Inventory:      inventory.NewService(pool),
 		})
 	} else {
 		router = transport.NewRouter(pool)
