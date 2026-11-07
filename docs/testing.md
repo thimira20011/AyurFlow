@@ -1,5 +1,11 @@
 # Verification plan and evidence
 
+## TASK-OPS-04 clean startup and persistence (7 November 2026)
+
+Owner A; reviewer F or named team-approved replacement pending. SRS OPS-03, NFR-04/06; AT17 support. Branch `codex/ops-04-clean-start`, targeting `dev` at `bb8fa1f`. The [verification procedure](../deploy/verification/README.md) uses the actual pilot Docker images/configuration with isolated PostgreSQL, randomly generated synthetic credentials and Caddy local-CA HTTPS. It checks empty/fresh and repeated migrations, unchanged repeated seeds, restricted runtime access, protected Unicode patient/audit creation and preserved records after all four services are removed/recreated using retained volumes. Only redacted step results are uploaded.
+
+Local source verification: Node syntax and `git diff --check` passed. Execution stopped before creating any service because Docker is not installed on this Windows workstation. Terminal GitHub fetches also failed to connect/resolve; the connected GitHub tools supplied the current `dev` baseline for remote submission. No Render/Neon service or existing data was changed. Remote execution results are recorded after the workflow completes. Full AT17, independent walkthrough, API/guide review and named handover remain pending.
+
 ## Member B Living Heritage visual alignment (4 November 2026)
 
 The patient registry and registration, consultation draft/signed history, and care-plan states were compared with seven full-size Figma frames supplied by Member B. [Synthetic screenshots and the scope record](evidence/member-b-figma-alignment-2026-11-04.md) show the revised layout at 1220, 1366 and 1024 pixels. Required clinical and demographic controls remain even where the illustrations omit them. The local build, lint and helper tests and [all six updated CI jobs](https://github.com/thimira20011/AyurFlow/actions/runs/41868541275) passed, including 18/18 real protected browser cases. C/F review is still pending.
