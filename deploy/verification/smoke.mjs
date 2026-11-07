@@ -74,10 +74,12 @@ function request(resource, method = "GET", data) {
 }
 async function ready() {
   for (let attempt = 0; attempt < 60; attempt++) {
-    try { if ((await request("/api/v1/ready")).status === 200) return; } catch { /* Startup is bounded below. */ }
+    try {
+      if ((await request("/api/v1/ready")).status === 200 && (await request("/sign-in")).status === 200) return;
+    } catch { /* Startup is bounded below. */ }
     await delay(1000);
   }
-  throw new Error("HTTPS database readiness did not recover within 60 attempts.");
+  throw new Error("HTTPS API and frontend readiness did not recover within 60 attempts.");
 }
 async function login() {
   cookie = ""; csrf = "";
@@ -185,9 +187,10 @@ try {
   if (started) cleaned = compose(["down", "--volumes", "--remove-orphans"], undefined, {}, true) !== null;
   for (const name of ["application.dsn", "migration.dsn", "owner.password", "empty.env"]) rmSync(path.join(cache, name), { force: true });
   if (!cleaned) { console.error(`FAIL: remove disposable Compose project ${project}; cleanup failed.`); process.exitCode = 1; }
+  if (success && cleaned) pass("disposable test containers, volumes and credential files are removed");
   const version = spawnSync("git", ["rev-parse", "HEAD"], { cwd: root, encoding: "utf8" }).stdout?.trim();
   const result = { task: "TASK-OPS-04", acceptance: "AT17 support; reviewer and handover pending", verifiedAt: new Date().toISOString(),
-    version, environment: "isolated Docker Compose / PostgreSQL 17.11 / pilot images / local CA", success: success && cleaned, steps, cleaned };
+    version, node: process.version, environment: "isolated Docker Compose / PostgreSQL 17.11 / pilot images / local CA", success: success && cleaned, steps, cleaned };
   mkdirSync(path.join(root, ".cache/ops-04"), { recursive: true });
   writeFileSync(path.join(root, ".cache/ops-04/results.json"), JSON.stringify(result, null, 2));
 }
