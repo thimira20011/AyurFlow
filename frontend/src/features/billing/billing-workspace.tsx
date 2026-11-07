@@ -381,9 +381,9 @@ export function BillingWorkspace() {
       {/* Notice bar showing current architecture adherence */}
       <div className={styles.noticeBar}>
         <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-          <span className={styles.noticeTag}>TASK-BILL-03</span>
+          <span className={styles.noticeTag}>Preview</span>
           <span style={{ fontSize: "0.88rem" }}>
-            <strong>Direct Receipts, Deposits &amp; Balance Live:</strong> Labelled bank deposits, cash settlements, real-time balance tracking, and overpayment protection.
+            <strong>Synthetic billing preview:</strong> These example invoices and receipts exist only in this browser session.
           </span>
         </div>
         <div style={{ fontSize: "0.82rem", color: "var(--bill-muted)" }}>

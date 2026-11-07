@@ -1,10 +1,10 @@
 .workspace {
-  --patient-ink: #21483a;
-  --patient-muted: #596451;
-  --patient-border: #d6c5a6;
-  --patient-surface: #fcf8ee;
-  --patient-soft: #e7eee2;
-  --patient-accent: #21483a;
+  --patient-ink: var(--staff-forest);
+  --patient-muted: var(--staff-muted);
+  --patient-border: var(--staff-border);
+  --patient-surface: var(--staff-surface);
+  --patient-soft: var(--staff-sage);
+  --patient-accent: var(--staff-forest);
   color: var(--patient-ink);
   width: 100%;
 }

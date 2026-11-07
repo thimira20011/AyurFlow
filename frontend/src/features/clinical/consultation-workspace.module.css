@@ -1,10 +1,10 @@
 .workspace {
-  --ink: var(--heritage-forest, #1e3f30);
-  --muted: var(--heritage-parchment-muted, #6b6456);
-  --line: var(--heritage-parchment-border, #d8cfbc);
-  --paper: var(--heritage-parchment-light, #faf7ee);
-  --soft: var(--heritage-parchment, #f5efe1);
-  --accent: var(--heritage-forest-light, #2a5643);
+  --ink: var(--staff-forest);
+  --muted: var(--staff-muted);
+  --line: var(--staff-border);
+  --paper: var(--staff-surface);
+  --soft: var(--staff-sage);
+  --accent: var(--staff-forest);
   color: var(--ink);
   min-width: 0;
 }
