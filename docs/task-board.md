@@ -33,12 +33,12 @@ Status values: **Pending** = not started; **In progress** = work underway but co
 
 | Task | Deliverable | Owner slot | Peer reviewer | Status | Evidence |
 | --- | --- | --- | --- | --- | --- |
-| TASK-UI-01 | Role-based navigation and screen access | F | A; all owners review | Pending | — |
+| TASK-UI-01 | Role-based navigation and screen access | F | A; all owners review | In progress | Member B shared-workspace implementation on `member-b/shared-workspace-ui`; reception entry now links to the protected patient flow on `member-b/reception-live-entry`. F/A review and integrated acceptance remain. |
 | TASK-UI-02 | Patient, consultation and plan wireframes | F with B | A | Done | [Wireframes and handoff](ui/member-b-clinical-wireframes.md) merged in [PR #33](https://github.com/thimira20011/AyurFlow/pull/33); collaborator approval and B-confirmed team review. DEC02/08 still gate affected clinical implementation/UAT. |
 | TASK-UI-03 | Availability, booking and therapist wireframes | F with C | A | Pending | — |
 | TASK-UI-04 | Batch, recipe, preparation and traceability wireframes | F with D | A | In review | [Wireframes and interaction contract](ui/member-d-inventory-wireframes.md) ([HTML](ui/member-d-inventory-wireframes.html)) and dev-only preview (`/inventory/preview`) on `member-d/task-ui-04-inventory-wireframes`; F/A/E review pending |
 | TASK-UI-05 | Invoice, receipt, balance and admin wireframes | F with E/A | A | Pending | — |
-| TASK-UI-06 | Shared layout, forms, tables and error components | F | A | Pending | — |
+| TASK-UI-06 | Shared layout, forms, tables and error components | F | A | In progress | Shared shell and surface styles on `member-b/shared-workspace-ui`; [implementation and checks](ui/shared-workspace-implementation.md). Remaining module journeys and F/A review stay open. |
 | TASK-UI-07 | Keyboard, viewport and Unicode checks | F; owners fix screens | A | Pending | — |
 
 ## 3. Authentication and administration (weeks 1–3)
@@ -107,7 +107,7 @@ Status values: **Pending** = not started; **In progress** = work underway but co
 | TASK-BILL-02 | Draft editing and atomic invoice issue | E | D | In review | `member-e/task-bill-02-invoice-lifecycle`; routes wired under `RequireSession` in `router.go`, atomic issue, item lines, role checks, frontend workspace, DEC04 review record; Go & Next.js test suites pass |
 | TASK-BILL-03 | Direct receipts, deposits and balance | E | D | In review | `member-e/task-bill-03-receipts-balance`; direct receipts, labelled bank deposits, derived balance, overpayment conflict guard, idempotent operation ID, HTTP routes (`/api/v1/invoices/:id/receipts`, `/api/v1/invoices/:id/balance`), transaction audit logging, and Go & Next.js test suites passing |
 | TASK-BILL-04 | Unique receipt operations and concurrency | E | D | In review | `member-e/task-bill-04-receipt-concurrency`; HTTP 200 OK on idempotent replay vs 201 Created on new receipt; concurrent race serialization via pg_advisory_xact_lock + FOR UPDATE locks; overpayment overflow guard; Go test suite passing |
-| TASK-BILL-05 | Invoice editor, issued view, receipt/history UI | E | D | Pending | — |
+| TASK-BILL-05 | Invoice editor, issued view, receipt/history UI | E | D | In progress | `member-e/task-bill-05-billing-ui`; exact LKR input, per-invoice balance/history, and same-operation receipt retry. [Verification record](testing.md#task-bill-05-billing-ui-verification); live PostgreSQL browser evidence and D review pending. |
 | TASK-BILL-06 | Outstanding report and AT12 verification | E | D | Pending | — |
 
 ## 9. Reports and integrated testing (weeks 5–8)
@@ -127,8 +127,8 @@ Status values: **Pending** = not started; **In progress** = work underway but co
 | --- | --- | --- | --- | --- | --- |
 | TASK-OPS-01 | Compose, configuration, HTTPS and pilot deployment | A | F | Pending | — |
 | TASK-OPS-02 | Encrypted daily backup and isolated restore | A | F; clinic operations review | Pending | — |
-| TASK-OPS-03 | Usage, outage, API/setup and migration guides | F assembles; each owner writes module | A | In progress | B's [patient/clinical guide](guides/member-b-staff.md) and A's [administration guide](guides/member-a-administration.md)/[operations runbook](operations.md), A slice on `codex/ops-03-admin-runbook`; A's reviewer is F. Named-member walkthroughs and F/A assembly/review pending |
-| TASK-OPS-04 | Clean startup, migrations, seed and restart | A with F | F | Pending | — |
+| TASK-OPS-03 | Usage, outage, API/setup and migration guides | F assembles; each owner writes module | A | In progress | B's [patient/clinical guide](guides/member-b-staff.md) reflects the current guarded plan actions, with [author check and verifier handoff](evidence/member-b-ops-03-guide-2026-11-07.md); A's [administration guide](guides/member-a-administration.md)/[operations runbook](operations.md), A slice on `codex/ops-03-admin-runbook`. Named-member walkthroughs and F/A assembly/review pending |
+| TASK-OPS-04 | Clean startup, migrations, seed and restart | A with F | F | In progress | `codex/ops-04-clean-start`; [isolated pilot-image verification](../deploy/verification/README.md) and [execution record](testing.md#task-ops-04-clean-startup-and-persistence-7-november-2026). Independent walkthrough/review and full AT17 remain open. |
 | TASK-OPS-05 | Data authorization, custody and support decisions | Team lead; A handles operations | Clinic/institution | Pending | — |
 | TASK-OPS-06 | Training, release and handover | F; all owners teach modules | A; clinic recipient | Pending | — |
 

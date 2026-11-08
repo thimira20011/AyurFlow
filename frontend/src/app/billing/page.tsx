@@ -1,18 +1,11 @@
 "use client";
 
-import Link from "next/link";
 import { BillingWorkspace } from "@/features/billing/billing-workspace";
+import HeritageShell from "@/features/clinical/heritage-shell";
+import styles from "@/components/staff-surfaces.module.css";
 
 export default function BillingPage() {
-  return (
-    <section className="w-full max-w-6xl mx-auto py-4">
-      <div className="mb-6">
-        <Link href="/workspace" className="text-sm font-semibold text-emerald-800 hover:text-emerald-950 inline-flex items-center gap-1">
-          ← Back to Clinic Workspace
-        </Link>
-      </div>
-
-      <BillingWorkspace />
-    </section>
-  );
+  return <HeritageShell section="Billing"><section className={styles.page}>
+    <BillingWorkspace />
+  </section></HeritageShell>;
 }

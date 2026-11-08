@@ -1,12 +1,12 @@
 .workspace {
-  --bill-ink: oklch(0.24 0.04 150);
-  --bill-muted: oklch(0.48 0.02 155);
-  --bill-border: oklch(0.88 0.015 150);
-  --bill-surface: oklch(0.995 0.005 145);
-  --bill-soft: oklch(0.965 0.015 145);
-  --bill-accent: oklch(0.38 0.1 155);
-  --bill-gold: oklch(0.52 0.13 75);
-  --bill-gold-soft: oklch(0.96 0.04 80);
+  --bill-ink: var(--staff-text);
+  --bill-muted: var(--staff-muted);
+  --bill-border: var(--staff-border);
+  --bill-surface: var(--staff-surface);
+  --bill-soft: var(--staff-sage);
+  --bill-accent: var(--staff-forest);
+  --bill-gold: #85622d;
+  --bill-gold-soft: #f5e9cd;
   --bill-draft: oklch(0.5 0.12 65);
   --bill-draft-bg: oklch(0.96 0.04 70);
   --bill-issued: oklch(0.4 0.11 155);
@@ -21,7 +21,7 @@
   align-items: center;
   background: var(--bill-gold-soft);
   border: 1px solid oklch(0.82 0.08 75);
-  border-radius: 10px;
+  border-radius: 8px;
   display: flex;
   flex-wrap: wrap;
   gap: 0.75rem 1.25rem;
@@ -66,7 +66,7 @@
 }
 
 .title {
-  font-family: Georgia, "Times New Roman", serif;
+  font-family: var(--font-lora), Georgia, "Times New Roman", serif;
   font-size: clamp(2rem, 3.2vw, 2.75rem);
   font-weight: 700;
   letter-spacing: -0.03em;
@@ -90,7 +90,7 @@
 .statCard {
   background: var(--bill-surface);
   border: 1px solid var(--bill-border);
-  border-radius: 12px;
+  border-radius: 8px;
   padding: 1.25rem 1.5rem;
   transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
@@ -169,10 +169,11 @@
 
 .searchInput {
   background: var(--bill-surface);
-  border: 1px solid var(--bill-border);
+  border: 1px solid #79816b;
   border-radius: 8px;
   color: var(--bill-ink);
   font-size: 0.92rem;
+  min-height: 44px;
   padding: 0.6rem 0.9rem;
   width: 100%;
 }
@@ -213,7 +214,7 @@
 .primaryBtn {
   align-items: center;
   background: var(--bill-accent);
-  border: none;
+  border: 1px solid var(--staff-brass);
   border-radius: 8px;
   color: #fff;
   cursor: pointer;
@@ -221,6 +222,7 @@
   font-size: 0.92rem;
   font-weight: 600;
   gap: 0.5rem;
+  min-height: 44px;
   padding: 0.65rem 1.25rem;
   transition: background 0.15s ease, transform 0.1s ease;
 }
@@ -245,6 +247,7 @@
   font-size: 0.92rem;
   font-weight: 600;
   gap: 0.5rem;
+  min-height: 44px;
   padding: 0.65rem 1.25rem;
   transition: all 0.15s ease;
 }
@@ -256,7 +259,7 @@
 .tableWrap {
   background: var(--bill-surface);
   border: 1px solid var(--bill-border);
-  border-radius: 12px;
+  border-radius: 8px;
   overflow-x: auto;
 }
 
@@ -272,10 +275,10 @@
   border-bottom: 1px solid var(--bill-border);
   color: var(--bill-muted);
   font-size: 0.78rem;
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: 0.05em;
   padding: 0.85rem 1.25rem;
-  text-transform: uppercase;
+  text-transform: none;
 }
 
 .table td {
@@ -385,6 +388,18 @@
 .formGrid {
   display: grid;
   gap: 1.25rem;
+}
+
+.lineFields {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr) minmax(0, 1fr) auto;
+}
+
+@media (max-width: 700px) {
+  .lineFields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .formGroup {
