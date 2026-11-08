@@ -33,7 +33,7 @@ Status values: **Pending** = not started; **In progress** = work underway but co
 
 | Task | Deliverable | Owner slot | Peer reviewer | Status | Evidence |
 | --- | --- | --- | --- | --- | --- |
-| TASK-UI-01 | Role-based navigation and screen access | F | A; all owners review | In progress | Member B shared-workspace implementation on `member-b/shared-workspace-ui`; [implementation and checks](ui/shared-workspace-implementation.md). F/A review and integrated acceptance remain. |
+| TASK-UI-01 | Role-based navigation and screen access | F | A; all owners review | In progress | Member B shared-workspace implementation on `member-b/shared-workspace-ui`; reception entry now links to the protected patient flow on `member-b/reception-live-entry`. F/A review and integrated acceptance remain. |
 | TASK-UI-02 | Patient, consultation and plan wireframes | F with B | A | Done | [Wireframes and handoff](ui/member-b-clinical-wireframes.md) merged in [PR #33](https://github.com/thimira20011/AyurFlow/pull/33); collaborator approval and B-confirmed team review. DEC02/08 still gate affected clinical implementation/UAT. |
 | TASK-UI-03 | Availability, booking and therapist wireframes | F with C | A | Pending | — |
 | TASK-UI-04 | Batch, recipe, preparation and traceability wireframes | F with D | A | Pending | — |

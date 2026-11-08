@@ -89,6 +89,18 @@ test("a receptionist cannot open staff administration", async ({ page }) => {
   await expect(page.getByRole("table", { name: "Staff accounts" })).toHaveCount(0);
 });
 
+test("reception routes registration to the protected registry without invented appointments", async ({ page }) => {
+  await authAPI(page);
+  await page.setViewportSize({ width: 1024, height: 768 });
+  await page.goto("/reception");
+  await expect(page.getByRole("link", { name: "+ Register patient" })).toHaveAttribute("href", "/patients?action=register");
+  await expect(page.getByText("Nimali Perera")).toHaveCount(0);
+  await expect(page.getByText("Sessions are not available here yet")).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(1024);
+  await page.getByRole("link", { name: "+ Register patient" }).click();
+  await expect(page).toHaveURL(/\/patients\?action=register$/);
+});
+
 test("workspace navigation shows only the signed-in role's areas", async ({ page }) => {
   await authAPI(page, ["clinician"]);
   await page.setViewportSize({ width: 1024, height: 768 });
