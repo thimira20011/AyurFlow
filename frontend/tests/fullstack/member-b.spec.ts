@@ -215,9 +215,14 @@ test("CLN-05: clinician plan timeline, guarded decisions and responsive layout u
     await expect(detail.getByRole("group", { name: "Confirm cancel" })).toHaveCount(0);
     await detail.getByRole("button", { name: "Cancel plan" }).click();
     await cancellation.getByRole("button", { name: "Confirm cancel" }).click();
-    await expect(page.getByRole("alert").filter({ hasText: "required clinical evidence is missing" })).toBeVisible();
+    await expect(page.getByRole("status").filter({ hasText: "Plan cancelled." })).toBeVisible();
     await page.getByRole("region", { name: "Patient plans" }).getByRole("button").first().click();
-    await expect(detail.getByText("Active", { exact: true })).toBeVisible();
+    await expect(detail.getByText("Cancelled", { exact: true })).toBeVisible();
+    await expect(detail.getByText("Synthetic cancellation review")).toBeVisible();
+    await expect(detail.getByRole("button", { name: "Cancel plan" })).toHaveCount(0);
+    const cancelledPlan = await clinician.get(`/api/v1/plans/${planId}`);
+    expect(cancelledPlan.status()).toBe(200);
+    expect((await cancelledPlan.json()).status).toBe("cancelled");
 
     for (const width of [1366, 1024, 700]) {
       await page.setViewportSize({ width, height: 768 });
