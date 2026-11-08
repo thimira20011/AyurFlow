@@ -1,0 +1,61 @@
+# TASK-UI-04 — botanical batch, flat recipe, preparation and traceability screen wireframes
+
+**TASK-UI-04 design proposal.** [Open the visual wireframes](member-d-inventory-wireframes.html) or open the development-only interactive Next.js preview at `/inventory/preview` (`NODE_ENV=development`). These wireframes use synthetic labels from [member-d-cases.json](../../tests/fixtures/member-d-cases.json), show intended dispensary and report screen structure, and do not register protected backend routes. Member F owns the shared design system (`TASK-UI-01`, `TASK-UI-06`); Member D (`K. I. R. Perera`) owns the botanical inventory, flat recipe, preparation snapshot, actual consumption, and traceability rules represented here; Member A is the task reviewer and Member E is D's module peer reviewer.
+
+## Scope and source
+
+This proposal covers:
+1. **Botanical items and stock batches** (`INV-01`–`04`, `ADM-01`, `AT08`): registering raw botanical items (`g` base unit), recording positive fixed-precision gram batch receipts (`0.001 g` scale), inspecting `Asia/Colombo` expiry and eligibility states (`Eligible`, `Blocked`, `Expired`, `Unknown Expiry · Not Consumable`, `Depleted`), and blocking a batch with a mandatory audit reason.
+2. **Flat recipes and scaled preparation snapshots** (`PRE-01`–`03`, `AT09`): maintaining flat recipes (direct botanical item ingredients only; no nested recipes), scaling ingredient quantities deterministically using Round Half Up (`base_qty × target_yield ÷ base_yield` to `0.001 g`), and saving an immutable preparation snapshot linked to `patientId` and `sessionId` with **zero stock reservation or deduction**.
+3. **Manual batch selection and atomic actual consumption** (`INV-02`–`04`, `PRE-03`–`05`, `NFR-02`, `AT10`): visually distinguishing a saved **`Prepared · Awaiting Confirmation (No Stock Deducted)`** record from a **`Consumed · Stock Deducted (Immutable)`** record, manually allocating eligible batches per snapshot ingredient so their sum equals `requiredGrams`, and submitting with a client-generated UUID `operationId` for safe idempotent retry.
+4. **Bidirectional traceability and stock availability reports** (`PRE-06`, `REP-01`, `AT11`, `AT13`): forward batch-to-recipient lookup, reverse patient-to-consumed-batch lookup (explicitly excluding unconfirmed `Prepared` snapshots from actual consumption history), and item stock availability separating consumable grams from blocked, expired, and unknown-expiry quantities.
+
+It follows [the implementation plan](../implementation-plan.md), [D's API and schema contract](../api/member-d-contract.md), [the DEC03 review record](../inventory-rules-review.md), and [D's synthetic test examples](../qa/member-d-examples.md). `DEC03` (clinic recipe catalog, unit conversion table, rounding sign-off, expiry inclusivity, and external discrepancy procedure) and `DEC07` (shared session/CSRF/error/retry conventions) remain open gates for inventory UAT.
+
+## Screen map
+
+| Screen | Primary question and action | Information shown | Access boundary |
+| --- | --- | --- | --- |
+| 01 · Botanical items & stock batches | Which batches are eligible to dispense right now? Register item, receive batch, or block batch with reason. | Item code/name (`g`), batch reference, `receivedGrams`, `remainingGrams`, `expiresAt` (`YYYY-MM-DD`), explicit eligibility badge, block actor/time/reason. | `dispensary` creates/receives/blocks; `administrator` may register/deactivate reference items (`ADM-01`); `report_reader` reads. Referenced batches have no delete control (`INV-04`). |
+| 02 · Flat recipes & preparation snapshot | What exact gram quantities are required for this patient's session yield? Create/edit flat recipe or save scaled preparation snapshot. | Flat recipe base yield and direct botanical ingredients; target yield input (`g`); live scaled preview (`50.000 g`, `3.333 g`); saved preparation snapshot card with `Prepared · No Stock Deducted` status badge. | `dispensary` creates/edits recipes and saves preparations; `clinician` may read recipes. Only minimum patient/session identifiers (`patientId`, `displayName`, `sessionId`, stage label) are shown; **never** clinical consultation notes (`IAM-04`). |
+| 03 · Manual batch selection & confirmed consumption | Has stock actually been deducted for this preparation, and from which eligible batches? Select batches manually and confirm consumption once. | Side-by-side / distinct states: (a) **`Prepared · Awaiting Confirmation`** with per-ingredient required grams, manual batch allocation rows, live allocation sum check, and `operationId`; (b) **`Consumed · Stock Deducted (Immutable)`** with confirmer, UTC/Asia-Colombo timestamp, `operationId`, and deducted batch rows. | `dispensary` only. No automatic FEFO picker or stock reservation toggle (`INV-03`, `PRE-03`). Confirmation rechecks batch eligibility and sufficiency inside the backend transaction (`PRE-04`–`05`). |
+| 04 · Bidirectional traceability & stock report | Which patients received a batch, which batches did a patient receive, and how much consumable stock remains? | Forward batch → patients/sessions/preparations table; reverse patient → confirmed batches table (with explicit notice that `Prepared` snapshots are excluded); stock summary separating `Consumable`, `Blocked`, `Expired`, and `Unknown Expiry` grams. | `dispensary` and `report_reader` (plus assigned `clinician` for reverse patient traceability). No clinical note text in any view or export (`IAM-04`, `REP-01`). |
+
+## Interaction contract for F
+
+1. **Unambiguous `Prepared` vs. `Consumed` visual boundary (`TASK-UI-04` exit criterion, `PRE-03`–`05`)**:
+   - Every preparation card, table row, and detail header must display both a status word and distinct container styling:
+     - **`Prepared · No Stock Deducted`** (warm amber/ochre badge + dashed/open action card): explicitly states that ingredient quantities are a saved snapshot only and batch `remainingGrams` have **not** been reserved or reduced.
+     - **`Consumed · Stock Deducted (Immutable)`** (solid forest-green badge + locked read-only card): shows the confirmed batch breakdown, confirmer, timestamp in `Asia/Colombo`, and `operationId`. All edit, re-confirm, and delete controls are removed.
+2. **Explicit batch eligibility words alongside colour (`INV-02`–`03`, `DEC03`)**:
+   - Use explicit text badges: **`Eligible`**, **`Blocked`**, **`Expired`**, **`Unknown Expiry · Not Consumable`**, and **`Depleted (0.000 g)`**.
+   - Never offer an automatic FEFO selection button or a "Reserve Stock" action. In the manual batch selector, disable or filter out ineligible batches while showing why a batch is unavailable (`Blocked: Packaging seal damaged`, `Expired: 2025-12-31`, `Unknown expiry: missing date`).
+3. **Fixed-precision gram inputs and live sum check (`INV-01`, `PRE-02`, `PRE-04`)**:
+   - Format all quantities as three-decimal gram strings (`"1000.000 g"`, `"50.000 g"`, `"3.333 g"`). Reject zero, negative, or >3-decimal inputs at the field level (`422`).
+   - During manual batch selection, show the live per-ingredient allocation sum against the snapshot requirement (e.g., `Allocated: 30.000 g + 20.000 g = 50.000 g of 50.000 g required`). Disable the `Confirm Actual Consumption` button until every snapshot ingredient's allocated sum matches `requiredGrams` exactly.
+4. **Idempotent `operationId` retry & conflict recovery (`PRE-05`, `NFR-02`)**:
+   - Generate one UUIDv4 `operationId` when a confirmation attempt begins and retain that exact `operationId` if the user retries after a network timeout (`ambiguous outcome`). Generate a fresh `operationId` only when the user intentionally changes batch allocations after a definitive validation/conflict response.
+   - If another staff member blocks a selected batch, depletes its stock, or confirms the preparation first (`409 Conflict`), keep the user's screen context, highlight the conflicting batch/preparation state, and offer a `Reload Latest Batch & Preparation State` action; never present a rolled-back transaction as successful.
+5. **Minimum patient/session context without clinical note leakage (`IAM-04`, `SRS §2`)**:
+   - Preparation and traceability screens show only permitted identifiers (`patientId`, `displayName`, `sessionId`, scheduled interval/stage label). Never fetch or render consultation draft/signed text or addenda.
+6. **Viewport and keyboard accessibility (`NFR-03`, `AT15`)**:
+   - At `1366 × 768` desktop, list/selector and detail/allocation panels sit side by side; at `1024 × 768` tablet, panels stack cleanly without horizontal clipping of batch references, gram quantities, or action buttons. All controls maintain a `44 px` minimum target height and visible `:focus-visible` outlines.
+
+## State coverage for implementation
+
+| State | 01 · Batches | 02 · Recipes & Snapshot | 03 · Consumption Confirmation | 04 · Traceability & Stock Report |
+| --- | --- | --- | --- | --- |
+| First/empty | No batches recorded for selected item; prompt to receive a positive gram batch. | No preparations saved for session; select a flat recipe and target yield (`g`). | Preparation is `Prepared · No Stock Deducted`; manual allocation rows start empty (`0.000 g` allocated). | No confirmed consumptions yet; report explicitly states that `Prepared` snapshots are excluded. |
+| Loading/ambiguous | Loading batch list or submitting receipt/block; disable duplicate submit. | Calculating/saving scaled snapshot; prevent double save. | Confirmation in flight or network timeout; preserve `operationId` and show `Retry Confirmation with Same Operation ID` rather than assuming failure. | Report query loading; show applied filter summary. |
+| Forbidden/inaccessible | Non-dispensary user sees read-only view (if `report_reader`) or generic `403 Forbidden` notice; no mutation controls. | Non-dispensary caller cannot save preparations or edit recipes; clinical notes remain absent for all callers. | Non-dispensary caller denied (`403`); no stock deduction possible. | Unauthorised role denied (`403`); unassigned clinician denied other patient's reverse trace (`404`/`403`). |
+| Conflict (`409`) | Duplicate `batchReference` or already blocked batch; prompt to inspect existing batch. | Stale recipe `version` during edit (`409`); prompt to reload latest recipe before re-saving; existing preparation snapshots remain untouched. | Selected batch became blocked, expired, or insufficient (`remainingGrams < requestedGrams`), or preparation was already confirmed by another request (`409`); whole transaction rolls back and UI prompts reload. | N/A (read-only derived views from committed history). |
+| Historical/immutable | Deactivated item or depleted/consumed batch remains visible in history with no delete button (`INV-04`, `ADM-01`). | Saved preparation snapshot remains fixed at `"50.000 g"` even after the underlying recipe is edited to `"35.000 g"` (`PRE-02`). | Confirmed preparation is locked as **`Consumed · Stock Deducted (Immutable)`** showing `operationId`, actor, timestamp, and deducted batch rows (`PRE-04`–`05`). | Forward and reverse traceability permanently reflect committed `batch_consumptions` rows. |
+
+## Review gates and handoff
+
+| Reviewer | Requested decision | Status |
+| --- | --- | --- |
+| F — accountable UI owner | Confirm shared layout, badge tokens (`Prepared` vs `Consumed`, batch eligibility), responsive breakpoints (`1366×768` / `1024×768`), and integration with `TASK-UI-06` and `TASK-QA-02`. | Ready for review on `member-d/task-ui-04-inventory-wireframes` |
+| A — `TASK-UI-04` reviewer | Confirm role boundaries (`dispensary`, `report_reader`, `administrator`), absence of clinical notes, and `operationId` retry UX alignment with `DEC07`. | Ready for review on `member-d/task-ui-04-inventory-wireframes` |
+| E — D peer reviewer | Confirm consistency between consumption `operationId` retry states and E's receipt `operationId` retry states. | Ready for review on `member-d/task-ui-04-inventory-wireframes` |
+| Clinic dispensary reviewer with D — `DEC03` | Confirm recipe catalog, unit conversions, `0.001 g` rounding examples, inclusive expiry, missing-expiry handling, and external discrepancy procedure before inventory UAT. | Pending (see [inventory-rules-review.md](../inventory-rules-review.md)) |

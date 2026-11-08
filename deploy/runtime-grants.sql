@@ -15,7 +15,8 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON
 TO :"app_role";
 GRANT SELECT, INSERT, UPDATE ON
     :"schema".patient_clinician_assignments, :"schema".care_plans,
-    :"schema".plan_stages
+    :"schema".plan_stages, :"schema".botanical_items,
+    :"schema".stock_batches
 TO :"app_role";
 GRANT SELECT, INSERT ON :"schema".plan_decisions TO :"app_role";
 GRANT SELECT ON :"schema".roles TO :"app_role";
