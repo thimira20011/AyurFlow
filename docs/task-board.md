@@ -128,7 +128,7 @@ Status values: **Pending** = not started; **In progress** = work underway but co
 | TASK-OPS-01 | Compose, configuration, HTTPS and pilot deployment | A | F | Pending | — |
 | TASK-OPS-02 | Encrypted daily backup and isolated restore | A | F; clinic operations review | Pending | — |
 | TASK-OPS-03 | Usage, outage, API/setup and migration guides | F assembles; each owner writes module | A | In progress | B's [patient/clinical guide](guides/member-b-staff.md) reflects the current guarded plan actions, with [author check and verifier handoff](evidence/member-b-ops-03-guide-2026-11-07.md); A's [administration guide](guides/member-a-administration.md)/[operations runbook](operations.md), A slice on `codex/ops-03-admin-runbook`. Named-member walkthroughs and F/A assembly/review pending |
-| TASK-OPS-04 | Clean startup, migrations, seed and restart | A with F | F | Pending | — |
+| TASK-OPS-04 | Clean startup, migrations, seed and restart | A with F | F | In progress | `codex/ops-04-clean-start`; [isolated pilot-image verification](../deploy/verification/README.md) and [execution record](testing.md#task-ops-04-clean-startup-and-persistence-7-november-2026). Independent walkthrough/review and full AT17 remain open. |
 | TASK-OPS-05 | Data authorization, custody and support decisions | Team lead; A handles operations | Clinic/institution | Pending | — |
 | TASK-OPS-06 | Training, release and handover | F; all owners teach modules | A; clinic recipient | Pending | — |
 
