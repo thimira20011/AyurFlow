@@ -133,7 +133,7 @@ export function StaffSessionProvider({ children }: { children: React.ReactNode }
     </section></div>;
   }
   return <SessionContext.Provider value={{ session, loading, error, refresh, signIn, signOut, signingOut }}>
-    {session && !path.startsWith("/reception") && path !== "/administration" && <nav aria-label="Staff session" className="mb-6 flex flex-wrap items-center gap-4 rounded-xl border border-green-900/15 bg-white p-4">
+    {session && !path.startsWith("/reception") && path !== "/administration" && path !== "/dashboard" && <nav aria-label="Staff session" className="mb-6 flex flex-wrap items-center gap-4 rounded-xl border border-green-900/15 bg-white p-4">
       <Link href="/workspace" className="font-semibold underline">Workspace</Link>
       <span className="text-sm">{session.roles.length ? session.roles.join(", ") : "No roles assigned"}</span>
       <button type="button" className="ml-auto rounded-lg border px-4 py-2" disabled={signingOut} onClick={() => void signOut()}>{signingOut ? "Signing out…" : "Sign out"}</button>
