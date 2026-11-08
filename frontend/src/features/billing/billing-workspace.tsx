@@ -2,15 +2,16 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import styles from "./billing-workspace.module.css";
+import { parseLKRMinor, toLKRInput } from "./money";
 import { formatLKR, formatClinicDateTime } from "@/lib/format";
 import { APIRequestError } from "@/lib/api-client";
 import {
   Invoice,
   InvoiceItem,
   Receipt,
-  InvoiceBalance,
   OutstandingReport,
   PaymentMethod,
+  PostReceiptRequest,
 } from "./types";
 import {
   getBillingSession,
@@ -22,7 +23,6 @@ import {
   issueInvoice,
   voidInvoice,
   postReceipt,
-  getInvoiceBalance,
   listReceipts,
   getOutstandingReport,
 } from "./api";
@@ -107,11 +107,6 @@ function billingErrorText(error: unknown, action: string): string {
   return "The request could not be completed. Check your connection and try again.";
 }
 
-function generateOpId(): string {
-  if (typeof crypto !== "undefined" && crypto.randomUUID) return crypto.randomUUID();
-  return "op-" + Math.random().toString(36).substring(2, 15) + "-" + Date.now();
-}
-
 // ---------------------------------------------------------------------------
 // Access modes
 // ---------------------------------------------------------------------------
@@ -125,7 +120,10 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
 
   // Live data state (populated from API when access === "ready")
   const [invoices, setInvoices] = useState<Invoice[]>(preview ? DEMO_INVOICES : []);
-  const [receipts, setReceipts] = useState<Receipt[]>(preview ? DEMO_RECEIPTS : []);
+  const [receiptHistory, setReceiptHistory] = useState<Record<string, Receipt[]>>({});
+  const [canWrite, setCanWrite] = useState(preview);
+  const [canReadInvoices, setCanReadInvoices] = useState(preview);
+  const [canReadReport, setCanReadReport] = useState(preview);
   const [report, setReport] = useState<OutstandingReport | null>(null);
   const [patientIdQuery, setPatientIdQuery] = useState("");
   const [loadingInvoices, setLoadingInvoices] = useState(false);
@@ -133,8 +131,7 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
 
   // Invoice detail / receipt history
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
-  const [invoiceReceipts, setInvoiceReceipts] = useState<Receipt[]>([]);
-  const [invoiceBalance, setInvoiceBalance] = useState<InvoiceBalance | null>(null);
+  const [detailError, setDetailError] = useState<string | null>(null);
   const [loadingDetail, setLoadingDetail] = useState(false);
 
   // Tab state
@@ -156,14 +153,16 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
   // Add item form (within selected invoice modal)
   const [itemDesc, setItemDesc] = useState("");
   const [itemQty, setItemQty] = useState(1);
-  const [itemPriceRupees, setItemPriceRupees] = useState(2500);
+  const [itemPriceRupees, setItemPriceRupees] = useState("2500.00");
   const [submittingItem, setSubmittingItem] = useState(false);
 
   // Receipt form
-  const [receiptAmountRupees, setReceiptAmountRupees] = useState(0);
+  const [receiptAmountRupees, setReceiptAmountRupees] = useState("");
   const [receiptMethod, setReceiptMethod] = useState<PaymentMethod>("cash");
   const [receiptLabel, setReceiptLabel] = useState("");
-  const [receiptOperationId, setReceiptOperationId] = useState("");
+  const pendingReceipts = useRef<Record<string, PostReceiptRequest>>({});
+  const [uncertainInvoices, setUncertainInvoices] = useState<string[]>([]);
+  const [receiptError, setReceiptError] = useState<string | null>(null);
   const [submittingReceipt, setSubmittingReceipt] = useState(false);
 
   // Notifications
@@ -172,6 +171,8 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
 
   const [asOfTimestamp] = useState(() => Date.now());
   const liveRef = useRef(true);
+  const invoiceListRequest = useRef(0);
+  const invoiceDetailRequest = useRef(0);
 
   // ---------------------------------------------------------------------------
   // Session check on mount
@@ -180,7 +181,16 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
     if (preview) return;
     liveRef.current = true;
     getBillingSession().then(
-      () => { if (liveRef.current) setAccess("ready"); },
+      (session) => {
+        if (!liveRef.current) return;
+        const billing = session.roles.includes("billing");
+        const invoiceAccess = billing || session.roles.includes("receptionist");
+        setCanWrite(billing);
+        setCanReadInvoices(invoiceAccess);
+        setCanReadReport(billing || session.roles.includes("report_reader"));
+        if (!invoiceAccess) setActiveTab("report");
+        setAccess("ready");
+      },
       (error: unknown) => {
         if (!liveRef.current) return;
         if (error instanceof APIRequestError && error.status === 401) setAccess("signin");
@@ -196,15 +206,35 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
   // ---------------------------------------------------------------------------
   const fetchInvoicesForPatient = useCallback(async (patientId: string) => {
     if (!patientId.trim() || access !== "ready") return;
+    const request = ++invoiceListRequest.current;
+    const isCurrent = () => liveRef.current && request === invoiceListRequest.current;
     setLoadingInvoices(true);
     setActionError(null);
     try {
       const page = await listInvoicesForPatient(patientId.trim());
-      if (liveRef.current) setInvoices(page.items);
+      const items = page.items ?? [];
+      const issued = items.filter(invoice => invoice.status === "issued");
+      const histories: Record<string, Receipt[]> = {};
+      let historyUnavailable = false;
+      for (let i = 0; i < issued.length && isCurrent(); i += 4) {
+        await Promise.all(issued.slice(i, i + 4).map(async ({ id }) => {
+          try {
+            histories[id] = (await listReceipts(id)).items ?? [];
+          } catch {
+            historyUnavailable = true;
+          }
+        }));
+      }
+      if (!isCurrent()) return;
+      setInvoices(items);
+      setReceiptHistory(histories);
+      setFilterStatus("all");
+      setSearchQuery("");
+      if (historyUnavailable) setActionError("Some balances could not be loaded. Open the invoice to try again.");
     } catch (error) {
-      if (liveRef.current) setActionError(billingErrorText(error, "list"));
+      if (isCurrent()) setActionError(billingErrorText(error, "list"));
     } finally {
-      if (liveRef.current) setLoadingInvoices(false);
+      if (isCurrent()) setLoadingInvoices(false);
     }
   }, [access]);
 
@@ -228,50 +258,50 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
   // Open invoice detail: fetch items + receipts + balance from API
   // ---------------------------------------------------------------------------
   const openInvoiceDetail = useCallback(async (inv: Invoice) => {
+    const request = ++invoiceDetailRequest.current;
+    const isCurrent = () => liveRef.current && request === invoiceDetailRequest.current;
     setSelectedInvoice(inv);
-    setInvoiceReceipts([]);
-    setInvoiceBalance(null);
+    setDetailError(null);
     setItemDesc("");
     setItemQty(1);
-    setItemPriceRupees(2500);
+    setItemPriceRupees("2500.00");
 
-    if (access !== "ready") return; // preview: use local data
+    if (access !== "ready") return;
     setLoadingDetail(true);
     try {
-      const [fresh, { items: recs }] = await Promise.all([
-        getInvoice(inv.id),
-        listReceipts(inv.id),
-      ]);
-      let bal: InvoiceBalance | null = null;
-      if (fresh.status === "issued") {
-        bal = await getInvoiceBalance(inv.id);
-      }
-      if (liveRef.current) {
+      const fresh = await getInvoice(inv.id);
+      if (fresh.status === "draft") fresh.items ??= [];
+      const recs = fresh.status === "issued" ? (await listReceipts(inv.id)).items ?? [] : [];
+      if (isCurrent()) {
         setSelectedInvoice(fresh);
-        setInvoiceReceipts(recs);
-        setInvoiceBalance(bal);
-        // Refresh invoice in list
-        setInvoices((prev) => prev.map((i) => (i.id === fresh.id ? fresh : i)));
+        setReceiptHistory(prev => ({ ...prev, [fresh.id]: recs }));
+        setInvoices(prev => prev.map(i => i.id === fresh.id ? fresh : i));
       }
     } catch (error) {
-      if (liveRef.current) setActionError(billingErrorText(error, "read"));
+      if (isCurrent()) setDetailError(billingErrorText(error, "read"));
     } finally {
-      if (liveRef.current) setLoadingDetail(false);
+      if (isCurrent()) setLoadingDetail(false);
     }
   }, [access]);
 
-  // For preview mode: compute balance from local receipts state
-  function computePreviewBalance(inv: Invoice): { total: number; paid: number; outstanding: number } {
-    const total = inv.totalMinor ?? (inv.items?.reduce((s, i) => s + i.lineTotalMinor, 0) ?? 0);
-    const paid = (access === "ready" ? invoiceReceipts : DEMO_RECEIPTS)
-      .filter((r) => r.invoiceId === inv.id)
-      .reduce((s, r) => s + r.amountMinor, 0);
-    return { total, paid, outstanding: Math.max(0, total - paid) };
+  function closeInvoiceDetail() {
+    if (submittingItem) return;
+    invoiceDetailRequest.current++;
+    setSelectedInvoice(null);
+    setLoadingDetail(false);
+    setDetailError(null);
   }
 
-  // For the invoice list table (uses live invoiceBalance when selected, otherwise local state)
+  function invoiceTotal(inv: Invoice) {
+    return inv.totalMinor ?? (inv.items ?? []).reduce((sum, item) => sum + item.lineTotalMinor, 0);
+  }
+
   function balanceForListRow(inv: Invoice) {
-    return computePreviewBalance(inv);
+    const total = invoiceTotal(inv);
+    const history = receiptHistory[inv.id] ?? (preview ? DEMO_RECEIPTS.filter(r => r.invoiceId === inv.id) : undefined);
+    if (!history && inv.status === "issued") return null;
+    const paid = (history ?? []).reduce((sum, r) => sum + r.amountMinor, 0);
+    return { total, paid, outstanding: total - paid };
   }
 
   // ---------------------------------------------------------------------------
@@ -280,6 +310,7 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
   async function handleCreateInvoice(e: React.FormEvent) {
     e.preventDefault();
     setActionError(null);
+    if (!canWrite || submittingInvoice) return;
     if (!newPatientId.trim()) { setActionError("Patient ID is required."); return; }
 
     if (access !== "ready") {
@@ -304,8 +335,10 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
     try {
       const inv = await createInvoice({ patientId: newPatientId.trim() });
       if (!liveRef.current) return;
-      // Reload the list for this patient (or prepend)
-      setInvoices((prev) => [inv, ...prev]);
+      setPatientIdQuery(inv.patientId);
+      setInvoices(prev => [inv, ...prev.filter(i => i.patientId === inv.patientId)]);
+      setFilterStatus("all");
+      setSearchQuery("");
       setIsNewInvoiceOpen(false);
       setNewPatientId("");
       setActionSuccess(`Draft invoice ${inv.id} opened.`);
@@ -322,10 +355,15 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
   // ---------------------------------------------------------------------------
   async function handleAddItem(e: React.FormEvent) {
     e.preventDefault();
-    if (!selectedInvoice || selectedInvoice.status !== "draft") return;
-    if (!itemDesc.trim()) { setActionError("Item description is required."); return; }
-    if (itemQty <= 0) { setActionError("Quantity must be greater than zero."); return; }
-    const unitPriceMinor = Math.round(itemPriceRupees * 100);
+    if (!canWrite || submittingItem || loadingDetail || !selectedInvoice || selectedInvoice.status !== "draft") return;
+    if (!itemDesc.trim()) { setDetailError("Item description is required."); return; }
+    if (!Number.isInteger(itemQty) || itemQty <= 0) { setDetailError("Quantity must be a positive whole number."); return; }
+    setDetailError(null);
+    const unitPriceMinor = parseLKRMinor(itemPriceRupees);
+    if (unitPriceMinor === null || !Number.isSafeInteger(itemQty * unitPriceMinor)) {
+      setDetailError("Enter a valid unit price with at most two decimal places.");
+      return;
+    }
     const lineTotalMinor = itemQty * unitPriceMinor;
 
     if (access !== "ready") {
@@ -362,7 +400,7 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
       setItemDesc(""); setItemQty(1);
       setActionSuccess(`Added: ${item.description}`);
     } catch (error) {
-      if (liveRef.current) setActionError(billingErrorText(error, "add_item"));
+      if (liveRef.current) setDetailError(billingErrorText(error, "add_item"));
     } finally {
       if (liveRef.current) setSubmittingItem(false);
     }
@@ -372,7 +410,7 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
   // Remove line item
   // ---------------------------------------------------------------------------
   async function handleRemoveItem(itemId: string) {
-    if (!selectedInvoice || selectedInvoice.status !== "draft") return;
+    if (!canWrite || submittingItem || loadingDetail || !selectedInvoice || selectedInvoice.status !== "draft") return;
 
     if (access !== "ready") {
       const updatedItems = (selectedInvoice.items ?? []).filter((i) => i.id !== itemId);
@@ -382,6 +420,8 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
       return;
     }
 
+    setSubmittingItem(true);
+    setDetailError(null);
     try {
       await removeInvoiceItem(selectedInvoice.id, itemId);
       if (!liveRef.current) return;
@@ -390,7 +430,9 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
       setSelectedInvoice(updatedInv);
       setInvoices((prev) => prev.map((i) => (i.id === updatedInv.id ? updatedInv : i)));
     } catch (error) {
-      if (liveRef.current) setActionError(billingErrorText(error, "remove_item"));
+      if (liveRef.current) setDetailError(billingErrorText(error, "remove_item"));
+    } finally {
+      if (liveRef.current) setSubmittingItem(false);
     }
   }
 
@@ -398,7 +440,7 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
   // Issue invoice
   // ---------------------------------------------------------------------------
   async function handleIssueInvoice(inv: Invoice) {
-    if (inv.status !== "draft") return;
+    if (!canWrite || submittingItem || loadingDetail || inv.status !== "draft") return;
     const items = inv.items ?? [];
     if (items.length === 0) { setActionError("Cannot issue an invoice with no line items."); return; }
 
@@ -411,19 +453,19 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
       return;
     }
 
+    setSubmittingItem(true);
+    setDetailError(null);
     try {
-      const issuedInv = await issueInvoice(inv.id);
+      const issuedInv = { ...await issueInvoice(inv.id), items };
       if (!liveRef.current) return;
       setInvoices((prev) => prev.map((i) => (i.id === issuedInv.id ? issuedInv : i)));
-      if (selectedInvoice?.id === issuedInv.id) {
-        setSelectedInvoice(issuedInv);
-        // Refresh balance after issue
-        const bal = await getInvoiceBalance(issuedInv.id);
-        if (liveRef.current) setInvoiceBalance(bal);
-      }
+      setReport(null);
+      void openInvoiceDetail(issuedInv);
       setActionSuccess(`Invoice ${issuedInv.id} issued for ${formatLKR(issuedInv.totalMinor ?? 0)}.`);
     } catch (error) {
-      if (liveRef.current) setActionError(billingErrorText(error, "issue"));
+      if (liveRef.current) setDetailError(billingErrorText(error, "issue"));
+    } finally {
+      if (liveRef.current) setSubmittingItem(false);
     }
   }
 
@@ -431,7 +473,7 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
   // Void invoice
   // ---------------------------------------------------------------------------
   async function handleVoidInvoice(inv: Invoice) {
-    if (inv.status !== "draft") { setActionError("Only draft invoices can be voided."); return; }
+    if (!canWrite || submittingItem || loadingDetail || inv.status !== "draft") return;
 
     if (access !== "ready") {
       const voidedInv: Invoice = { ...inv, status: "void", updatedAt: new Date().toISOString() };
@@ -441,6 +483,8 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
       return;
     }
 
+    setSubmittingItem(true);
+    setDetailError(null);
     try {
       await voidInvoice(inv.id);
       if (!liveRef.current) return;
@@ -449,7 +493,9 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
       if (selectedInvoice?.id === voidedInv.id) setSelectedInvoice(voidedInv);
       setActionSuccess(`Invoice ${inv.id} voided.`);
     } catch (error) {
-      if (liveRef.current) setActionError(billingErrorText(error, "void"));
+      if (liveRef.current) setDetailError(billingErrorText(error, "void"));
+    } finally {
+      if (liveRef.current) setSubmittingItem(false);
     }
   }
 
@@ -457,81 +503,89 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
   // Open receipt modal
   // ---------------------------------------------------------------------------
   function openReceiptModal(inv: Invoice) {
+    const pending = pendingReceipts.current[inv.id];
     const bal = balanceForListRow(inv);
+    if (!pending && (!bal || bal.outstanding <= 0)) return;
     setReceiptInvoice(inv);
-    setReceiptAmountRupees(bal.outstanding / 100);
-    setReceiptOperationId(generateOpId());
-    setReceiptLabel("");
-    setReceiptMethod("cash");
-    setActionError(null);
+    setReceiptAmountRupees(toLKRInput(pending?.amountMinor ?? bal?.outstanding ?? 0));
+    setReceiptMethod(pending?.paymentMethod ?? "cash");
+    setReceiptLabel(pending?.label ?? "");
+    setReceiptError(null);
+    setActionSuccess(null);
     setIsReceiptModalOpen(true);
   }
 
-  // ---------------------------------------------------------------------------
-  // Post receipt
-  // ---------------------------------------------------------------------------
+  function rememberReceipt(rec: Receipt) {
+    setReceiptHistory(prev => {
+      const existing = prev[rec.invoiceId] ?? (preview ? DEMO_RECEIPTS.filter(r => r.invoiceId === rec.invoiceId) : []);
+      return { ...prev, [rec.invoiceId]: [rec, ...existing.filter(r => r.id !== rec.id)] };
+    });
+  }
+
   async function handlePostReceipt(e: React.FormEvent) {
     e.preventDefault();
-    if (!receiptInvoice) return;
-    const amountMinor = Math.round(receiptAmountRupees * 100);
-    if (amountMinor <= 0) { setActionError("Receipt amount must be positive."); return; }
+    if (!receiptInvoice || !canWrite || submittingReceipt) return;
+    setReceiptError(null);
 
-    const bal = balanceForListRow(receiptInvoice);
-    if (amountMinor > bal.outstanding) {
-      setActionError(`Overpayment blocked: entered ${formatLKR(amountMinor)} exceeds remaining balance ${formatLKR(bal.outstanding)}.`);
-      return;
+    const invoiceId = receiptInvoice.id;
+    let intent = pendingReceipts.current[invoiceId];
+    if (!intent) {
+      const amountMinor = parseLKRMinor(receiptAmountRupees);
+      if (amountMinor === null || amountMinor <= 0) {
+        setReceiptError("Enter a positive LKR amount with at most two decimal places.");
+        return;
+      }
+      const label = receiptLabel.trim();
+      if (receiptMethod === "direct_deposit" && !label) {
+        setReceiptError("Enter a reference for the direct deposit.");
+        return;
+      }
+      const bal = balanceForListRow(receiptInvoice);
+      if (!bal || amountMinor > bal.outstanding) {
+        setReceiptError("The payment exceeds the available balance. Review the invoice and try again.");
+        return;
+      }
+      if (!globalThis.crypto?.randomUUID) {
+        setReceiptError("Use a secure connection to record a payment.");
+        return;
+      }
+      intent = { operationId: crypto.randomUUID(), amountMinor, paymentMethod: receiptMethod, label: label || undefined };
     }
 
-    if (access !== "ready") {
-      const newReceipt: Receipt = {
-        id: "rec-" + Math.random().toString(36).substring(2, 8),
-        invoiceId: receiptInvoice.id,
-        operationId: receiptOperationId,
-        amountMinor,
-        paymentMethod: receiptMethod,
-        label: receiptLabel.trim() || undefined,
-        issuedAt: new Date().toISOString(),
-        issuedBy: "current-staff-billing",
-      };
-      setReceipts((prev) => [newReceipt, ...prev]);
+    if (preview) {
+      rememberReceipt({ ...intent, id: intent.operationId, invoiceId, issuedAt: new Date().toISOString(), issuedBy: "preview" });
       setIsReceiptModalOpen(false);
-      setActionSuccess(`Receipt posted for ${formatLKR(amountMinor)} (Operation ID: ${newReceipt.operationId.substring(0, 8)}…).`);
       return;
     }
 
+    pendingReceipts.current[invoiceId] = intent;
     setSubmittingReceipt(true);
     try {
-      const rec = await postReceipt(receiptInvoice.id, {
-        operationId: receiptOperationId,
-        amountMinor,
-        paymentMethod: receiptMethod,
-        label: receiptLabel.trim() || undefined,
-      });
+      const rec = await postReceipt(invoiceId, intent);
+      delete pendingReceipts.current[invoiceId];
       if (!liveRef.current) return;
-      setReceipts((prev) => [rec, ...prev]);
-      // Refresh balance and receipts in the detail view if this invoice is open
-      if (selectedInvoice?.id === receiptInvoice.id) {
-        const [bal2, { items: recs }] = await Promise.all([
-          getInvoiceBalance(receiptInvoice.id),
-          listReceipts(receiptInvoice.id),
-        ]);
-        if (liveRef.current) {
-          setInvoiceBalance(bal2);
-          setInvoiceReceipts(recs);
-        }
-      }
+      setUncertainInvoices(prev => prev.filter(id => id !== invoiceId));
+      rememberReceipt(rec);
       setIsReceiptModalOpen(false);
-      setActionSuccess(`Receipt posted for ${formatLKR(amountMinor)}.`);
+      setReport(null);
+      setActionSuccess(`Receipt recorded for ${formatLKR(rec.amountMinor)}.`);
+      void openInvoiceDetail(receiptInvoice);
     } catch (error) {
-      if (liveRef.current) setActionError(billingErrorText(error, "receipt"));
+      if (!liveRef.current) return;
+      // A known rejection of the first request allows edits. After an unknown
+      // outcome, preserve the original request until its result is reconciled.
+      if (!retryReceipt && error instanceof APIRequestError && [400, 401, 403, 404, 409, 422].includes(error.status)) {
+        delete pendingReceipts.current[invoiceId];
+        setReceiptError(billingErrorText(error, "receipt"));
+      } else {
+        setUncertainInvoices(prev => prev.includes(invoiceId) ? prev : [...prev, invoiceId]);
+        setReceiptError("Receipt not confirmed. Retry this same payment before starting another.");
+      }
     } finally {
       if (liveRef.current) setSubmittingReceipt(false);
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // Derived values
-  // ---------------------------------------------------------------------------
   const filteredInvoices = invoices.filter((inv) => {
     if (filterStatus !== "all" && inv.status !== filterStatus) return false;
     if (searchQuery.trim()) {
@@ -541,15 +595,19 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
     return true;
   });
 
-  const totalBilled = invoices.filter((i) => i.status === "issued").reduce((s, i) => s + (i.totalMinor ?? 0), 0);
+  const issuedInvoices = invoices.filter(i => i.status === "issued");
+  const receipts = issuedInvoices.flatMap(i => receiptHistory[i.id] ?? (preview ? DEMO_RECEIPTS.filter(r => r.invoiceId === i.id) : []))
+    .sort((a, b) => b.issuedAt.localeCompare(a.issuedAt));
+  const completeHistory = issuedInvoices.every(i => balanceForListRow(i) !== null);
+  const totalBilled = issuedInvoices.reduce((s, i) => s + invoiceTotal(i), 0);
   const totalCollected = receipts.reduce((s, r) => s + r.amountMinor, 0);
-  const totalOutstanding = Math.max(0, totalBilled - totalCollected);
-
-  // Current balance shown in receipt modal / invoice detail
+  const totalOutstanding = totalBilled - totalCollected;
+  const retryReceipt = !!receiptInvoice && uncertainInvoices.includes(receiptInvoice.id);
   const currentBalForModal = receiptInvoice ? balanceForListRow(receiptInvoice) : null;
-  const currentDetailBalance = invoiceBalance
-    ? { total: invoiceBalance.totalMinor, paid: invoiceBalance.paidMinor, outstanding: invoiceBalance.outstandingMinor }
-    : selectedInvoice ? computePreviewBalance(selectedInvoice) : null;
+  const currentDetailBalance = selectedInvoice ? balanceForListRow(selectedInvoice) : null;
+  const invoiceReceipts = selectedInvoice
+    ? receiptHistory[selectedInvoice.id] ?? (preview ? DEMO_RECEIPTS.filter(r => r.invoiceId === selectedInvoice.id) : [])
+    : [];
 
   // ---------------------------------------------------------------------------
   // Access gates
@@ -603,9 +661,10 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
       {/* Notice bar */}
       <div className={styles.noticeBar}>
         <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-          <span className={styles.noticeTag}>Preview</span>
+          <span className={styles.noticeTag}>{preview ? "Preview" : "Billing"}</span>
           <span style={{ fontSize: "0.88rem" }}>
-            <strong>Synthetic billing preview:</strong> These example invoices and receipts exist only in this browser session.
+            <strong>Billing Workspace:</strong>{" "}
+            {preview ? "Sample invoices and receipts for this browser session" : "Invoices, balances and receipts"}
           </span>
         </div>
         <div style={{ fontSize: "0.82rem", color: "var(--bill-muted)" }}>
@@ -616,14 +675,14 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
       {/* Notifications */}
       {actionSuccess && (
         <div style={{ background: "oklch(0.95 0.05 150)", border: "1px solid oklch(0.8 0.1 150)", color: "oklch(0.3 0.12 150)", padding: "0.75rem 1.25rem", borderRadius: "8px", marginBottom: "1.25rem", display: "flex", justifyContent: "space-between" }}>
-          <span>✓ {actionSuccess}</span>
-          <button onClick={() => setActionSuccess(null)} style={{ background: "none", border: "none", cursor: "pointer", fontWeight: 700 }}>×</button>
+          <span role="status">{actionSuccess}</span>
+          <button onClick={() => setActionSuccess(null)} aria-label="Dismiss message" style={{ background: "none", border: "none", cursor: "pointer", fontWeight: 700 }}>×</button>
         </div>
       )}
-      {actionError && (
+      {actionError && !isNewInvoiceOpen && (
         <div style={{ background: "oklch(0.95 0.05 25)", border: "1px solid oklch(0.8 0.1 25)", color: "oklch(0.35 0.15 25)", padding: "0.75rem 1.25rem", borderRadius: "8px", marginBottom: "1.25rem", display: "flex", justifyContent: "space-between" }}>
-          <span>⚠ {actionError}</span>
-          <button onClick={() => setActionError(null)} style={{ background: "none", border: "none", cursor: "pointer", fontWeight: 700 }}>×</button>
+          <span role="alert">{actionError}</span>
+          <button onClick={() => setActionError(null)} aria-label="Dismiss error" style={{ background: "none", border: "none", cursor: "pointer", fontWeight: 700 }}>×</button>
         </div>
       )}
 
@@ -634,20 +693,20 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
           <div>
             <h1 className={styles.title}>Patient Billing &amp; Collections</h1>
             <p className={styles.subtitle}>
-              Draft itemized treatment bills, freeze issued totals atomically, and post idempotent receipts without overpayment.
+              Prepare treatment invoices, record deposits and review payment history.
             </p>
           </div>
           <div style={{ display: "flex", gap: "0.75rem", alignItems: "flex-start", flexWrap: "wrap" }}>
-            {access === "ready" && (
-              <div style={{ display: "flex", gap: "0.5rem" }}>
+            {access === "ready" && canReadInvoices && (
+              <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
                 <input
                   type="text"
                   className={styles.searchInput}
-                  placeholder="Patient UUID to load invoices…"
+                  aria-label="Patient ID to load invoices" placeholder="Patient ID to load invoices…"
                   value={patientIdQuery}
                   onChange={(e) => setPatientIdQuery(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") void fetchInvoicesForPatient(patientIdQuery); }}
-                  style={{ minWidth: "260px" }}
+                  onKeyDown={(e) => { if (e.key === "Enter" && !loadingInvoices) void fetchInvoicesForPatient(patientIdQuery); }}
+                  style={{ width: "min(260px, 100%)" }}
                 />
                 <button
                   className={styles.secondaryBtn}
@@ -658,41 +717,42 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
                 </button>
               </div>
             )}
-            <button className={styles.primaryBtn} onClick={() => setIsNewInvoiceOpen(true)}>
+            {canWrite && <button className={styles.primaryBtn} disabled={loadingInvoices} onClick={() => { setNewPatientId(patientIdQuery); setIsNewInvoiceOpen(true); }}>
               + Open Draft Invoice
-            </button>
+            </button>}
           </div>
         </div>
       </div>
 
       {/* Stats Cards */}
-      <div className={styles.statsGrid}>
+      {canReadInvoices && <div className={styles.statsGrid}>
         <div className={styles.statCard}>
-          <div className={styles.statLabel}>Total Invoiced (Issued)</div>
+          <div className={styles.statLabel}>Loaded invoice totals</div>
           <div className={styles.statValue}>{formatLKR(totalBilled)}</div>
           <div className={styles.statSub}>{invoices.filter((i) => i.status === "issued").length} issued invoices</div>
         </div>
         <div className={styles.statCard}>
           <div className={styles.statLabel}>Total Collected</div>
-          <div className={styles.statValue} style={{ color: "var(--bill-accent)" }}>{formatLKR(totalCollected)}</div>
+          <div className={styles.statValue} style={{ color: "var(--bill-accent)" }}>{completeHistory ? formatLKR(totalCollected) : "Unavailable"}</div>
           <div className={styles.statSub}>{receipts.length} recorded receipts</div>
         </div>
         <div className={styles.statCard}>
           <div className={styles.statLabel}>Outstanding Receivables</div>
-          <div className={styles.statValue} style={{ color: "var(--bill-gold)" }}>{formatLKR(totalOutstanding)}</div>
-          <div className={styles.statSub}>Remaining clinic balances</div>
+          <div className={styles.statValue} style={{ color: "var(--bill-gold)" }}>{completeHistory ? formatLKR(totalOutstanding) : "Unavailable"}</div>
+          <div className={styles.statSub}>Balance on loaded invoices</div>
         </div>
-      </div>
+      </div>}
 
       {/* Tabs */}
       <div className={styles.tabsRow}>
-        <button className={`${styles.tabButton} ${activeTab === "invoices" ? styles.tabButtonActive : ""}`} onClick={() => setActiveTab("invoices")}>
+        {canReadInvoices && <><button className={`${styles.tabButton} ${activeTab === "invoices" ? styles.tabButtonActive : ""}`} onClick={() => setActiveTab("invoices")}>
           📄 Invoices &amp; Drafts ({invoices.length})
         </button>
         <button className={`${styles.tabButton} ${activeTab === "receipts" ? styles.tabButtonActive : ""}`} onClick={() => setActiveTab("receipts")}>
           💳 Receipts &amp; Payments ({receipts.length})
         </button>
-        <button
+        </>}
+        {canReadReport && <button
           className={`${styles.tabButton} ${activeTab === "report" ? styles.tabButtonActive : ""}`}
           onClick={() => {
             setActiveTab("report");
@@ -702,11 +762,11 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
           }}
         >
           📊 Outstanding Aging Report
-        </button>
+        </button>}
       </div>
 
       {/* TAB 1: Invoices */}
-      {activeTab === "invoices" && (
+      {activeTab === "invoices" && canReadInvoices && (
         <div>
           <div className={styles.actionBar}>
             <div className={styles.searchGroup}>
@@ -744,7 +804,7 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
                 {filteredInvoices.length === 0 ? (
                   <tr>
                     <td colSpan={7} className={styles.emptyState}>
-                      {access === "ready" ? "Enter a Patient UUID above and click Load to view invoices." : "No invoices found matching criteria."}
+                      {access === "ready" ? "Load a patient’s invoices to see them here." : "No invoices found matching criteria."}
                     </td>
                   </tr>
                 ) : (
@@ -762,31 +822,21 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
                         <td style={{ fontSize: "0.85rem", color: "var(--bill-muted)" }}>{formatClinicDateTime(inv.createdAt)}</td>
                         <td>
                           {inv.status === "draft"
-                            ? <span style={{ color: "var(--bill-muted)", fontStyle: "italic" }}>{formatLKR(bal.total)} (Pending)</span>
-                            : <span className={styles.moneyDisplay}>{formatLKR(bal.total)}</span>}
+                            ? <span style={{ color: "var(--bill-muted)", fontStyle: "italic" }}>{inv.items ? formatLKR(invoiceTotal(inv)) : "—"} (Draft)</span>
+                            : <span className={styles.moneyDisplay}>{inv.status === "issued" ? formatLKR(invoiceTotal(inv)) : "—"}</span>}
                         </td>
                         <td>
                           {inv.status === "issued"
-                            ? bal.outstanding === 0
+                            ? !bal ? "Unavailable" : bal.outstanding === 0
                               ? <span style={{ color: "var(--bill-accent)", fontWeight: 600 }}>✓ Settled</span>
                               : <span style={{ color: "var(--bill-gold)", fontWeight: 700 }} className={styles.moneyDisplay}>{formatLKR(bal.outstanding)}</span>
                             : "—"}
                         </td>
                         <td style={{ textAlign: "right" }}>
                           <div style={{ display: "inline-flex", gap: "0.5rem" }}>
-                            <button className={styles.secondaryBtn} style={{ padding: "0.35rem 0.75rem", fontSize: "0.82rem" }} onClick={() => void openInvoiceDetail(inv)}>
-                              {inv.status === "draft" ? "Edit Lines" : "View"}
+                            <button className={styles.secondaryBtn} style={{ padding: "0.35rem 0.75rem", fontSize: "0.82rem" }} disabled={loadingInvoices} onClick={() => void openInvoiceDetail(inv)}>
+                              {inv.status === "draft" && canWrite ? "Edit Lines" : "View"}
                             </button>
-                            {inv.status === "draft" && (
-                              <button className={styles.primaryBtn} style={{ padding: "0.35rem 0.75rem", fontSize: "0.82rem" }} onClick={() => void handleIssueInvoice(inv)}>
-                                Issue
-                              </button>
-                            )}
-                            {inv.status === "issued" && bal.outstanding > 0 && (
-                              <button className={styles.primaryBtn} style={{ padding: "0.35rem 0.75rem", fontSize: "0.82rem", background: "var(--bill-gold)" }} onClick={() => openReceiptModal(inv)}>
-                                Record Pay
-                              </button>
-                            )}
                           </div>
                         </td>
                       </tr>
@@ -800,14 +850,13 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
       )}
 
       {/* TAB 2: Receipts */}
-      {activeTab === "receipts" && (
+      {activeTab === "receipts" && canReadInvoices && (
         <div className={styles.tableWrap}>
           <table className={styles.table}>
             <thead>
               <tr>
                 <th>Receipt ID</th>
                 <th>Invoice ID</th>
-                <th>Operation ID (Idempotency Key)</th>
                 <th>Method</th>
                 <th>Amount Paid</th>
                 <th>Reference Label</th>
@@ -816,13 +865,12 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
             </thead>
             <tbody>
               {receipts.length === 0 ? (
-                <tr><td colSpan={7} className={styles.emptyState}>No payment receipts recorded yet.</td></tr>
+                <tr><td colSpan={6} className={styles.emptyState}>{completeHistory ? "No receipts on the loaded invoices." : "Receipt history could not be loaded."}</td></tr>
               ) : (
                 receipts.map((rec) => (
                   <tr key={rec.id}>
                     <td><span className={styles.moneyDisplay} style={{ fontWeight: 700 }}>{rec.id}</span></td>
                     <td>{rec.invoiceId}</td>
-                    <td><code style={{ fontSize: "0.78rem", background: "var(--bill-soft)", padding: "2px 6px", borderRadius: "4px" }}>{rec.operationId}</code></td>
                     <td><span style={{ textTransform: "capitalize", fontWeight: 600 }}>{rec.paymentMethod.replace("_", " ")}</span></td>
                     <td><span className={styles.moneyDisplay} style={{ color: "var(--bill-accent)", fontWeight: 700 }}>{formatLKR(rec.amountMinor)}</span></td>
                     <td style={{ color: "var(--bill-muted)" }}>{rec.label || "—"}</td>
@@ -836,11 +884,11 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
       )}
 
       {/* TAB 3: Outstanding Aging Report */}
-      {activeTab === "report" && (
+      {activeTab === "report" && canReadReport && (
         <div>
           <div style={{ marginBottom: "1.25rem", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
             <span style={{ color: "var(--bill-muted)", fontSize: "0.92rem" }}>
-              Aging summary of issued invoices with remaining unpaid balances. Meets <strong>AT12</strong>.
+              Issued invoices with a remaining balance, ordered by issue date.
             </span>
             {access === "ready" && (
               <button className={styles.secondaryBtn} onClick={() => { setReport(null); void fetchOutstandingReport(); }} disabled={loadingReport}>
@@ -871,10 +919,10 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
                     </tr>
                   </thead>
                   <tbody>
-                    {report.rows.length === 0 ? (
+                    {(report.rows ?? []).length === 0 ? (
                       <tr><td colSpan={7} className={styles.emptyState}>No outstanding invoices — all settled.</td></tr>
                     ) : (
-                      report.rows.map((row) => (
+                      (report.rows ?? []).map((row) => (
                         <tr key={row.invoiceId}>
                           <td className={styles.moneyDisplay}>{row.invoiceId}</td>
                           <td style={{ color: "var(--bill-accent)", fontWeight: 600 }}>{row.patientId}</td>
@@ -912,8 +960,8 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {invoices.filter((i) => i.status === "issued" && computePreviewBalance(i).outstanding > 0).map((inv) => {
-                    const bal = computePreviewBalance(inv);
+                  {invoices.filter((i) => i.status === "issued" && (balanceForListRow(i)?.outstanding ?? 0) > 0).map((inv) => {
+                    const bal = balanceForListRow(inv)!;
                     const ageDays = Math.floor((asOfTimestamp - new Date(inv.issuedAt ?? inv.createdAt).getTime()) / (1000 * 60 * 60 * 24));
                     return (
                       <tr key={inv.id}>
@@ -941,17 +989,19 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
       {/* MODAL 1: Create Draft Invoice */}
       {isNewInvoiceOpen && (
         <div className={styles.modalOverlay} onClick={() => setIsNewInvoiceOpen(false)}>
-          <div className={styles.modalCard} onClick={(e) => e.stopPropagation()}>
+          <div role="dialog" aria-modal="true" aria-labelledby="billing-draft-heading" className={styles.modalCard} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
-              <h2 className={styles.modalTitle}>Open Draft Invoice</h2>
-              <button className={styles.closeBtn} onClick={() => setIsNewInvoiceOpen(false)}>×</button>
+              <h2 id="billing-draft-heading" className={styles.modalTitle}>Open Draft Invoice</h2>
+              <button aria-label="Close draft form" className={styles.closeBtn} onClick={() => setIsNewInvoiceOpen(false)}>×</button>
             </div>
+            {actionError && <p role="alert">{actionError}</p>}
             <form onSubmit={(e) => void handleCreateInvoice(e)} className={styles.formGrid}>
               <div className={styles.formGroup}>
-                <label className={styles.formLabel}>Patient UUID</label>
+                <label className={styles.formLabel} htmlFor="billing-new-patient">Patient ID</label>
                 <input
                   type="text"
                   required
+                  id="billing-new-patient"
                   placeholder="e.g. 30ad6d29-79b0-4028-93c4-614df48ec3ea"
                   className={styles.formInput}
                   value={newPatientId}
@@ -972,23 +1022,24 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
 
       {/* MODAL 2: Invoice Detail — Line Items + Receipt History */}
       {selectedInvoice && (
-        <div className={styles.modalOverlay} onClick={() => { setSelectedInvoice(null); setInvoiceBalance(null); setInvoiceReceipts([]); }}>
-          <div className={styles.modalCard} style={{ maxWidth: "820px" }} onClick={(e) => e.stopPropagation()}>
+        <div className={styles.modalOverlay} onClick={closeInvoiceDetail}>
+          <div role="dialog" aria-modal="true" aria-labelledby="billing-invoice-heading" className={styles.modalCard} style={{ maxWidth: "820px" }} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
               <div>
-                <h2 className={styles.modalTitle}>Invoice {selectedInvoice.id}</h2>
+                <h2 id="billing-invoice-heading" className={styles.modalTitle}>Invoice {selectedInvoice.id}</h2>
                 <div style={{ fontSize: "0.88rem", color: "var(--bill-muted)", marginTop: "0.25rem" }}>
                   Patient: <strong>{selectedInvoice.patientId}</strong> · Status: <strong>{selectedInvoice.status.toUpperCase()}</strong>
                   {selectedInvoice.issuedAt && <> · Issued: <strong>{formatClinicDateTime(selectedInvoice.issuedAt)}</strong></>}
                 </div>
               </div>
-              <button className={styles.closeBtn} onClick={() => { setSelectedInvoice(null); setInvoiceBalance(null); setInvoiceReceipts([]); }}>×</button>
+              <button aria-label="Close invoice" className={styles.closeBtn} onClick={closeInvoiceDetail}>×</button>
             </div>
 
-            {loadingDetail && <div style={{ padding: "1.5rem", textAlign: "center", color: "var(--bill-muted)" }}>Loading invoice detail…</div>}
+            {detailError && <p role="alert">{detailError}</p>}
+            {loadingDetail && <div role="status" style={{ padding: "1.5rem", textAlign: "center", color: "var(--bill-muted)" }}>Loading invoice detail…</div>}
 
             {/* Balance Banner (Issued invoices) */}
-            {selectedInvoice.status === "issued" && currentDetailBalance && (
+            {!loadingDetail && selectedInvoice.status === "issued" && currentDetailBalance && (
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "1rem", marginBottom: "1.5rem", background: "var(--bill-soft)", padding: "1rem", borderRadius: "8px" }}>
                 <div>
                   <div style={{ fontSize: "0.78rem", color: "var(--bill-muted)", fontWeight: 600, marginBottom: "0.25rem" }}>TOTAL</div>
@@ -1018,7 +1069,7 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
                       <th style={{ width: "80px" }}>Qty</th>
                       <th>Unit Price</th>
                       <th>Line Total</th>
-                      {selectedInvoice.status === "draft" && <th style={{ width: "60px" }}></th>}
+                      {selectedInvoice.status === "draft" && canWrite && <th style={{ width: "60px" }}></th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -1031,9 +1082,9 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
                           <td style={{ textAlign: "center" }}>{item.quantity}</td>
                           <td className={styles.moneyDisplay}>{formatLKR(item.unitPriceMinor)}</td>
                           <td className={styles.moneyDisplay} style={{ fontWeight: 700 }}>{formatLKR(item.lineTotalMinor)}</td>
-                          {selectedInvoice.status === "draft" && (
+                          {selectedInvoice.status === "draft" && canWrite && (
                             <td>
-                              <button type="button" style={{ background: "none", border: "none", color: "var(--bill-void)", cursor: "pointer", fontWeight: 700 }} onClick={() => void handleRemoveItem(item.id)}>✕</button>
+                              <button type="button" style={{ background: "none", border: "none", color: "var(--bill-void)", cursor: "pointer", fontWeight: 700 }} disabled={loadingDetail || submittingItem} aria-label={`Remove ${item.description}`} onClick={() => void handleRemoveItem(item.id)}>✕</button>
                             </td>
                           )}
                         </tr>
@@ -1044,7 +1095,7 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
                     <tr style={{ background: "var(--bill-soft)", fontWeight: 700 }}>
                       <td colSpan={3} style={{ textAlign: "right" }}>Total:</td>
                       <td colSpan={selectedInvoice.status === "draft" ? 2 : 1} className={styles.moneyDisplay} style={{ fontSize: "1.05rem" }}>
-                        {formatLKR(computePreviewBalance(selectedInvoice).total)}
+                        {formatLKR(invoiceTotal(selectedInvoice))}
                       </td>
                     </tr>
                   </tfoot>
@@ -1053,31 +1104,31 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
             </div>
 
             {/* Add Item Form (Draft only) */}
-            {selectedInvoice.status === "draft" ? (
+            {selectedInvoice.status === "draft" && canWrite && !loadingDetail && selectedInvoice.items !== undefined ? (
               <form onSubmit={(e) => void handleAddItem(e)} style={{ background: "var(--bill-soft)", padding: "1.25rem", borderRadius: "10px", marginBottom: "1.5rem" }}>
                 <h4 style={{ margin: "0 0 0.85rem", fontSize: "0.95rem", fontWeight: 700 }}>Add Treatment / Medicine Line</h4>
-                <div style={{ display: "grid", gap: "0.75rem", gridTemplateColumns: "2fr 1fr 1fr auto" }}>
+                <div className={styles.lineFields}>
                   <div>
-                    <input type="text" list="presets" placeholder="Treatment description…" className={styles.formInput} value={itemDesc} onChange={(e) => setItemDesc(e.target.value)} />
+                    <input type="text" list="presets" aria-label="Treatment description" required placeholder="Treatment description…" className={styles.formInput} value={itemDesc} onChange={(e) => setItemDesc(e.target.value)} />
                     <datalist id="presets">
                       {TREATMENT_PRESETS.map((p) => <option key={p.description} value={p.description} />)}
                     </datalist>
                   </div>
-                  <input type="number" min="1" placeholder="Qty" className={styles.formInput} value={itemQty} onChange={(e) => setItemQty(parseInt(e.target.value) || 1)} />
-                  <input type="number" min="0" step="50" placeholder="Price (Rs.)" className={styles.formInput} value={itemPriceRupees} onChange={(e) => setItemPriceRupees(parseFloat(e.target.value) || 0)} />
+                  <input type="number" min="1" required aria-label="Quantity" placeholder="Qty" className={styles.formInput} value={itemQty} onChange={(e) => setItemQty(Number(e.target.value))} />
+                  <input type="number" min="0" step="0.01" required aria-label="Unit price (LKR)" placeholder="Price (Rs.)" className={styles.formInput} value={itemPriceRupees} onChange={(e) => setItemPriceRupees(e.target.value)} />
                   <button type="submit" className={styles.primaryBtn} style={{ padding: "0.65rem 1rem" }} disabled={submittingItem}>
                     {submittingItem ? "…" : "+ Add"}
                   </button>
                 </div>
               </form>
-            ) : (
+            ) : selectedInvoice.status === "issued" && (
               <div style={{ background: "var(--bill-issued-bg)", padding: "1rem", borderRadius: "8px", color: "var(--bill-issued)", fontSize: "0.88rem", marginBottom: "1.5rem" }}>
                 🔒 <strong>Invoice Issued &amp; Frozen:</strong> Line items and totals are permanently locked.
               </div>
             )}
 
             {/* Receipt History (Issued invoices) */}
-            {selectedInvoice.status === "issued" && (
+            {!loadingDetail && selectedInvoice.status === "issued" && currentDetailBalance && (
               <div style={{ marginBottom: "1.5rem" }}>
                 <h3 style={{ fontSize: "1rem", fontWeight: 700, marginBottom: "0.75rem" }}>Payment Receipt History</h3>
                 <div className={styles.tableWrap}>
@@ -1092,10 +1143,10 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
                       </tr>
                     </thead>
                     <tbody>
-                      {(access === "ready" ? invoiceReceipts : DEMO_RECEIPTS.filter((r) => r.invoiceId === selectedInvoice.id)).length === 0 ? (
+                      {invoiceReceipts.length === 0 ? (
                         <tr><td colSpan={5} className={styles.emptyState}>No receipts posted yet.</td></tr>
                       ) : (
-                        (access === "ready" ? invoiceReceipts : DEMO_RECEIPTS.filter((r) => r.invoiceId === selectedInvoice.id)).map((rec) => (
+                        invoiceReceipts.map((rec) => (
                           <tr key={rec.id}>
                             <td style={{ fontWeight: 600, fontSize: "0.85rem" }}>{rec.id}</td>
                             <td><span style={{ textTransform: "capitalize" }}>{rec.paymentMethod.replace("_", " ")}</span></td>
@@ -1114,21 +1165,21 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
             {/* Action Bar */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <div>
-                {selectedInvoice.status === "draft" && (
-                  <button type="button" style={{ background: "none", border: "none", color: "var(--bill-void)", cursor: "pointer", fontWeight: 600 }} onClick={() => void handleVoidInvoice(selectedInvoice)}>
+                {selectedInvoice.status === "draft" && canWrite && !loadingDetail && (
+                  <button type="button" style={{ background: "none", border: "none", color: "var(--bill-void)", cursor: "pointer", fontWeight: 600 }} disabled={submittingItem} onClick={() => void handleVoidInvoice(selectedInvoice)}>
                     Void Invoice
                   </button>
                 )}
               </div>
               <div style={{ display: "flex", gap: "0.75rem" }}>
-                {selectedInvoice.status === "issued" && currentDetailBalance && currentDetailBalance.outstanding > 0 && (
-                  <button type="button" className={styles.primaryBtn} style={{ background: "var(--bill-gold)" }} onClick={() => { setSelectedInvoice(null); openReceiptModal(selectedInvoice); }}>
+                {selectedInvoice.status === "issued" && canWrite && !loadingDetail && !detailError && ((currentDetailBalance?.outstanding ?? 0) > 0 || uncertainInvoices.includes(selectedInvoice.id)) && (
+                  <button type="button" className={styles.primaryBtn} style={{ background: "var(--bill-gold)" }} onClick={() => { closeInvoiceDetail(); openReceiptModal(selectedInvoice); }}>
                     Record Payment
                   </button>
                 )}
-                <button type="button" className={styles.secondaryBtn} onClick={() => { setSelectedInvoice(null); setInvoiceBalance(null); setInvoiceReceipts([]); }}>Close</button>
-                {selectedInvoice.status === "draft" && (
-                  <button type="button" className={styles.primaryBtn} onClick={() => void handleIssueInvoice(selectedInvoice)}>
+                <button type="button" className={styles.secondaryBtn} onClick={closeInvoiceDetail}>Close</button>
+                {selectedInvoice.status === "draft" && canWrite && !loadingDetail && (
+                  <button type="button" className={styles.primaryBtn} disabled={submittingItem || !selectedInvoice.items?.length} onClick={() => void handleIssueInvoice(selectedInvoice)}>
                     ✓ Issue &amp; Lock Invoice
                   </button>
                 )}
@@ -1140,60 +1191,43 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
 
       {/* MODAL 3: Post Payment Receipt */}
       {isReceiptModalOpen && receiptInvoice && (
-        <div className={styles.modalOverlay} onClick={() => setIsReceiptModalOpen(false)}>
-          <div className={styles.modalCard} onClick={(e) => e.stopPropagation()}>
+        <div className={styles.modalOverlay} onClick={() => { if (!submittingReceipt) setIsReceiptModalOpen(false); }}>
+          <div role="dialog" aria-modal="true" aria-labelledby="billing-receipt-heading" className={styles.modalCard} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
-              <h2 className={styles.modalTitle}>Post Payment Receipt</h2>
-              <button className={styles.closeBtn} onClick={() => setIsReceiptModalOpen(false)}>×</button>
+              <h2 id="billing-receipt-heading" className={styles.modalTitle}>Post Payment Receipt</h2>
+              <button aria-label="Close receipt form" className={styles.closeBtn} disabled={submittingReceipt} onClick={() => setIsReceiptModalOpen(false)}>×</button>
             </div>
             <form onSubmit={(e) => void handlePostReceipt(e)} className={styles.formGrid}>
               <div style={{ background: "var(--bill-soft)", padding: "1rem", borderRadius: "8px", fontSize: "0.9rem", marginBottom: "0.5rem" }}>
                 <div>Invoice: <strong>{receiptInvoice.id}</strong> (Patient: {receiptInvoice.patientId})</div>
-                <div style={{ marginTop: "0.25rem" }}>Outstanding Balance: <strong className={styles.moneyDisplay}>{formatLKR(currentBalForModal?.outstanding ?? 0)}</strong></div>
+                <div style={{ marginTop: "0.25rem" }}>Outstanding Balance: <strong className={styles.moneyDisplay}>{currentBalForModal ? formatLKR(currentBalForModal.outstanding) : "Unavailable"}</strong></div>
               </div>
 
-              <div className={styles.formGroup}>
-                <label className={styles.formLabel}>Operation ID (Idempotency Key)</label>
-                <div style={{ display: "flex", gap: "0.5rem" }}>
-                  <input type="text" readOnly className={styles.formInput} value={receiptOperationId} />
-                  <button type="button" className={styles.secondaryBtn} onClick={() => setReceiptOperationId(generateOpId())}>↻</button>
-                </div>
-                <span className={styles.formHelp}>Guarantees payment is never double-charged during network retries.</span>
-              </div>
+              {receiptError && <p role="alert">{receiptError}</p>}
+              {retryReceipt && <p>Retrying will check the result of the same payment.</p>}
 
               <div className={styles.formGroup}>
-                <label className={styles.formLabel}>Payment Method</label>
-                <select className={styles.formSelect} value={receiptMethod} onChange={(e) => setReceiptMethod(e.target.value as PaymentMethod)}>
+                <label className={styles.formLabel} htmlFor="billing-method">Payment Method</label>
+                <select id="billing-method" disabled={submittingReceipt || retryReceipt} className={styles.formSelect} value={receiptMethod} onChange={(e) => setReceiptMethod(e.target.value as PaymentMethod)}>
                   <option value="cash">Cash Settlement (Counter)</option>
                   <option value="direct_deposit">Direct Deposit / Bank Transfer</option>
                 </select>
               </div>
 
               <div className={styles.formGroup}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
-                  <label className={styles.formLabel}>Amount (LKR Rupees)</label>
-                  <div style={{ display: "flex", gap: "0.35rem" }}>
-                    <button type="button" className={styles.secondaryBtn} style={{ padding: "0.2rem 0.5rem", fontSize: "0.75rem" }} onClick={() => setReceiptAmountRupees((currentBalForModal?.outstanding ?? 0) / 100)}>
-                      Full Balance
-                    </button>
-                    <button type="button" className={styles.secondaryBtn} style={{ padding: "0.2rem 0.5rem", fontSize: "0.75rem" }} onClick={() => setReceiptAmountRupees(Math.round((currentBalForModal?.outstanding ?? 0) / 2 / 100))}>
-                      50% Deposit
-                    </button>
-                  </div>
-                </div>
-                <input type="number" step="50" min="1" required className={styles.formInput} value={receiptAmountRupees} onChange={(e) => setReceiptAmountRupees(parseFloat(e.target.value) || 0)} />
-                <span className={styles.formHelp}>Overpayment protection is enforced by the backend.</span>
+                <label className={styles.formLabel} htmlFor="billing-amount">Amount (LKR)</label>
+                <input id="billing-amount" type="text" inputMode="decimal" required readOnly={submittingReceipt || retryReceipt} className={styles.formInput} value={receiptAmountRupees} onChange={(e) => setReceiptAmountRupees(e.target.value)} />
               </div>
 
               <div className={styles.formGroup}>
-                <label className={styles.formLabel}>Reference / Deposit Slip Details</label>
-                <input type="text" placeholder="e.g. BOC Slip #98214 or Counter Cash Ref" className={styles.formInput} value={receiptLabel} onChange={(e) => setReceiptLabel(e.target.value)} />
+                <label className={styles.formLabel} htmlFor="billing-reference">Payment reference</label>
+                <input id="billing-reference" required={receiptMethod === "direct_deposit"} readOnly={submittingReceipt || retryReceipt} type="text" placeholder="Deposit slip or counter reference" className={styles.formInput} value={receiptLabel} onChange={(e) => setReceiptLabel(e.target.value)} />
               </div>
 
               <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem", marginTop: "1rem" }}>
-                <button type="button" className={styles.secondaryBtn} onClick={() => setIsReceiptModalOpen(false)}>Cancel</button>
+                <button type="button" className={styles.secondaryBtn} disabled={submittingReceipt} onClick={() => setIsReceiptModalOpen(false)}>Cancel</button>
                 <button type="submit" className={styles.primaryBtn} style={{ background: "var(--bill-gold)" }} disabled={submittingReceipt}>
-                  {submittingReceipt ? "Posting…" : "✓ Post Receipt"}
+                  {submittingReceipt ? "Posting…" : retryReceipt ? "Retry Receipt" : "Post Receipt"}
                 </button>
               </div>
             </form>
