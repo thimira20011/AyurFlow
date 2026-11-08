@@ -8,6 +8,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
   const isStandalonePage =
     pathname.startsWith("/sign-in") ||
     pathname.startsWith("/sign-up") ||
+    pathname === "/dashboard" ||
     pathname === "/administration" ||
     pathname.startsWith("/reception") ||
     pathname.startsWith("/scheduling") ||
