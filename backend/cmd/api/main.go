@@ -20,6 +20,7 @@ import (
 	"ayurflow/backend/internal/inventory"
 	"ayurflow/backend/internal/patients"
 	"ayurflow/backend/internal/platform/database"
+	"ayurflow/backend/internal/scheduling"
 	transport "ayurflow/backend/internal/transport/http"
 
 	"github.com/gin-gonic/gin"
@@ -52,16 +53,20 @@ func run() error {
 	var router *gin.Engine
 	if cfg.Auth.Enabled {
 		consultationService := consultations.NewService(pool, consultations.AssignedPolicy{})
+		schedulingService := scheduling.NewService(pool)
+		inventoryService := inventory.NewService(pool)
 		router = transport.NewRouter(pool, transport.AuthRoutes{
 			Service: auth.NewService(pool, cfg.Auth), AllowedOrigin: cfg.Auth.AllowedOrigin,
 			Patients:       patients.NewService(pool, &authorization.PatientPolicy{}),
 			Consultations:  consultationService,
 			Signing:        consultationService,
 			Assignments:    consultations.NewAssignmentService(pool),
-			Plans:          clinical.NewService(pool, clinical.MemberBPathway(), nil),
+			Plans:          clinical.NewService(pool, clinical.MemberBPathway(), schedulingService, schedulingService),
 			Administration: administration.NewService(pool),
 			Billing:        billing.NewService(pool),
-			Inventory:      inventory.NewService(pool),
+			Scheduling:     schedulingService,
+			Inventory:      inventoryService,
+			Preparations:   inventoryService,
 		})
 	} else {
 		router = transport.NewRouter(pool)

@@ -15,6 +15,7 @@ import {
   type StockBatch,
 } from "./api";
 import styles from "./inventory-workspace.module.css";
+import InventoryLiveWorkflows from "./inventory-live-workflows";
 
 type SnapshotIngredient = {
   itemCode: string;
@@ -212,7 +213,7 @@ export default function InventoryWorkspace({ preview = false }: { preview?: bool
   const [summary, setSummary] = useState<BatchSummaryTotals>(
     computeSummaryFromBatches(preview ? PREVIEW_BATCHES : [])
   );
-  const [clinicDate, setClinicDate] = useState<string>("2026-10-31");
+  const [clinicDate, setClinicDate] = useState<string>(preview ? "2026-10-31" : "Loading…");
   const [eligibleOnlyFilter, setEligibleOnlyFilter] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(!preview);
   const [busy, setBusy] = useState<boolean>(false);
@@ -645,14 +646,14 @@ export default function InventoryWorkspace({ preview = false }: { preview?: bool
               Fixed-precision grams (<code>0.001 g</code>), Asia/Colombo expiry evaluation (<code>{clinicDate}</code>), immutable preparation snapshots, manual batch selection, and atomic consumption.
             </p>
           </div>
-          <div>
+          {preview && <div>
             <span className={savedSnapshot.status === "consumed" ? styles.badgeConsumed : styles.badgePrepared}>
               Active Prep {savedSnapshot.id}:{" "}
               {savedSnapshot.status === "consumed"
                 ? "Consumed · Stock Deducted (Immutable)"
                 : "Prepared · No Stock Deducted"}
             </span>
-          </div>
+          </div>}
         </div>
       </header>
 
@@ -1005,7 +1006,9 @@ export default function InventoryWorkspace({ preview = false }: { preview?: bool
         </div>
       )}
 
-      {activeTab === "recipes" && (
+      {!preview && activeTab !== "batches" && <InventoryLiveWorkflows tab={activeTab} items={items} batches={batches} refreshBatches={() => loadLiveInventory(eligibleOnlyFilter)} />}
+
+      {preview && activeTab === "recipes" && (
         <div className={styles.splitGrid}>
           <div className={styles.panel}>
             <div className={styles.panelHeader}>
@@ -1105,7 +1108,7 @@ export default function InventoryWorkspace({ preview = false }: { preview?: bool
         </div>
       )}
 
-      {activeTab === "consumption" && (
+      {preview && activeTab === "consumption" && (
         <div className={styles.equalGrid}>
           <div className={styles.panelPrepared}>
             <div className={styles.panelHeader}>
@@ -1261,7 +1264,7 @@ export default function InventoryWorkspace({ preview = false }: { preview?: bool
         </div>
       )}
 
-      {activeTab === "traceability" && (
+      {preview && activeTab === "traceability" && (
         <div className={styles.equalGrid}>
           <div className={styles.panel}>
             <div className={styles.panelHeader}>

@@ -70,6 +70,9 @@ func TestPilotRuntimePrivilegesIntegration(t *testing.T) {
 		{name: "delete stage", sql: "DELETE FROM plan_stages", denied: true},
 		{name: "delete botanical item", sql: "DELETE FROM botanical_items", denied: true},
 		{name: "delete stock batch", sql: "DELETE FROM stock_batches", denied: true},
+		{name: "delete therapy session", sql: "DELETE FROM therapy_sessions", denied: true},
+		{name: "delete consumption", sql: "DELETE FROM batch_consumptions", denied: true},
+		{name: "rewrite preparation snapshot", sql: "UPDATE preparation_snapshot_items SET required_grams=1", denied: true},
 		{name: "reset patient registry", sql: "ALTER SEQUENCE patient_registry_numbers RESTART", denied: true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

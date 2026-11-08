@@ -70,8 +70,14 @@ func NewRouter(db DatabaseChecker, authRoutes ...AuthRoutes) *gin.Engine {
 		if authRoutes[0].Billing != nil {
 			registerBilling(protected, authRoutes[0].Billing)
 		}
+		if authRoutes[0].Scheduling != nil {
+			registerScheduling(protected, authRoutes[0].Scheduling)
+		}
 		if authRoutes[0].Inventory != nil {
 			registerInventory(protected, authRoutes[0].Inventory)
+		}
+		if authRoutes[0].Preparations != nil {
+			registerPreparations(protected, authRoutes[0].Preparations)
 		}
 	}
 	// Register business routes only after authentication, CSRF and record access exist.

@@ -15,7 +15,7 @@ import (
 
 type syntheticCancellation struct{}
 
-func (syntheticCancellation) CancelFuture(ctx context.Context, tx pgx.Tx, planID string) error {
+func (syntheticCancellation) CancelFuture(ctx context.Context, tx pgx.Tx, planID, _ string) error {
 	_, err := tx.Exec(ctx, `UPDATE synthetic_future_sessions SET status='cancelled'
 		WHERE plan_id=$1 AND status='planned'`, planID)
 	return err

@@ -15,10 +15,8 @@ Owner: Member D (`K. I. R. Perera`). Reviewer: Member E. SRS: `INV-01`–`04`, `
   - `ListBatches` (`dispensary`, `report_reader`): lists batches with real-time `eligibility` evaluated against the `Asia/Colombo` date and computes summary totals (`eligibleGrams`, `blockedGrams`, `expiredGrams`, `unknownExpiryGrams`).
 - HTTP Transport (`internal/transport/http/inventory.go`): wires `/api/v1/inventory/items` and `/api/v1/inventory/batches` under `RequireSession` (enforcing session cookie, `Origin`, and `X-CSRF-Token`).
 
-## Remaining slices (`TASK-INV-02`–`08`)
+## Additional implemented slices awaiting D/E review
 
-- Flat recipes and deterministic scaling (`TASK-INV-02`)
-- Immutable saved preparation snapshots with zero stock deduction (`TASK-INV-03`)
-- Manual batch allocation, ascending `batch_id` locking, atomic consumption, and `operationId` idempotency (`TASK-INV-04`, `TASK-INV-05`)
-- Bidirectional traceability queries (`TASK-INV-06`)
-- Full `AT08`–`AT11` acceptance verification (`TASK-INV-08`)
+- Migration `000016_preparations.up.sql`, `preparations.go` and `consumption.go` add flat recipes with deterministic `0.001 g` scaling, immutable saved preparation snapshots with no stock deduction, manually selected batch allocations, ascending batch locks, atomic consumption and operation-ID retry safety.
+- Protected preparation handlers expose recipe, snapshot, consumption and bidirectional traceability actions. PostgreSQL integration tests cover snapshot immutability, rollback, idempotency, access and a concurrent stock race.
+- Formal `AT08`–`AT11` acceptance evidence and DEC03 clinic review remain open. No production data is used in the integration tests.
