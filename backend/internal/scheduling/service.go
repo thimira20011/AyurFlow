@@ -528,8 +528,8 @@ func (s *Service) Cancel(ctx context.Context, actor, id, reason string) (Session
 }
 
 // CanComplete is called with the plan row locked by the clinical service.
-// The preparatory stage is gated by consultation/checklist approval there;
-// later stages require delivered sessions and no unfinished session.
+// Every stage requires delivered-session evidence and no unfinished session.
+// Empty-stage completion remains gated pending clinic review.
 func (s *Service) CanComplete(ctx context.Context, tx pgx.Tx, planID, stageID string) error {
 	var ordinal int
 	if err := tx.QueryRow(ctx, `SELECT ordinal FROM plan_stages WHERE id=$1 AND plan_id=$2`, stageID, planID).Scan(&ordinal); err != nil {
@@ -541,7 +541,7 @@ func (s *Service) CanComplete(ctx context.Context, tx pgx.Tx, planID, stageID st
 		WHERE plan_id=$1 AND stage_id=$2`, planID, stageID).Scan(&completed, &pending); err != nil {
 		return err
 	}
-	if pending != 0 || (ordinal > 1 && completed == 0) {
+	if pending != 0 || completed == 0 {
 		return clinical.ErrCompletionPending
 	}
 	var unconsumed bool

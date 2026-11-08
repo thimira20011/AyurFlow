@@ -194,3 +194,49 @@ func TestBookingClearanceAndCancellation(t *testing.T) {
 		t.Fatalf("rewrote completed session: %v", err)
 	}
 }
+
+func TestPreparatoryStageRequiresDeliveredSession(t *testing.T) {
+	pool := testutil.Postgres(t)
+	service := NewService(pool)
+	receptionist := seedStaff(t, pool, "synthetic-stage-reception", "receptionist")
+	clinician := seedStaff(t, pool, "synthetic-stage-clinician", "clinician")
+	therapist := seedStaff(t, pool, "synthetic-stage-therapist", "therapist")
+	patient, planID, stageID := syntheticPlan(t, pool, receptionist, clinician, service)
+	plans := clinical.NewService(pool, clinical.MemberBPathway(), service, service)
+	var version int64
+	if err := pool.QueryRow(t.Context(), `SELECT record_version FROM care_plans WHERE id=$1`, planID).Scan(&version); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := plans.Advance(t.Context(), clinician, planID, version); !errors.Is(err, clinical.ErrCompletionPending) {
+		t.Fatalf("empty preparatory stage advanced: %v", err)
+	}
+	room, err := service.CreateRoom(t.Context(), receptionist, "SYN-STAGE", "Synthetic stage room")
+	if err != nil {
+		t.Fatal(err)
+	}
+	start := time.Now().UTC().Add(time.Hour).Truncate(time.Minute)
+	end := start.Add(time.Hour)
+	for _, resource := range []struct{ room, therapist *string }{{&room.ID, nil}, {nil, &therapist}} {
+		if _, err := service.AddAvailability(t.Context(), receptionist, resource.room, resource.therapist, start.Add(-time.Minute), end.Add(time.Minute)); err != nil {
+			t.Fatal(err)
+		}
+	}
+	session, err := service.Book(t.Context(), receptionist, BookRequest{PatientID: patient, PlanID: planID, StageID: stageID,
+		RoomID: room.ID, TherapistID: therapist, StartsAt: start, EndsAt: end})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := plans.Advance(t.Context(), clinician, planID, version); !errors.Is(err, clinical.ErrCompletionPending) {
+		t.Fatalf("booked session permitted advancement: %v", err)
+	}
+	if _, err := service.Start(t.Context(), therapist, session.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.Complete(t.Context(), therapist, session.ID, "Synthetic preparatory delivery"); err != nil {
+		t.Fatal(err)
+	}
+	advanced, err := plans.Advance(t.Context(), clinician, planID, version)
+	if err != nil || advanced.CurrentOrdinal != 2 {
+		t.Fatalf("completed preparatory stage did not advance: %+v %v", advanced, err)
+	}
+}
