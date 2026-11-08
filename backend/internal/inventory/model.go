@@ -100,10 +100,10 @@ type BatchSummaryTotals struct {
 
 // StockBatchPage is a bounded paginated list of stock batches with summary totals.
 type StockBatchPage struct {
-	Items         []StockBatch       `json:"items"`
-	Summary       BatchSummaryTotals `json:"summary"`
-	ClinicDate    string             `json:"clinicDate"`
-	NextCursor    *string            `json:"nextCursor"`
+	Items      []StockBatch       `json:"items"`
+	Summary    BatchSummaryTotals `json:"summary"`
+	ClinicDate string             `json:"clinicDate"`
+	NextCursor *string            `json:"nextCursor"`
 }
 
 // CreateItemRequest is the payload for POST /api/v1/inventory/items.
