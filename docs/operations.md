@@ -63,6 +63,8 @@ For a configured pilot, use its protected operator settings file and standalone 
 
 For an ordinary development stop/start without a schema update, `docker compose stop` followed by `docker compose up -d` preserves the database volume. Pilot restart preserves the external database and must also retain Caddy's persistent volumes. Do not use `docker compose down -v`, delete volumes or remove committed rows as an outage remedy. Restart persistence is not backup/restore evidence.
 
+For TASK-OPS-04, follow the [isolated clean-start verification](../deploy/verification/README.md). It builds the pilot images and tests migrations, synthetic seeding and persistence after recreating every service, using its own disposable database and volumes.
+
 ## Outage and controlled re-entry
 
 1. Record the outage start time/timezone, affected functions, operator and version. Tell the responsible clinic/team contact which actions are unavailable. Restrict traffic if access or data integrity is in doubt.
@@ -75,7 +77,7 @@ For an ordinary development stop/start without a schema update, `docker compose 
 
 ## Deferred operational decisions
 
-The user deferred backup/storage and key-custody work until deployment on 31 October 2026. OPS-02 remains pending: daily encrypted off-host backups, separate key custody, monitoring and an isolated restore of a patient, batch, invoice and audit event still need implementation and AT16 evidence. A local dump or container restart does not close this task.
+On 5 November 2026 the user selected private GitHub backup storage, seven daily encrypted copies capped at 48 MiB, and personal key custody/restore operation. Follow the [backup and isolated recovery procedure](../deploy/backups/README.md). Full OPS-02/AT16 remains pending actual four-category recovery, independent key copy, notification receipt and review evidence.
 
 Before pilot/handover, record DEC06 host/funding, backup/key custody, restore operator, monitoring and support contacts; DEC07 production bootstrap/recovery; and DEC05 real-data authorization/retention/export responsibility. Keep unresolved items open in [the decision register](decisions.md). No host, backup target or recovery promise is selected by this runbook.
 

@@ -24,7 +24,7 @@ type mockBillingService struct {
 	removeItemFunc             func(ctx context.Context, actorID, invoiceID, itemID string) error
 	issueInvoiceFunc           func(ctx context.Context, actorID, invoiceID string) (billing.Invoice, error)
 	voidInvoiceFunc            func(ctx context.Context, actorID, invoiceID string) error
-	postReceiptFunc            func(ctx context.Context, actorID, invoiceID string, req billing.PostReceiptRequest) (billing.Receipt, error)
+	postReceiptFunc            func(ctx context.Context, actorID, invoiceID string, req billing.PostReceiptRequest) (billing.Receipt, bool, error)
 	getBalanceFunc             func(ctx context.Context, actorID, invoiceID string) (billing.InvoiceBalance, error)
 	listReceiptsFunc           func(ctx context.Context, actorID, invoiceID string) ([]billing.Receipt, error)
 	outstandingReportFunc      func(ctx context.Context, actorID string) (billing.OutstandingReport, error)
@@ -79,11 +79,11 @@ func (m *mockBillingService) VoidInvoice(ctx context.Context, actorID, invoiceID
 	return nil
 }
 
-func (m *mockBillingService) PostReceipt(ctx context.Context, actorID, invoiceID string, req billing.PostReceiptRequest) (billing.Receipt, error) {
+func (m *mockBillingService) PostReceipt(ctx context.Context, actorID, invoiceID string, req billing.PostReceiptRequest) (billing.Receipt, bool, error) {
 	if m.postReceiptFunc != nil {
 		return m.postReceiptFunc(ctx, actorID, invoiceID, req)
 	}
-	return billing.Receipt{}, nil
+	return billing.Receipt{}, false, nil
 }
 
 func (m *mockBillingService) GetBalance(ctx context.Context, actorID, invoiceID string) (billing.InvoiceBalance, error) {
@@ -369,7 +369,7 @@ func TestBillingForbiddenRoute(t *testing.T) {
 func TestPostReceiptRoute(t *testing.T) {
 	now := time.Now().UTC()
 	mockSvc := &mockBillingService{
-		postReceiptFunc: func(ctx context.Context, actorID, invoiceID string, req billing.PostReceiptRequest) (billing.Receipt, error) {
+		postReceiptFunc: func(ctx context.Context, actorID, invoiceID string, req billing.PostReceiptRequest) (billing.Receipt, bool, error) {
 			return billing.Receipt{
 				ID:            "rec-uuid-1",
 				InvoiceID:     invoiceID,
@@ -379,7 +379,7 @@ func TestPostReceiptRoute(t *testing.T) {
 				Label:         req.Label,
 				IssuedAt:      now,
 				IssuedBy:      actorID,
-			}, nil
+			}, false, nil
 		},
 	}
 	router := setupBillingTestRouter(mockSvc)
@@ -409,10 +409,53 @@ func TestPostReceiptRoute(t *testing.T) {
 	}
 }
 
+func TestPostReceiptIdempotentReturns200(t *testing.T) {
+	now := time.Now().UTC()
+	mockSvc := &mockBillingService{
+		postReceiptFunc: func(ctx context.Context, actorID, invoiceID string, req billing.PostReceiptRequest) (billing.Receipt, bool, error) {
+			return billing.Receipt{
+				ID:            "rec-uuid-1",
+				InvoiceID:     invoiceID,
+				OperationID:   req.OperationID,
+				AmountMinor:   req.AmountMinor,
+				PaymentMethod: req.PaymentMethod,
+				Label:         req.Label,
+				IssuedAt:      now,
+				IssuedBy:      actorID,
+			}, true, nil
+		},
+	}
+	router := setupBillingTestRouter(mockSvc)
+	body, _ := json.Marshal(billing.PostReceiptRequest{
+		OperationID:   "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+		AmountMinor:   250000,
+		PaymentMethod: "direct_deposit",
+		Label:         "Advance deposit slip #BOC-109",
+	})
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/invoices/inv-uuid-1/receipts", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Origin", "https://clinic.example")
+	req.Header.Set("X-CSRF-Token", "valid-csrf-token")
+	req.AddCookie(&http.Cookie{Name: sessionCookie, Value: "valid-session"})
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200 OK for idempotent retry, got %d: %s", w.Code, w.Body.String())
+	}
+	var rec billing.Receipt
+	if err := json.Unmarshal(w.Body.Bytes(), &rec); err != nil {
+		t.Fatal(err)
+	}
+	if rec.ID != "rec-uuid-1" || rec.AmountMinor != 250000 {
+		t.Fatalf("unexpected receipt response on retry: %+v", rec)
+	}
+}
+
 func TestPostReceiptConflict(t *testing.T) {
 	mockSvc := &mockBillingService{
-		postReceiptFunc: func(ctx context.Context, actorID, invoiceID string, req billing.PostReceiptRequest) (billing.Receipt, error) {
-			return billing.Receipt{}, errors.Join(billing.ErrConflict, errors.New("overpayment exceeds outstanding balance"))
+		postReceiptFunc: func(ctx context.Context, actorID, invoiceID string, req billing.PostReceiptRequest) (billing.Receipt, bool, error) {
+			return billing.Receipt{}, false, errors.Join(billing.ErrConflict, errors.New("overpayment exceeds outstanding balance"))
 		},
 	}
 	router := setupBillingTestRouter(mockSvc)

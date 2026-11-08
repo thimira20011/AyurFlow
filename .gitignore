@@ -22,6 +22,8 @@ playwright-report/
 .cache/
 tmp/
 backups/
+!/scripts/backups/
+!/deploy/backups/
 *.log
 
 # Editor and OS files
@@ -29,3 +31,4 @@ backups/
 .vscode/
 .DS_Store
 Thumbs.db
+.neon

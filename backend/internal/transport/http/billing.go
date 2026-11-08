@@ -22,7 +22,7 @@ type BillingService interface {
 	RemoveItem(ctx context.Context, actorID, invoiceID, itemID string) error
 	IssueInvoice(ctx context.Context, actorID, invoiceID string) (billing.Invoice, error)
 	VoidInvoice(ctx context.Context, actorID, invoiceID string) error
-	PostReceipt(ctx context.Context, actorID, invoiceID string, req billing.PostReceiptRequest) (billing.Receipt, error)
+	PostReceipt(ctx context.Context, actorID, invoiceID string, req billing.PostReceiptRequest) (billing.Receipt, bool, error)
 	GetBalance(ctx context.Context, actorID, invoiceID string) (billing.InvoiceBalance, error)
 	ListReceipts(ctx context.Context, actorID, invoiceID string) ([]billing.Receipt, error)
 	OutstandingReport(ctx context.Context, actorID string) (billing.OutstandingReport, error)
@@ -111,12 +111,17 @@ func registerBilling(group *gin.RouterGroup, service BillingService) {
 			c.JSON(http.StatusBadRequest, failure("bad_request", "Invalid receipt request."))
 			return
 		}
-		rec, err := service.PostReceipt(c.Request.Context(), ActorID(c), c.Param("id"), req)
+		rec, alreadyExisted, err := service.PostReceipt(c.Request.Context(), ActorID(c), c.Param("id"), req)
 		if err != nil {
 			billingError(c, err)
 			return
 		}
-		c.JSON(http.StatusCreated, rec)
+		// 200 OK on an idempotent replay of an identical operation; 201 Created for a new receipt.
+		status := http.StatusCreated
+		if alreadyExisted {
+			status = http.StatusOK
+		}
+		c.JSON(status, rec)
 	})
 
 	group.GET("/invoices/:id/receipts", func(c *gin.Context) {

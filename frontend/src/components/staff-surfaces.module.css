@@ -1,0 +1,23 @@
+.page { max-width:1100px; margin:0 auto; }
+.heading { margin-bottom:28px; }
+.eyebrow { margin:0 0 8px; color:#52664f; font-size:11px; font-weight:600; letter-spacing:.14em; }
+.heading h1 { margin:0 0 7px; color:#21483a; font:400 clamp(30px,3vw,42px)/1.15 var(--font-lora),Georgia,serif; }
+.heading p:last-child,.card p:not(.eyebrow) { margin:0; color:#596451; }
+.areaGrid { display:grid; grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr)); gap:18px; }
+.card { display:flex; flex-direction:column; gap:12px; min-width:0; padding:24px; border:1px solid #d6c5a6; border-radius:8px; background:linear-gradient(#fcf8eee8,#fcf8eee8),url('/brand/paper.png') center / cover,#fcf8ee; }
+.card h2 { margin:0; color:#21483a; font:400 24px/1.25 var(--font-lora),Georgia,serif; }
+.actions { display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin-top:auto; padding-top:12px; }
+.primary,.secondary { display:inline-flex; align-items:center; justify-content:center; min-height:44px; padding:9px 16px; border:1px solid #21483a; border-radius:7px; font-weight:600; text-align:center; text-decoration:none; }
+.primary { color:#faf7eb; background:#21483a; }
+.secondary { color:#21483a; background:#fcf8ee; }
+.primary:hover { background:#2a5643; }.secondary:hover { background:#e7eee2; }
+.status { align-self:flex-start; border-radius:999px; background:#f5e9cd; color:#694b21; padding:5px 10px; font-size:12px; font-weight:600; }
+.notice { margin:0 0 18px; border:1px solid #d6c5a6; border-radius:8px; background:#e7eee2; color:#21483a; padding:15px 18px; }
+.field { display:grid; gap:6px; color:#263d31; font-size:13px; font-weight:600; }
+.input { min-height:44px; width:100%; border:1px solid #79816b; border-radius:8px; padding:10px 12px; background:#fcf8ee; color:#263d31; font:inherit; }
+.input:disabled { opacity:.6; cursor:not-allowed; }
+.success,.error { margin:18px 0 0; border:1px solid #d6c5a6; border-radius:8px; padding:12px 16px; }
+.success { background:#e7eee2; color:#21483a; }.error { background:#fbefdf; border-color:#a65343; color:#713c30; }
+.button { min-height:44px; padding:9px 16px; border:1px solid #d3b782; border-radius:8px; background:#21483a; color:#faf7eb; font:inherit; font-weight:600; cursor:pointer; }
+.button:disabled { opacity:.6; cursor:not-allowed; }
+@media(max-width:700px) { .card { padding:20px; }.actions > * { flex:1 1 160px; } }

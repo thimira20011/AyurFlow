@@ -89,13 +89,21 @@ test("a receptionist cannot open staff administration", async ({ page }) => {
   await expect(page.getByRole("table", { name: "Staff accounts" })).toHaveCount(0);
 });
 
+test("workspace navigation shows only the signed-in role's areas", async ({ page }) => {
+  await authAPI(page, ["clinician"]);
+  await page.setViewportSize({ width: 1024, height: 768 });
+  await page.goto("/workspace");
+  await expect(page.getByRole("heading", { name: "Clinical workspace" })).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Clinical navigation" }).getByRole("link", { name: "Care plans" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Reception desk" })).toHaveCount(0);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(1024);
+});
+
 for (const path of ["/workspace", "/reception"]) {
   test(`logout from ${path} reports failure honestly and revokes before navigating`, async ({ page }) => {
     const state = await authAPI(page);
     await page.goto(path);
-    const signOut = path === "/workspace"
-      ? page.locator("header").getByRole("button", { name: "Sign out", exact: true })
-      : page.getByRole("navigation", { name: "Staff session" }).getByRole("button", { name: "Sign out", exact: true });
+    const signOut = page.locator("header").getByRole("button", { name: "Sign out", exact: true });
     await expect(signOut).toBeVisible();
     state.logoutStatus = 503;
     await signOut.click();

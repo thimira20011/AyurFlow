@@ -1,10 +1,10 @@
 .workspace {
-  --patient-ink: oklch(0.27 0.045 157);
-  --patient-muted: oklch(0.45 0.018 164);
-  --patient-border: oklch(0.85 0.018 154);
-  --patient-surface: oklch(0.995 0.005 145);
-  --patient-soft: oklch(0.96 0.018 151);
-  --patient-accent: oklch(0.43 0.1 160);
+  --patient-ink: var(--staff-forest);
+  --patient-muted: var(--staff-muted);
+  --patient-border: var(--staff-border);
+  --patient-surface: var(--staff-surface);
+  --patient-soft: var(--staff-sage);
+  --patient-accent: var(--staff-forest);
   color: var(--patient-ink);
   width: 100%;
 }
@@ -270,3 +270,65 @@
   .detailRow { grid-template-columns: 1fr; gap: 0.3rem; }
   .searchControls { flex-direction: column; }
 }
+
+/* Member B screens use the shared Living Heritage assets and leave the clinical rules intact. */
+.workspace { font: 14px/1.5 var(--font-dm-sans), Arial, sans-serif; }
+.title { font-family: var(--font-lora), Georgia, serif; font-size: clamp(1.8rem, 3vw, 2.2rem); font-weight: 400; letter-spacing: 0; }
+.headingRow { margin-bottom: 1.4rem; }
+.subtitle { margin-top: .2rem; }
+.kicker { color: var(--patient-ink); font-size: .65rem; font-weight: 600; }
+.columns { grid-template-columns: minmax(0, 1.6fr) minmax(16rem, .95fr); gap: 1rem; }
+.searchPanel { display: contents; }
+.searchPanel > .sectionHeading { grid-column: 1 / -1; margin: 0; padding: 0; border: 0; }
+.searchPanel > .sectionHeading h2 { font: 500 .85rem/1.4 var(--font-dm-sans), Arial, sans-serif; }
+.searchPanel > .sectionHeading .sectionIndex { display: none; }
+.searchPanel > .searchForm { grid-column: 1 / -1; }
+.searchForm .hint { margin-top: .35rem; }
+.searchControls { gap: 1rem; }
+.searchControls .input { border-color: var(--patient-ink); }
+.searchControls .searchButton { min-width: 9rem; }
+.identityMatch { grid-column: 1 / -1; order: 5; margin-top: .5rem; color: var(--patient-ink); }
+.identityMatch summary { cursor: pointer; font-weight: 600; }
+.identityMatch .searchForm { max-width: 42rem; margin-top: 1rem; padding: 1.25rem; background: linear-gradient(#fcf8eeee,#fcf8eeee),url('/brand/paper.png') center / cover; border: 1px solid var(--patient-border); border-radius: 8px; }
+.identityMatch .searchForm .input { margin-bottom: .7rem; }
+.results { grid-column: 1; margin: 0; min-width: 0; }
+.recordPanel { grid-column: 2; min-height: 0; }
+.recordPanel, .accessPanel { background: linear-gradient(#fcf8eeee,#fcf8eeee),url('/brand/paper.png') center / cover; border-color: var(--patient-border); box-shadow: 0 4px 16px #21483a12; }
+.recordPanel { padding: 1.25rem; }
+.resultCount { text-transform: none; letter-spacing: 0; font-weight: 400; }
+.resultHeader, .resultButton { display: grid; grid-template-columns: 1.45fr .9fr .85fr .8fr; gap: .6rem; align-items: center; }
+.resultHeader { padding: .7rem .65rem; background: #efebdf; border: 1px solid var(--patient-border); border-radius: 7px 7px 0 0; color: var(--patient-muted); font-size: .75rem; }
+.resultList { border: 1px solid var(--patient-border); border-top: 0; border-radius: 0 0 7px 7px; background: linear-gradient(#fcf8eeee,#fcf8eeee),url('/brand/paper.png') center / cover; }
+.resultButton { min-height: 48px; padding: .7rem .65rem; font-size: .82rem; }
+.resultName { font-size: .82rem; font-weight: 500; }
+.resultValue, .resultMeta { color: var(--patient-muted); font-size: .78rem; overflow-wrap:anywhere; }
+.resultMeta { font-family: inherit; }
+.sectionHeading { border-color: var(--patient-border); }
+.sectionHeading h2, .emptyRecord h2, .accessPanel h2, .guidance h3 { font-family: var(--font-lora), Georgia, serif; font-weight: 400; letter-spacing: 0; }
+.recordDetails .detailRow { padding: .65rem 0; }
+.recordPanel .sectionHeading { margin-bottom:.7rem; }
+.recordPanel .recordDetails .detailRow { display:block; }
+.recordPanel .recordDetails dt { font-size:.76rem; font-weight:400; }
+.recordPanel .recordDetails dd { margin-top:.25rem; }
+.recordBadge { display:inline-block; margin-top:.6rem; padding:.25rem .65rem; border-radius:999px; background:var(--patient-soft); font-size:.75rem; }
+.extraDemographics { margin:1rem 0; border-top:1px solid var(--patient-border); padding-top:.8rem; }
+.extraDemographics summary { cursor:pointer; font-size:.82rem; color:var(--patient-ink); }
+.recordPanel > .secondaryButton { width:100%; }
+.recordPanel .hint + .extraDemographics + .secondaryButton { display:block; width:100%; background:transparent; border-color:#79816b; }
+.registerView { display: block; }
+.registerView .searchPanel { display: none; }
+.registerView .recordPanel { width: 100%; background: none; border: 0; box-shadow: none; padding: 0; }
+.registerView .recordPanel > .sectionHeading { border: 0; margin-bottom: .8rem; padding: 0; }
+.registerLayout { display: grid; grid-template-columns: minmax(0, 1.8fr) minmax(15rem, .8fr); gap: 1.25rem; align-items: start; }
+.registerLayout > div, .guidance { padding: 1.5rem; border: 1px solid var(--patient-border); border-radius: 8px; background: linear-gradient(#fcf8eeee,#fcf8eeee),url('/brand/paper.png') center / cover; box-shadow: 0 4px 16px #21483a12; }
+.registerLayout .fields { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 1rem; }
+.registerLayout .fields > :first-child, .registerLayout .fields > .hint, .registerLayout .identityFields { grid-column: 1 / -1; }
+.registerLayout .identityFields { grid-template-columns: repeat(2,minmax(0,1fr)); }
+.guidance h3 { margin: 0 0 1rem; font-size: 1.4rem; }
+.guidance strong { display: block; margin-top: 1rem; font-weight: 500; }
+.guidance p { color: var(--patient-muted); }
+.guidance strong + p + strong { padding-top: 1rem; border-top: 1px solid var(--patient-border); }
+.workspace :is(a,button,input,select,textarea,summary):focus-visible { outline: 3px solid #a27d45; outline-offset: 3px; }
+@media(max-width:950px) { .registerLayout { grid-template-columns: 1fr; } }
+@media(max-width:800px) { .columns { grid-template-columns: 1fr; }.results,.recordPanel { grid-column: 1; }.resultHeader,.resultButton { grid-template-columns: 1.2fr .8fr .8fr; }.resultHeader span:nth-child(3),.resultButton span:nth-child(3) { display:none; } }
+@media(max-width:560px) { .registerLayout .fields,.registerLayout .identityFields { grid-template-columns: 1fr; }.resultHeader,.resultButton { grid-template-columns: 1fr .8fr; }.resultHeader span:nth-child(2),.resultButton span:nth-child(2) { display:none; } }

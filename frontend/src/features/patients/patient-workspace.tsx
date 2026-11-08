@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import { APIRequestError } from "@/lib/api-client";
 import {
@@ -77,6 +77,15 @@ function validateForm(form: FormValues): FieldErrors {
   else if (!form.identityType && form.identityValue.trim()) errors.identity = "Choose an identity type or clear the number.";
   else if (byteLength(form.identityValue) > 128) errors.identity = "Identity number is too long.";
   return errors;
+}
+
+function focusFirstInvalid(errors: FieldErrors, prefix: "register" | "edit", form: FormValues) {
+  const first = Object.keys(errors)[0] as keyof FieldErrors | undefined;
+  if (!first) return;
+  const field = first === "displayName" ? "name" : first === "birthDate" ? "birth-date"
+    : first === "postalCode" ? "postal-code" : first === "identity"
+      ? form.identityType ? "identity-value" : "identity-type" : first;
+  document.getElementById(`${prefix}-${field}`)?.focus();
 }
 
 function formatColombo(instant: string): string {
@@ -208,33 +217,6 @@ export default function PatientWorkspace({
     return () => { active = false; };
   }, [preview]);
 
-  const executeSearch = useCallback(async (term: string) => {
-    const trimmed = term.trim();
-    if (!trimmed || byteLength(trimmed) > 128) {
-      setNotice({ tone: "error", text: "Enter a search term of up to 128 bytes." });
-      return;
-    }
-    setBusy(true);
-    setNotice(null);
-    try {
-      const foundPatients = await searchWithFallback(trimmed, preview, previewStore.current);
-      setResults(foundPatients);
-      setSearched(true);
-      if (foundPatients.length > 0) {
-        setSelected(foundPatients[0]);
-        setEditForm(formFromPatient(foundPatients[0]));
-      } else {
-        setSelected(null);
-      }
-      setPanel("detail");
-      setEditing(false);
-    } catch (error) {
-      setNotice(requestNotice(error, "search"));
-    } finally {
-      setBusy(false);
-    }
-  }, [preview]);
-
   useEffect(() => {
     if (!initialSearch) return;
     let active = true;
@@ -353,7 +335,7 @@ export default function PatientWorkspace({
     event.preventDefault();
     const errors = validateForm(registerForm);
     setFieldErrors(errors);
-    if (Object.keys(errors).length) return;
+    if (Object.keys(errors).length) { focusFirstInvalid(errors, "register", registerForm); return; }
     const input: PatientDraft = {
       displayName: registerForm.displayName.trim(),
       birthDate: registerForm.birthDate,
@@ -391,7 +373,7 @@ export default function PatientWorkspace({
     if (!selected) return;
     const errors = validateForm(editForm);
     setFieldErrors(errors);
-    if (Object.keys(errors).length) return;
+    if (Object.keys(errors).length) { focusFirstInvalid(errors, "edit", editForm); return; }
     const name = editForm.displayName.trim();
     const birthDate = editForm.birthDate;
     const gender = editForm.gender as Gender;
@@ -442,19 +424,11 @@ export default function PatientWorkspace({
       {preview && <div className={styles.previewNotice} role="status"><strong>Synthetic screen preview</strong><span>Try search, registration and edits here. Changes stay in this browser tab and disappear on refresh. No patient API or database is used.</span><Link href="/patients" className={styles.textLink}>Return to live records</Link></div>}
       <div className={styles.headingRow}>
         <div>
-          <div style={{ marginBottom: "0.5rem" }}>
-            <Link href="/reception" className={styles.textLink} style={{ marginRight: "1rem" }}>
-              🌿 Back to Reception Desk
-            </Link>
-            <Link href="/dashboard" className={styles.textLink}>
-              ← Back to Dashboard
-            </Link>
-          </div>
-          <p className={styles.kicker}>Patient registry</p>
-          <h1 className={styles.title}>Patient records</h1>
-          <p className={styles.subtitle}>Register a patient, find a record, or correct demographics.</p>
+          <p className={styles.kicker}>{panel === "register" ? "Patients / New record" : "Patient records"}</p>
+          <h1 className={styles.title}>{panel === "register" ? "Register a patient" : "Every visit begins here."}</h1>
+          <p className={styles.subtitle}>{panel === "register" ? "Use the patient’s preferred name. Identity documents are optional." : "Search existing records before registering a new patient."}</p>
         </div>
-        {access === "ready" && (
+        {access === "ready" && panel !== "register" && (
           <button className={styles.primaryButton} type="button" onClick={showRegister} disabled={busy}>
             Register patient
           </button>
@@ -471,7 +445,7 @@ export default function PatientWorkspace({
       ) : (
         <>
           {notice && <div className={`${styles.notice} ${styles[notice.tone]}`} role={notice.tone === "error" ? "alert" : "status"}>{notice.text}{notice.signIn && <> <Link href="/sign-in" className={styles.textLink}>Staff sign in</Link></>}</div>}
-          <div className={styles.columns}>
+          <div className={`${styles.columns} ${panel === "register" ? styles.registerView : ""}`}>
             <section className={styles.searchPanel} aria-labelledby="patient-search-heading">
               <div className={styles.sectionHeading}>
                 <div>
@@ -487,8 +461,7 @@ export default function PatientWorkspace({
                 </div>
                 <p className={styles.hint}>Search returns up to 25 permitted records. Refine the term to narrow results.</p>
               </form>
-              <form onSubmit={(event) => { void handleConfirmIdentity(event); }} className={styles.searchForm}>
-                <h3>Confirm identity without NIC or passport</h3>
+              <details className={styles.identityMatch}><summary>Confirm identity without NIC or passport</summary><form onSubmit={(event) => { void handleConfirmIdentity(event); }} className={styles.searchForm}>
                 <p className={styles.hint}>Enter all three details from the authorized handoff. A name-only search does not confirm identity.</p>
                 <label htmlFor="match-name" className={styles.label}>Full legal name</label>
                 <input id="match-name" className={styles.input} value={matchName} onChange={event => setMatchName(event.target.value)} disabled={busy} required />
@@ -499,7 +472,7 @@ export default function PatientWorkspace({
                 <label htmlFor="match-postal-code" className={styles.label}>Residential postal code (when phone and ID are absent)</label>
                 <input id="match-postal-code" className={styles.input} value={matchPostalCode} onChange={event => setMatchPostalCode(event.target.value)} disabled={busy} />
                 <button className={styles.searchButton} disabled={busy}>Confirm exact match</button>
-              </form>
+              </form></details>
               <div className={styles.results} aria-live="polite">
                 {!searched && results.length === 0 ? (
                   <p className={styles.emptyList}>Search to see patient records you may access.</p>
@@ -508,11 +481,14 @@ export default function PatientWorkspace({
                 ) : (
                   <>
                     <p className={styles.resultCount}>{searched ? `${results.length} result${results.length === 1 ? "" : "s"}` : "Recently registered"}</p>
+                    <div className={styles.resultHeader} aria-hidden="true"><span>Patient</span><span>Phone</span><span>Identity</span><span>Record</span></div>
                     <ul className={styles.resultList}>
                       {results.map((patient) => (
                         <li key={patient.id}>
                           <button type="button" className={styles.resultButton} aria-pressed={selected?.id === patient.id && panel === "detail"} onClick={() => { void handleSelect(patient.id); }} disabled={busy}>
                             <span className={styles.resultName}>{patient.displayName}</span>
+                            <span className={styles.resultValue}>{patient.phone ?? "Not supplied"}</span>
+                            <span className={styles.resultValue}>{patient.identity?.type ?? "Not supplied"}</span>
                             <span className={styles.resultMeta}>{patient.patientCode}</span>
                           </button>
                         </li>
@@ -533,22 +509,22 @@ export default function PatientWorkspace({
                     </div>
                     <button className={styles.quietButton} type="button" onClick={showDetail} disabled={busy}>Cancel</button>
                   </div>
-                  <p className={styles.panelIntro}>Name, date of birth, gender and either a mobile phone or residential postal code are required. A supplied NIC or passport remains optional.</p>
+                  <div className={styles.registerLayout}><div><p className={styles.panelIntro}>Name, date of birth, gender and either a mobile phone or residential postal code are required. A supplied NIC or passport remains optional.</p>
                   <form onSubmit={(event) => { void handleRegister(event); }} noValidate>
                     <PatientFields prefix="register" value={registerForm} onChange={setRegisterForm} errors={fieldErrors} disabled={busy} />
                     <div className={styles.formActions}>
-                      <button className={styles.primaryButton} type="submit" disabled={busy}>{busy ? "Registering…" : "Register patient"}</button>
+                      <button className={styles.primaryButton} type="submit" disabled={busy}>{busy ? "Registering…" : "Create patient record"}</button>
                     </div>
-                  </form>
+                  </form></div><aside className={styles.guidance}><h3>A considered first step</h3><strong>Search first</strong><p>Check for an existing record before creating a new one.</p><strong>No NIC? No problem.</strong><p>You can register a patient without an identity number. A duplicate supplied identity is flagged before a new record is created.</p></aside></div>
                 </>
               ) : selected ? (
                 <>
                   <div className={styles.sectionHeading}>
                     <div>
-                      <p className={styles.sectionIndex}>02 / Record</p>
+                      <p className={styles.sectionIndex}>Patient / {selected.patientCode}</p>
                       <h2 id="patient-record-heading">{selected.displayName}</h2>
+                      {!editing && <span className={styles.recordBadge}>Patient record</span>}
                     </div>
-                    {!editing && <button className={styles.secondaryButton} type="button" onClick={() => { setEditForm(formFromPatient(selected)); setFieldErrors({}); setEditing(true); }} disabled={busy}>Edit demographics</button>}
                   </div>
                   {editing ? (
                     <form onSubmit={(event) => { void handleUpdate(event); }} noValidate>
@@ -561,19 +537,20 @@ export default function PatientWorkspace({
                       </div>
                     </form>
                   ) : (
-                    <dl className={styles.recordDetails}>
-                      <div className={styles.detailRow}><dt>Patient code</dt><dd className={styles.monospace}>{selected.patientCode}</dd></div>
+                    <><dl className={styles.recordDetails}>
+                      <div className={styles.detailRow}><dt>Phone</dt><dd>{selected.phone ?? "Not supplied"}</dd></div>
+                      <div className={styles.detailRow}><dt>NIC / Passport</dt><dd>{selected.identity ? `${selected.identity.type} · ${selected.identity.value}` : "Not supplied"}</dd></div>
+                    </dl><p className={styles.hint}>An identity document is optional.</p>
+                    <details className={styles.extraDemographics}><summary>More demographic details</summary><dl className={styles.recordDetails}>
                       <div className={styles.detailRow}><dt>Internal patient ID</dt><dd className={styles.monospace}>{selected.id}</dd></div>
                       <div className={styles.detailRow}><dt>Date of birth</dt><dd>{selected.birthDate ?? "Not supplied"}</dd></div>
                       <div className={styles.detailRow}><dt>Gender</dt><dd>{selected.gender ?? "Not supplied"}</dd></div>
-                      <div className={styles.detailRow}><dt>Phone</dt><dd>{selected.phone ?? "Not supplied"}</dd></div>
                       <div className={styles.detailRow}><dt>Address</dt><dd>{selected.address ?? "Not supplied"}</dd></div>
                       <div className={styles.detailRow}><dt>Postal code</dt><dd>{selected.postalCode ?? "Not supplied"}</dd></div>
-                      <div className={styles.detailRow}><dt>Identity</dt><dd>{selected.identity ? `${selected.identity.type} · ${selected.identity.value}` : "Not supplied"}</dd></div>
                       <div className={styles.detailRow}><dt>Registered</dt><dd>{formatColombo(selected.createdAt)}</dd></div>
                       <div className={styles.detailRow}><dt>Last updated</dt><dd>{formatColombo(selected.updatedAt)}</dd></div>
                       <div className={styles.detailRow}><dt>Version</dt><dd>{selected.version}</dd></div>
-                    </dl>
+                    </dl></details><button className={styles.secondaryButton} type="button" onClick={() => { setEditForm(formFromPatient(selected)); setFieldErrors({}); setEditing(true); }} disabled={busy}>Edit demographics</button></>
                   )}
                 </>
               ) : (
