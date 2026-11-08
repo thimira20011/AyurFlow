@@ -35,14 +35,6 @@ export function StaffSessionProvider({ children }: { children: React.ReactNode }
     path === "/sign-in" ||
     path === "/sign-up" ||
     path === "/" ||
-    path.startsWith("/reception") ||
-    path.startsWith("/dashboard") ||
-    path.startsWith("/workspace") ||
-    path.startsWith("/patients") ||
-    path.startsWith("/clinical") ||
-    path.startsWith("/billing") ||
-    path.startsWith("/inventory") ||
-    path.startsWith("/scheduling") ||
     syntheticPreview;
 
   const refresh = useCallback(async () => {
@@ -54,16 +46,6 @@ export function StaffSessionProvider({ children }: { children: React.ReactNode }
         if (current === generation.current) { setSession(value); setError(""); }
       } catch (error) {
         if (current !== generation.current) return;
-        if (typeof window !== "undefined" && (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1")) {
-          setSession({
-            staffId: "maya-reception-01",
-            roles: ["receptionist", "clinician", "dispensary", "billing", "administrator"],
-            csrfToken: "demo-csrf-token",
-            expiresAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-          });
-          setError("");
-          return;
-        }
         setSession(null);
         setError(error instanceof APIRequestError && error.status === 401 ? "" : "Session lookup is unavailable. Retry when the service is ready.");
       } finally {
@@ -133,7 +115,7 @@ export function StaffSessionProvider({ children }: { children: React.ReactNode }
     </section></div>;
   }
   return <SessionContext.Provider value={{ session, loading, error, refresh, signIn, signOut, signingOut }}>
-    {session && !path.startsWith("/reception") && path !== "/administration" && path !== "/dashboard" && <nav aria-label="Staff session" className="mb-6 flex flex-wrap items-center gap-4 rounded-xl border border-green-900/15 bg-white p-4">
+    {session && path !== "/administration" && path !== "/dashboard" && <nav aria-label="Staff session" className="mb-6 flex flex-wrap items-center gap-4 rounded-xl border border-green-900/15 bg-white p-4">
       <Link href="/workspace" className="font-semibold underline">Workspace</Link>
       <span className="text-sm">{session.roles.length ? session.roles.join(", ") : "No roles assigned"}</span>
       <button type="button" className="ml-auto rounded-lg border px-4 py-2" disabled={signingOut} onClick={() => void signOut()}>{signingOut ? "Signing out…" : "Sign out"}</button>

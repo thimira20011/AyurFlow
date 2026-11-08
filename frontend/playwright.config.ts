@@ -6,7 +6,7 @@ export default defineConfig({
   workers: 2,
   use: { baseURL: "http://127.0.0.1:3100", browserName: "chromium" },
   webServer: {
-    command: "node node_modules/next/dist/bin/next start --hostname 127.0.0.1 --port 3100",
+    command: "node tests/browser/start-server.mjs",
     url: "http://127.0.0.1:3100/sign-in",
     timeout: 60_000,
   },
