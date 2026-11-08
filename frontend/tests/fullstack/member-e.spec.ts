@@ -40,7 +40,7 @@ test("BILL-05: issue an invoice, record a deposit and reload its receipt history
   await description.fill("Synthetic treatment");
   await invoice.getByLabel("Unit price (LKR)").fill("10000.25");
   await invoice.getByRole("button", { name: "+ Add", exact: true }).click();
-  await expect(invoice.getByRole("cell", { name: "Synthetic treatment" })).toBeVisible();
+  await expect(invoice.getByRole("cell", { name: "Synthetic treatment", exact: true })).toBeVisible();
   await invoice.getByRole("button", { name: /Issue & Lock Invoice/ }).click();
   await expect(description).toHaveCount(0);
   await invoice.getByRole("button", { name: "Record Payment" }).click();
