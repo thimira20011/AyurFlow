@@ -9,7 +9,7 @@ import { canOpenArea } from "@/lib/api-client";
 import { workspaceFor } from "@/lib/workspace-navigation";
 import styles from "./heritage-shell.module.css";
 
-export default function HeritageShell({ section, children }: { section: "Overview" | "Patients" | "Consultations" | "Care plans" | "Scheduling" | "Inventory" | "Billing" | "Administration"; children: ReactNode }) {
+export default function HeritageShell({ section, children }: { section: "Overview" | "Reception" | "Patients" | "Consultations" | "Care plans" | "Scheduling" | "Inventory" | "Billing" | "Administration"; children: ReactNode }) {
   const pathname = usePathname();
   const { session, signOut, signingOut } = useStaffSession();
   const date = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Asia/Colombo" }).format(new Date());
