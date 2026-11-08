@@ -226,7 +226,7 @@ test("CLN-05: clinician plan timeline, guarded decisions and responsive layout u
 
     for (const width of [1366, 1024, 700]) {
       await page.setViewportSize({ width, height: 768 });
-      await expect(detail.getByRole("heading", { name: "Treatment plan · Preparatory" })).toBeVisible();
+      await expect(detail.getByRole("heading", { name: "Treatment plan · Cancelled" })).toBeVisible();
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
       const listBounds = await page.getByRole("region", { name: "Patient plans" }).boundingBox();
       const detailBounds = await detail.boundingBox();
