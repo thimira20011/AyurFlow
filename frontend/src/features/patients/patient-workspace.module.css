@@ -270,3 +270,68 @@
   .detailRow { grid-template-columns: 1fr; gap: 0.3rem; }
   .searchControls { flex-direction: column; }
 }
+
+/* Patient registry — parchment and forest workspace. */
+.shell { display:flex; min-height:100dvh; background:#f6edda url('/brand/paper.png') center/cover; color:#284c3d; }
+.sidebar { width:224px; flex-shrink:0; background:linear-gradient(145deg,#264f40,#1e4435); color:#f4eedc; padding:28px 18px; display:flex; flex-direction:column; min-height:100dvh; border-right:1px solid #ae9c68; }
+.brand { display:flex; gap:9px; align-items:center; font:26px Georgia,serif; text-decoration:none; }
+.brand img { width:27px; height:30px; }
+.sidebarLabel { color:#c1b17e; text-transform:uppercase; font-size:10px; letter-spacing:2px; margin:22px 0 14px; }
+.divider { width:100%; height:18px; margin-bottom:20px; }
+.sidebar nav { display:grid; gap:9px; }
+.sidebar nav a { padding:13px 14px; font-size:13px; border-radius:5px; text-decoration:none; }
+.sidebar nav a:hover { background:#ffffff12; }
+.sidebar nav a[aria-current] { background:#e9edde; color:#254a3b; box-shadow:inset 0 0 0 1px #c7ceb8; }
+.botanical { width:130px; height:230px; object-fit:contain; margin:55px auto 30px; opacity:.45; }
+.sidebar footer { margin-top:auto; border-top:1px solid #a79564; font-size:12px; line-height:1.6; }
+.sidebar footer .sidebarLabel { margin-top:15px; }
+.mainArea { flex:1; min-width:0; }
+.topbar { height:74px; background:#faf8eef0; border-bottom:1px solid #d9cdb1; padding:0 32px; display:flex; align-items:center; gap:35px; font-size:12px; }
+.topbar .date { margin-left:auto; color:#7a806b; }
+.topbar small { display:block; margin-top:5px; font-size:10px; color:#7a806b; }
+.workspace { --patient-ink:#2c5141; --patient-muted:#737c65; --patient-border:#d9ceb4; --patient-surface:#faf7ec; --patient-soft:#e9eddf; --patient-accent:#244f3e; padding:34px 32px 60px; }
+.headingRow { margin-bottom:24px; align-items:center; }
+.kicker { font-size:10px; letter-spacing:2px; font-weight:600; margin-bottom:10px; }
+.title { font-weight:400; font-size:36px; letter-spacing:-.8px; }
+.subtitle { font-size:13px; margin-top:8px; }
+.primaryButton,.searchButton,.secondaryButton { border-radius:5px; min-height:42px; font-weight:500; font-size:12px; }
+.columns { grid-template-columns:minmax(0,1.65fr) minmax(270px,1fr); gap:24px; }
+.searchPanel { display:contents; }
+.searchPanel > .searchForm { grid-column:1/-1; grid-row:1; margin-bottom:3px; }
+.searchForm > .hint { display:none; }
+.searchControls { gap:20px; }
+.searchControls .input { background:#fbf9efbb; border-color:#315c48; border-radius:6px; font-size:13px; }
+.searchControls .searchButton { flex:0 0 175px; }
+.label { font-size:12px; font-weight:500; }
+.results { grid-column:1; grid-row:2; margin:0; min-width:0; }
+.resultCount { text-transform:none; letter-spacing:0; font-size:11px; font-weight:400; margin:2px 0 13px; }
+.resultList { background:#faf8eec9; border-radius:0 0 7px 7px; overflow:hidden; }
+.tableHeading,.resultButton { display:grid; grid-template-columns:1.5fr 1fr .95fr 1fr; align-items:center; gap:14px; padding:18px 14px; font-size:11px; }
+.tableHeading { background:#eeeadaaa; border-top:1px solid var(--patient-border); border-bottom:1px solid var(--patient-border); color:#737c65; padding-block:13px; }
+.resultName { font-size:12px; font-weight:600; }
+.resultMeta { font:10px Arial,sans-serif; }
+.resultButton > span { overflow-wrap:anywhere; }
+.recordPanel { grid-column:2; grid-row:2 / span 2; padding:25px; min-height:0; border-radius:6px; box-shadow:0 5px 18px #68522d12; background:#faf7ecef; }
+.recordPanel .sectionHeading { border:0; padding:0; margin:0 0 12px; }
+.sectionIndex { font-size:9px; font-weight:500; letter-spacing:1.5px; margin-bottom:18px; }
+.sectionHeading h2 { font-size:25px; font-weight:400; }
+.recordBadge { display:inline-block; background:#e6ebdc; border-radius:20px; font-size:10px; padding:7px 10px; margin-bottom:17px; }
+.recordDetails { border-top:1px solid var(--patient-border); padding-top:12px; }
+.detailRow { display:block; padding:8px 0; }
+.detailRow + .detailRow { border:0; }
+.detailRow dt { font-size:10px; font-weight:400; margin-bottom:5px; }
+.detailRow dd { font-size:12px; }
+.detailRow:nth-child(1),.detailRow:nth-child(2) { display:none; }
+.recordPanel > .secondaryButton { width:100%; margin-top:14px; background:transparent; border-color:#9ba58b; }
+.identityDisclosure { grid-column:1; grid-row:3; font-size:11px; color:var(--patient-muted); margin-top:3px; }
+.identityDisclosure summary { cursor:pointer; padding:12px 0; }
+.identityDisclosure form { background:#faf7ecee; padding:20px; border:1px solid var(--patient-border); border-radius:5px; }
+.identityDisclosure .label { margin-top:15px; }
+.identityDisclosure button { margin-top:15px; }
+.previewNotice { font-size:12px; }
+@media(min-width:1100px) { .detailRow:nth-child(3),.detailRow:nth-child(4),.detailRow:nth-child(6),.detailRow:nth-child(7),.detailRow:nth-child(n+9) { display:none; } }
+@media(max-width:1000px) { .sidebar { width:185px; } .workspace { padding:28px 24px; } .columns { grid-template-columns:minmax(0,1fr); } .recordPanel { grid-column:1; grid-row:3; } .identityDisclosure { grid-row:4; } .topbar { padding:0 24px; } .topbar .date { display:none; } .topbar > span:last-child { margin-left:auto; } }
+@media(max-width:600px) { .shell { flex-direction:column; } .sidebar { width:100%; min-height:0; padding:16px; } .brand { font-size:22px; } .sidebarLabel,.divider,.botanical,.sidebar footer { display:none; } .sidebar nav { display:flex; margin-top:15px; gap:8px; } .sidebar nav a { flex:1; text-align:center; padding:10px; } .topbar { height:60px; padding:0 18px; } .workspace { padding:25px 18px; } .title { font-size:31px; } .headingRow { gap:18px; } .searchControls { flex-direction:row; gap:8px; } .searchControls .searchButton { flex-basis:80px; } .tableHeading,.resultButton { grid-template-columns:1.3fr 1fr 1fr; gap:8px; padding-inline:10px; } .tableHeading span:nth-child(3),.resultButton > span:nth-child(3) { display:none; } .recordPanel { padding:22px; } }
+.expandedDetails .detailRow { display:block; }
+.detailsToggle,.signOut { background:transparent; color:#45624c; border:0; text-decoration:underline; text-underline-offset:3px; cursor:pointer; font-size:11px; padding:8px 0; }
+.shell { background-image:linear-gradient(#faf6e780,#faf6e780),url('/brand/paper.png'); }

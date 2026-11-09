@@ -9,7 +9,7 @@ export function MainLayout({ children }: { children: React.ReactNode }) {
     pathname.startsWith("/sign-in") ||
     pathname.startsWith("/sign-up") ||
     pathname === "/administration" ||
-    pathname.startsWith("/reception");
+    pathname.startsWith("/reception") || pathname.startsWith("/patients");
 
   if (isStandalonePage) {
     return (

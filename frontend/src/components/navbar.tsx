@@ -21,7 +21,7 @@ export function Navbar() {
   const { session, signOut, signingOut } = useStaffSession();
 
   // On auth and standalone workspace pages, don't display the top clinic navbar
-  if (pathname.startsWith("/sign-in") || pathname.startsWith("/sign-up") || pathname.startsWith("/reception") || pathname === "/administration") {
+  if (pathname.startsWith("/sign-in") || pathname.startsWith("/sign-up") || pathname.startsWith("/reception") || pathname.startsWith("/patients") || pathname === "/administration") {
     return null;
   }
 

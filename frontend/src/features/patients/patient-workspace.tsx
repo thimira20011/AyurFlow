@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
+import { useStaffSession } from "@/features/administration/session";
 import { APIRequestError } from "@/lib/api-client";
 import {
   getPatient,
@@ -158,6 +159,8 @@ export default function PatientWorkspace({
   initialPanel?: "detail" | "register";
   initialSearch?: string;
 }) {
+  const { signOut, signingOut } = useStaffSession();
+  const [expandedDetails, setExpandedDetails] = useState(false);
   const previewStore = useRef<Patient[]>(previewPatients.map((patient) => ({ ...patient })));
   const [access, setAccess] = useState<Access>(preview ? "ready" : "checking");
   const [query, setQuery] = useState(initialSearch || (preview ? "Demo" : ""));
@@ -438,25 +441,19 @@ export default function PatientWorkspace({
   }
 
   return (
-    <div className={styles.workspace}>
+    <div className={styles.shell}>
+<aside className={styles.sidebar}><Link href="/dashboard" className={styles.brand}><img src="/brand/sprout.svg" alt="" />AyurFlow</Link><p className={styles.sidebarLabel}>Staff workspace</p><img className={styles.divider} src="/brand/divider.svg" alt="" /><nav aria-label="Patient workspace"><Link href="/reception">Overview</Link><Link href="/patients" aria-current="page">Patients</Link><Link href="/scheduling">Schedule</Link></nav><img className={styles.botanical} src="/brand/botanical-admin.svg" alt="" /><footer><p className={styles.sidebarLabel}>Single clinic</p><p>Thoughtful care.<br />Connected records.</p></footer></aside>
+<div className={styles.mainArea}><header className={styles.topbar}><span>Patients</span><span className={styles.date}>{new Intl.DateTimeFormat("en-GB", { day: "2-digit", month: "short", year: "numeric", timeZone: "Asia/Colombo" }).format(new Date())} · Asia/Colombo</span><span>Staff workspace<small>Reception · Patient records</small></span><button type="button" className={styles.signOut} disabled={signingOut} onClick={() => void signOut()}>{signingOut ? "Signing out…" : "Sign out"}</button></header><div className={styles.workspace}>
       {preview && <div className={styles.previewNotice} role="status"><strong>Synthetic screen preview</strong><span>Try search, registration and edits here. Changes stay in this browser tab and disappear on refresh. No patient API or database is used.</span><Link href="/patients" className={styles.textLink}>Return to live records</Link></div>}
       <div className={styles.headingRow}>
         <div>
-          <div style={{ marginBottom: "0.5rem" }}>
-            <Link href="/reception" className={styles.textLink} style={{ marginRight: "1rem" }}>
-              🌿 Back to Reception Desk
-            </Link>
-            <Link href="/dashboard" className={styles.textLink}>
-              ← Back to Dashboard
-            </Link>
-          </div>
-          <p className={styles.kicker}>Patient registry</p>
-          <h1 className={styles.title}>Patient records</h1>
-          <p className={styles.subtitle}>Register a patient, find a record, or correct demographics.</p>
+          <p className={styles.kicker}>Patient records</p>
+          <h1 className={styles.title}>Every visit begins here.</h1>
+          <p className={styles.subtitle}>Search existing records before registering a new patient.</p>
         </div>
         {access === "ready" && (
           <button className={styles.primaryButton} type="button" onClick={showRegister} disabled={busy}>
-            Register patient
+            + Register patient
           </button>
         )}
       </div>
@@ -473,22 +470,16 @@ export default function PatientWorkspace({
           {notice && <div className={`${styles.notice} ${styles[notice.tone]}`} role={notice.tone === "error" ? "alert" : "status"}>{notice.text}{notice.signIn && <> <Link href="/sign-in" className={styles.textLink}>Staff sign in</Link></>}</div>}
           <div className={styles.columns}>
             <section className={styles.searchPanel} aria-labelledby="patient-search-heading">
-              <div className={styles.sectionHeading}>
-                <div>
-                  <p className={styles.sectionIndex}>01 / Find</p>
-                  <h2 id="patient-search-heading">Find a patient</h2>
-                </div>
-              </div>
               <form onSubmit={(event) => { void handleSearch(event); }} className={styles.searchForm} role="search">
-                <label htmlFor="patient-query" className={styles.label}>Name, patient code, ID, identity or phone</label>
+                <label htmlFor="patient-query" className={styles.label}>Find a patient</label>
                 <div className={styles.searchControls}>
-                  <input id="patient-query" className={styles.input} value={query} onChange={(event) => setQuery(event.target.value)} disabled={busy} autoComplete="off" />
+                  <input id="patient-query" placeholder="Search by name, ID, phone or identity" className={styles.input} value={query} onChange={(event) => setQuery(event.target.value)} disabled={busy} autoComplete="off" />
                   <button className={styles.searchButton} type="submit" disabled={busy}>{busy ? "Working…" : "Search"}</button>
                 </div>
                 <p className={styles.hint}>Search returns up to 25 permitted records. Refine the term to narrow results.</p>
               </form>
-              <form onSubmit={(event) => { void handleConfirmIdentity(event); }} className={styles.searchForm}>
-                <h3>Confirm identity without NIC or passport</h3>
+              <details className={styles.identityDisclosure}><summary>Confirm identity without NIC or passport</summary><form onSubmit={(event) => { void handleConfirmIdentity(event); }} className={styles.searchForm}>
+
                 <p className={styles.hint}>Enter all three details from the authorized handoff. A name-only search does not confirm identity.</p>
                 <label htmlFor="match-name" className={styles.label}>Full legal name</label>
                 <input id="match-name" className={styles.input} value={matchName} onChange={event => setMatchName(event.target.value)} disabled={busy} required />
@@ -499,7 +490,7 @@ export default function PatientWorkspace({
                 <label htmlFor="match-postal-code" className={styles.label}>Residential postal code (when phone and ID are absent)</label>
                 <input id="match-postal-code" className={styles.input} value={matchPostalCode} onChange={event => setMatchPostalCode(event.target.value)} disabled={busy} />
                 <button className={styles.searchButton} disabled={busy}>Confirm exact match</button>
-              </form>
+              </form></details>
               <div className={styles.results} aria-live="polite">
                 {!searched && results.length === 0 ? (
                   <p className={styles.emptyList}>Search to see patient records you may access.</p>
@@ -507,13 +498,13 @@ export default function PatientWorkspace({
                   <p className={styles.emptyList}>No matching patient records were found.</p>
                 ) : (
                   <>
-                    <p className={styles.resultCount}>{searched ? `${results.length} result${results.length === 1 ? "" : "s"}` : "Recently registered"}</p>
-                    <ul className={styles.resultList}>
-                      {results.map((patient) => (
+                    <p className={styles.resultCount}>{results.length} patient record{results.length === 1 ? "" : "s"} · Name A–Z</p>
+                    <div className={styles.tableHeading} aria-hidden="true"><span>Patient</span><span>Phone</span><span>Identity</span><span>Record</span></div><ul className={styles.resultList}>
+                      {[...results].sort((a, b) => a.displayName.localeCompare(b.displayName)).map((patient) => (
                         <li key={patient.id}>
                           <button type="button" className={styles.resultButton} aria-pressed={selected?.id === patient.id && panel === "detail"} onClick={() => { void handleSelect(patient.id); }} disabled={busy}>
                             <span className={styles.resultName}>{patient.displayName}</span>
-                            <span className={styles.resultMeta}>{patient.patientCode}</span>
+                            <span>{patient.phone ?? "Not supplied"}</span><span>{patient.identity?.type ?? "Not supplied"}</span><span className={styles.resultMeta}>{patient.patientCode}</span>
                           </button>
                         </li>
                       ))}
@@ -545,10 +536,10 @@ export default function PatientWorkspace({
                 <>
                   <div className={styles.sectionHeading}>
                     <div>
-                      <p className={styles.sectionIndex}>02 / Record</p>
+                      <p className={styles.sectionIndex}>Patient record</p>
                       <h2 id="patient-record-heading">{selected.displayName}</h2>
                     </div>
-                    {!editing && <button className={styles.secondaryButton} type="button" onClick={() => { setEditForm(formFromPatient(selected)); setFieldErrors({}); setEditing(true); }} disabled={busy}>Edit demographics</button>}
+
                   </div>
                   {editing ? (
                     <form onSubmit={(event) => { void handleUpdate(event); }} noValidate>
@@ -561,7 +552,7 @@ export default function PatientWorkspace({
                       </div>
                     </form>
                   ) : (
-                    <dl className={styles.recordDetails}>
+                    <><span className={styles.recordBadge}>Patient record</span><dl className={`${styles.recordDetails} ${expandedDetails ? styles.expandedDetails : ""}`}>
                       <div className={styles.detailRow}><dt>Patient code</dt><dd className={styles.monospace}>{selected.patientCode}</dd></div>
                       <div className={styles.detailRow}><dt>Internal patient ID</dt><dd className={styles.monospace}>{selected.id}</dd></div>
                       <div className={styles.detailRow}><dt>Date of birth</dt><dd>{selected.birthDate ?? "Not supplied"}</dd></div>
@@ -573,12 +564,14 @@ export default function PatientWorkspace({
                       <div className={styles.detailRow}><dt>Registered</dt><dd>{formatColombo(selected.createdAt)}</dd></div>
                       <div className={styles.detailRow}><dt>Last updated</dt><dd>{formatColombo(selected.updatedAt)}</dd></div>
                       <div className={styles.detailRow}><dt>Version</dt><dd>{selected.version}</dd></div>
-                    </dl>
+                    </dl><button type="button" className={styles.detailsToggle} aria-expanded={expandedDetails} onClick={() => setExpandedDetails(!expandedDetails)}>{expandedDetails ? "Less detail" : "View all demographics"}</button><p className={styles.hint}>An identity document is optional.</p>
+                    {!editing && <button className={styles.secondaryButton} type="button" onClick={() => { setEditForm(formFromPatient(selected)); setFieldErrors({}); setEditing(true); }} disabled={busy}>Edit demographics</button>}
+</>
                   )}
                 </>
               ) : (
                 <div className={styles.emptyRecord}>
-                  <p className={styles.sectionIndex}>02 / Record</p>
+                  <p className={styles.sectionIndex}>Patient record</p>
                   <h2 id="patient-record-heading">Select a record</h2>
                   <p>Choose a result to view permitted demographics, or register a new patient.</p>
                   <button className={styles.secondaryButton} type="button" onClick={showRegister}>Register patient</button>
@@ -588,7 +581,7 @@ export default function PatientWorkspace({
           </div>
         </>
       )}
-    </div>
+    </div></div></div>
   );
 }
 

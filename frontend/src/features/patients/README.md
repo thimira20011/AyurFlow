@@ -7,3 +7,5 @@ The screen is for reception staff. Its primary action is finding an existing rec
 In `next dev` only, `/patients/preview` renders this screen with two labelled synthetic records in browser memory. Search, registration and demographic edits can be explored without a session; preview actions never call the patient API or persist data. The preview route returns 404 outside development and does not prove the protected flow.
 
 Status: PAT-03 is in progress. A's AUTH-03 routes are available only with explicit auth configuration and HTTPS, while the shared sign-in screen remains a placeholder. F's shared UI tasks and DEC02/07 review are open. C review and the integrated login → registration → search journey are required before AT02/PAT-03 completion.
+
+The registry uses the parchment-and-forest staff shell, a full-width search above a patient table and selected-record card, and a responsive single-column layout. Identity confirmation is expandable, and View all demographics reveals the complete permitted record. Registration and edit forms retain their existing API and validation behavior. Sign out remains available in the workspace header.
