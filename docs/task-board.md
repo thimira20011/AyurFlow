@@ -90,7 +90,7 @@ Status values: **Pending** = not started; **In progress** = work underway but co
 
 | Task | Deliverable | Owner slot | Peer reviewer | Status | Evidence |
 | --- | --- | --- | --- | --- | --- |
-| TASK-INV-01 | Botanical batches, receipt, block, eligibility | D | E | Pending | — |
+| TASK-INV-01 | Botanical batches, receipt, block, eligibility | D | E | In review | `member-d/task-inv-01-batches-eligibility`; migration `000014_inventory_batches.up.sql`, fixed-precision gram (`0.001 g`) catalog/batch service, `Asia/Colombo` expiry/block eligibility, transactional audit events, `/api/v1/inventory/*` routes, `/inventory` UI, and PostgreSQL `AT08` integration tests passing; E review and DEC03 clinic review pending |
 | TASK-INV-02 | Flat recipes and scaled ingredients | D | E | Pending | — |
 | TASK-INV-03 | Immutable saved preparation snapshots | D | E | Pending | — |
 | TASK-INV-04 | Manual batch allocation and atomic consumption | D | E | Pending | — |

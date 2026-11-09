@@ -1,0 +1,39 @@
+.page { max-width: 1160px; margin: 0 auto; color: var(--staff-text); }
+.heading { display: flex; align-items: end; justify-content: space-between; gap: 24px; flex-wrap: wrap; margin-bottom: 24px; }
+.kicker { margin: 0 0 7px; color: var(--staff-muted); font-size: 11px; font-weight: 700; letter-spacing: .14em; }
+.heading h1 { margin: 0 0 6px; color: var(--staff-forest); font: 400 clamp(30px, 3vw, 42px)/1.15 var(--font-lora), Georgia, serif; }
+.heading p:last-child, .panel > p { margin: 0; color: var(--staff-muted); }
+.linkButton, .toolbar button, .actions button, .form button, .inlineForm button { display: inline-flex; justify-content: center; align-items: center; min-height: 44px; padding: 9px 16px; border: 1px solid var(--staff-forest); border-radius: 7px; background: var(--staff-forest); color: var(--staff-surface); font: inherit; font-weight: 600; text-decoration: none; cursor: pointer; }
+.linkButton:hover, .toolbar button:hover, .actions button:hover, .form button:hover, .inlineForm button:hover { background: #2a5643; }
+.toolbar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 18px; padding: 14px 18px; border: 1px solid var(--staff-border); border-radius: 8px; background: var(--staff-sage); }
+.toolbar label { font-weight: 600; }
+.toolbar span { margin-left: auto; color: var(--staff-muted); font-size: 12px; }
+.toolbar input, .form input, .form select, .inlineForm input, .inlineForm textarea { min-height: 44px; width: 100%; padding: 9px 12px; border: 1px solid #79816b; border-radius: 7px; background: var(--staff-surface); color: var(--staff-text); font: inherit; }
+.toolbar input { width: auto; }
+.columns { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(290px, 1fr); gap: 18px; align-items: start; }
+.side { display: grid; gap: 18px; }
+.panel { min-width: 0; padding: 22px; border: 1px solid var(--staff-border); border-radius: 8px; background: linear-gradient(#fcf8eeee,#fcf8eeee), url('/brand/paper.png') center/cover, var(--staff-surface); }
+.panel h2 { margin: 0 0 12px; color: var(--staff-forest); font: 400 24px/1.25 var(--font-lora), Georgia, serif; }
+.panelHead, .sessionTop { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.panelHead > span { color: var(--staff-muted); font-size: 12px; }
+.sessionList, .simpleList { list-style: none; margin: 12px 0 0; padding: 0; }
+.sessionList > li { padding: 17px 0; border-top: 1px solid var(--staff-border); }
+.sessionList p { margin: 5px 0; overflow-wrap: anywhere; }
+.simpleList li { display: grid; gap: 2px; padding: 11px 0; border-top: 1px solid var(--staff-border); overflow-wrap: anywhere; }
+.simpleList span { color: var(--staff-muted); font-size: 12px; }
+.badge { border-radius: 99px; background: var(--staff-sage); color: var(--staff-forest); padding: 5px 10px; font-size: 12px; text-transform: capitalize; }
+.observation { padding: 9px 12px; border-radius: 6px; background: var(--staff-sage); }
+.actions { display: flex; gap: 9px; flex-wrap: wrap; margin-top: 12px; }
+.actions button:not(:first-child) { background: transparent; color: var(--staff-forest); }
+.form, .inlineForm { display: grid; gap: 12px; margin-top: 18px; }
+.form label, .inlineForm label { display: grid; gap: 5px; font-size: 13px; font-weight: 600; }
+.inlineForm { padding-top: 12px; border-top: 1px solid var(--staff-border); }
+.panel summary { color: var(--staff-forest); font: 400 22px/1.3 var(--font-lora), Georgia, serif; cursor: pointer; }
+.panel summary::marker { color: var(--staff-forest); }
+.panel details, .panel form + form { border-top: 1px solid var(--staff-border); }
+.error, .success { margin: 0 0 18px; padding: 12px 16px; border: 1px solid var(--staff-border); border-radius: 7px; }
+.error { background: #fbefdf; border-color: #a65343; color: #713c30; }
+.success { background: var(--staff-sage); color: var(--staff-forest); }
+.page button:disabled { opacity: .65; cursor: wait; }
+@media (max-width: 860px) { .columns { grid-template-columns: 1fr; } }
+@media (max-width: 600px) { .panel { padding: 18px; } .toolbar > * { flex: 1 1 170px; } .toolbar span { margin-left: 0; } }

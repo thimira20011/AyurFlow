@@ -1,35 +1,68 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
+import { APIRequestError } from "@/lib/api-client";
+import {
+  blockStockBatch,
+  createBotanicalItem,
+  deactivateBotanicalItem,
+  listBotanicalItems,
+  listStockBatches,
+  receiveStockBatch,
+  type BatchSummaryTotals,
+  type BotanicalItem,
+  type EligibilityStatus,
+  type StockBatch,
+} from "./api";
 import styles from "./inventory-workspace.module.css";
+import InventoryLiveWorkflows from "./inventory-live-workflows";
 
-type Eligibility = "eligible" | "blocked" | "expired" | "unknown_expiry";
-
-interface SyntheticBatch {
-  id: string;
-  itemCode: string;
-  itemName: string;
-  batchReference: string;
-  receivedGrams: string;
-  remainingGrams: string;
-  expiresAt: string | null;
-  blocked: boolean;
-  blockReason: string | null;
-  eligibility: Eligibility;
-}
-
-interface SnapshotIngredient {
+type SnapshotIngredient = {
   itemCode: string;
   itemName: string;
   baseGrams: string;
   requiredGrams: string;
-}
+};
 
-const INITIAL_BATCHES: SyntheticBatch[] = [
+const PREVIEW_ITEMS: BotanicalItem[] = [
+  {
+    id: "d-item-ashwagandha",
+    code: "BOT-ASHWA-001",
+    displayName: "Ashwagandha Root (Withania somnifera)",
+    baseUnit: "g",
+    active: true,
+    createdBy: "d-dispensary",
+    createdAt: "2026-10-31T08:00:00Z",
+    updatedAt: "2026-10-31T08:00:00Z",
+  },
+  {
+    id: "d-item-guduchi",
+    code: "BOT-GUDU-002",
+    displayName: "Guduchi Stem (Tinospora cordifolia)",
+    baseUnit: "g",
+    active: true,
+    createdBy: "d-dispensary",
+    createdAt: "2026-10-31T08:05:00Z",
+    updatedAt: "2026-10-31T08:05:00Z",
+  },
+  {
+    id: "d-item-bala",
+    code: "BOT-BALA-003",
+    displayName: "Bala Root (Sida cordifolia)",
+    baseUnit: "g",
+    active: true,
+    createdBy: "d-dispensary",
+    createdAt: "2026-10-31T08:10:00Z",
+    updatedAt: "2026-10-31T08:10:00Z",
+  },
+];
+
+const PREVIEW_BATCHES: StockBatch[] = [
   {
     id: "d-batch-ashwa-a",
+    itemId: "d-item-ashwagandha",
     itemCode: "BOT-ASHWA-001",
-    itemName: "Ashwagandha Root (Withania somnifera)",
+    itemDisplayName: "Ashwagandha Root (Withania somnifera)",
     batchReference: "CLN-BATCH-2026-A01",
     receivedGrams: "1000.000",
     remainingGrams: "1000.000",
@@ -37,59 +70,74 @@ const INITIAL_BATCHES: SyntheticBatch[] = [
     blocked: false,
     blockReason: null,
     eligibility: "eligible",
+    receivedBy: "d-dispensary",
+    receivedAt: "2026-10-31T08:15:00Z",
   },
   {
     id: "d-batch-ashwa-b",
+    itemId: "d-item-ashwagandha",
     itemCode: "BOT-ASHWA-001",
-    itemName: "Ashwagandha Root (Withania somnifera)",
+    itemDisplayName: "Ashwagandha Root (Withania somnifera)",
     batchReference: "CLN-BATCH-2026-A02",
     receivedGrams: "500.000",
     remainingGrams: "500.000",
-    expiresAt: "2027-09-15",
+    expiresAt: "2027-03-31",
     blocked: false,
     blockReason: null,
     eligibility: "eligible",
+    receivedBy: "d-dispensary",
+    receivedAt: "2026-10-31T08:20:00Z",
   },
   {
     id: "d-batch-guduchi-a",
+    itemId: "d-item-guduchi",
     itemCode: "BOT-GUDU-002",
-    itemName: "Guduchi Stem (Tinospora cordifolia)",
+    itemDisplayName: "Guduchi Stem (Tinospora cordifolia)",
     batchReference: "CLN-BATCH-2026-G01",
     receivedGrams: "400.000",
     remainingGrams: "400.000",
-    expiresAt: "2027-08-01",
+    expiresAt: "2027-08-15",
     blocked: false,
     blockReason: null,
     eligibility: "eligible",
+    receivedBy: "d-dispensary",
+    receivedAt: "2026-10-31T08:25:00Z",
   },
   {
-    id: "d-batch-ashwa-blocked",
-    itemCode: "BOT-ASHWA-001",
-    itemName: "Ashwagandha Root (Withania somnifera)",
-    batchReference: "CLN-BATCH-2026-A03-BLK",
+    id: "d-batch-bala-a",
+    itemId: "d-item-bala",
+    itemCode: "BOT-BALA-003",
+    itemDisplayName: "Bala Root (Sida cordifolia)",
+    batchReference: "CLN-BATCH-2026-B01",
     receivedGrams: "300.000",
     remainingGrams: "300.000",
-    expiresAt: "2027-12-31",
-    blocked: true,
-    blockReason: "Packaging seal damaged during transit",
-    eligibility: "blocked",
+    expiresAt: "2027-05-01",
+    blocked: false,
+    blockReason: null,
+    eligibility: "eligible",
+    receivedBy: "d-dispensary",
+    receivedAt: "2026-10-31T08:30:00Z",
   },
   {
     id: "d-batch-ashwa-expired",
+    itemId: "d-item-ashwagandha",
     itemCode: "BOT-ASHWA-001",
-    itemName: "Ashwagandha Root (Withania somnifera)",
-    batchReference: "CLN-BATCH-2025-A99-EXP",
+    itemDisplayName: "Ashwagandha Root (Withania somnifera)",
+    batchReference: "CLN-BATCH-2026-A03-EXP",
     receivedGrams: "250.000",
     remainingGrams: "250.000",
-    expiresAt: "2025-12-31",
+    expiresAt: "2026-10-15",
     blocked: false,
     blockReason: null,
     eligibility: "expired",
+    receivedBy: "d-dispensary",
+    receivedAt: "2026-10-01T08:00:00Z",
   },
   {
     id: "d-batch-ashwa-unknown-expiry",
+    itemId: "d-item-ashwagandha",
     itemCode: "BOT-ASHWA-001",
-    itemName: "Ashwagandha Root (Withania somnifera)",
+    itemDisplayName: "Ashwagandha Root (Withania somnifera)",
     batchReference: "CLN-BATCH-2026-A04-UNK",
     receivedGrams: "200.000",
     remainingGrams: "200.000",
@@ -97,6 +145,8 @@ const INITIAL_BATCHES: SyntheticBatch[] = [
     blocked: false,
     blockReason: null,
     eligibility: "unknown_expiry",
+    receivedBy: "d-dispensary",
+    receivedAt: "2026-10-05T08:00:00Z",
   },
 ];
 
@@ -123,14 +173,113 @@ function scaleRoundHalfUp(baseMg: number, targetMg: number, baseYieldMg: number)
   return Math.floor(numerator / (baseYieldMg * 2));
 }
 
+function computeSummaryFromBatches(batches: StockBatch[]): BatchSummaryTotals {
+  let eligible = 0;
+  let blocked = 0;
+  let expired = 0;
+  let unknown = 0;
+  for (const b of batches) {
+    const mg = parseMilligrams(b.remainingGrams) ?? 0;
+    if (b.eligibility === "eligible") eligible += mg;
+    else if (b.eligibility === "blocked") blocked += mg;
+    else if (b.eligibility === "expired") expired += mg;
+    else if (b.eligibility === "unknown_expiry") unknown += mg;
+  }
+  return {
+    eligibleGrams: formatMilligrams(eligible),
+    blockedGrams: formatMilligrams(blocked),
+    expiredGrams: formatMilligrams(expired),
+    unknownExpiryGrams: formatMilligrams(unknown),
+  };
+}
+
+function formatAPIError(err: unknown, fallback: string): string {
+  if (err instanceof APIRequestError) {
+    if (err.status === 401) return "Your session has ended. Sign in again.";
+    if (err.status === 403 && err.code === "csrf_failed") return "Session security token changed. Retry the action.";
+    if (err.status === 403) return "You do not have permission for this dispensary action.";
+    if (err.status === 409) return "Conflict (409): Duplicate code/reference or item/batch is not in an active state.";
+    if (err.status === 422) return "Validation Error (422): Check fixed-precision grams (0.001 g), dates, and required reasons.";
+  }
+  return fallback;
+}
+
 export default function InventoryWorkspace({ preview = false }: { preview?: boolean }) {
   const [activeTab, setActiveTab] = useState<"batches" | "recipes" | "consumption" | "traceability">("batches");
-  const [batches, setBatches] = useState<SyntheticBatch[]>(INITIAL_BATCHES);
-  const [blockTargetId, setBlockTargetId] = useState<string>("d-batch-ashwa-b");
-  const [blockReason, setBlockReason] = useState<string>("Quality inspection hold — moisture check");
-  const [batchMessage, setBatchMessage] = useState<string | null>(null);
 
-  // Recipe & Preparation Snapshot state
+  // Catalog & Batch state (connected to live /api/v1/inventory/* when preview == false)
+  const [items, setItems] = useState<BotanicalItem[]>(preview ? PREVIEW_ITEMS : []);
+  const [batches, setBatches] = useState<StockBatch[]>(preview ? PREVIEW_BATCHES : []);
+  const [summary, setSummary] = useState<BatchSummaryTotals>(
+    computeSummaryFromBatches(preview ? PREVIEW_BATCHES : [])
+  );
+  const [clinicDate, setClinicDate] = useState<string>(preview ? "2026-10-31" : "Loading…");
+  const [eligibleOnlyFilter, setEligibleOnlyFilter] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(!preview);
+  const [busy, setBusy] = useState<boolean>(false);
+
+  // Create Botanical Item form state
+  const [newItemCode, setNewItemCode] = useState<string>("");
+  const [newItemName, setNewItemName] = useState<string>("");
+
+  // Deactivate Item form state
+  const [deactivateItemId, setDeactivateItemId] = useState<string>("");
+  const [deactivateReason, setDeactivateReason] = useState<string>("");
+
+  // Receive Stock Batch form state
+  const [batchItemId, setBatchItemId] = useState<string>(preview ? "d-item-ashwagandha" : "");
+  const [batchReferenceInput, setBatchReferenceInput] = useState<string>("");
+  const [receivedGramsInput, setReceivedGramsInput] = useState<string>("1000.000");
+  const [expiresAtInput, setExpiresAtInput] = useState<string>("2027-06-30");
+
+  // Block Stock Batch form state
+  const [blockTargetId, setBlockTargetId] = useState<string>(preview ? "d-batch-ashwa-b" : "");
+  const [blockReason, setBlockReason] = useState<string>("Quality inspection hold — moisture check");
+
+  const [batchMessage, setBatchMessage] = useState<{ tone: "info" | "error"; text: string } | null>(null);
+
+  const loadLiveInventory = useCallback(
+    async (eligibleOnly: boolean, signal?: AbortSignal) => {
+      if (preview) return;
+      try {
+        const [itemPage, batchPage] = await Promise.all([
+          listBotanicalItems(false, signal),
+          listStockBatches(eligibleOnly, "", signal),
+        ]);
+        setItems(itemPage.items);
+        setBatches(batchPage.items);
+        setSummary(batchPage.summary);
+        setClinicDate(batchPage.clinicDate);
+        const firstActive = itemPage.items.find((i) => i.active);
+        if (firstActive) {
+          setBatchItemId((prev) => prev || firstActive.id);
+          setDeactivateItemId((prev) => prev || firstActive.id);
+        }
+        const firstUnblocked = batchPage.items.find((b) => !b.blocked);
+        if (firstUnblocked) {
+          setBlockTargetId((prev) => prev || firstUnblocked.id);
+        }
+      } catch (err) {
+        if ((err as Error)?.name === "AbortError") return;
+        setBatchMessage({
+          tone: "error",
+          text: formatAPIError(err, "Could not load botanical items and stock batches."),
+        });
+      } finally {
+        setLoading(false);
+      }
+    },
+    [preview]
+  );
+
+  useEffect(() => {
+    if (preview) return;
+    const controller = new AbortController();
+    Promise.resolve().then(() => loadLiveInventory(eligibleOnlyFilter, controller.signal));
+    return () => controller.abort();
+  }, [preview, eligibleOnlyFilter, loadLiveInventory]);
+
+  // Recipe & Preparation Snapshot state (TASK-UI-04 / TASK-INV-02–05 preview tabs)
   const [selectedRecipe, setSelectedRecipe] = useState<"balashwagandha" | "bala">("balashwagandha");
   const [targetYieldInput, setTargetYieldInput] = useState<string>("250.000");
   const [savedSnapshot, setSavedSnapshot] = useState<{
@@ -172,7 +321,6 @@ export default function InventoryWorkspace({ preview = false }: { preview?: bool
     ],
   });
 
-  // Manual batch allocation inputs for d-prep-srs-scale
   const [allocAshwaA, setAllocAshwaA] = useState<string>("30.000");
   const [allocAshwaB, setAllocAshwaB] = useState<string>("20.000");
   const [allocGuduA, setAllocGuduA] = useState<string>("37.500");
@@ -206,20 +354,194 @@ export default function InventoryWorkspace({ preview = false }: { preview?: bool
           },
         ];
 
-  const handleBlockBatch = (e: React.FormEvent) => {
+  const handleCreateItem = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!blockReason.trim()) {
-      setBatchMessage("Error (422): A nonblank block reason is required for the audit record.");
+    if (!newItemCode.trim() || !newItemName.trim()) {
+      setBatchMessage({ tone: "error", text: "Error (422): Both item code and display name are required." });
       return;
     }
-    setBatches((prev) =>
-      prev.map((b) =>
+    if (preview) {
+      const created: BotanicalItem = {
+        id: `d-item-${Date.now()}`,
+        code: newItemCode.trim().toUpperCase(),
+        displayName: newItemName.trim(),
+        baseUnit: "g",
+        active: true,
+        createdBy: "d-dispensary",
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      setItems((prev) => [...prev, created]);
+      setBatchItemId(created.id);
+      setDeactivateItemId(created.id);
+      setNewItemCode("");
+      setNewItemName("");
+      setBatchMessage({ tone: "info", text: `Registered botanical item ${created.code} (${created.displayName}) in grams.` });
+      return;
+    }
+    setBusy(true);
+    setBatchMessage(null);
+    try {
+      const created = await createBotanicalItem(newItemCode.trim(), newItemName.trim());
+      setNewItemCode("");
+      setNewItemName("");
+      await loadLiveInventory(eligibleOnlyFilter);
+      setBatchItemId(created.id);
+      setDeactivateItemId(created.id);
+      setBatchMessage({ tone: "info", text: `Registered botanical item ${created.code} (${created.displayName}) with audited event.` });
+    } catch (err) {
+      setBatchMessage({ tone: "error", text: formatAPIError(err, "Could not register botanical item.") });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleDeactivateItem = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!deactivateItemId || !deactivateReason.trim()) {
+      setBatchMessage({ tone: "error", text: "Error (422): Select an active item and enter a nonblank deactivation reason." });
+      return;
+    }
+    if (preview) {
+      setItems((prev) =>
+        prev.map((item) =>
+          item.id === deactivateItemId
+            ? { ...item, active: false, deactivatedReason: deactivateReason.trim() }
+            : item
+        )
+      );
+      setBatchMessage({
+        tone: "info",
+        text: `Deactivated item ${deactivateItemId} with reason "${deactivateReason.trim()}". Existing batch references are preserved.`,
+      });
+      setDeactivateReason("");
+      return;
+    }
+    setBusy(true);
+    setBatchMessage(null);
+    try {
+      const updated = await deactivateBotanicalItem(deactivateItemId, deactivateReason.trim());
+      setDeactivateReason("");
+      await loadLiveInventory(eligibleOnlyFilter);
+      setBatchMessage({
+        tone: "info",
+        text: `Deactivated botanical item ${updated.code} with audited reason. Historical batch references remain intact.`,
+      });
+    } catch (err) {
+      setBatchMessage({ tone: "error", text: formatAPIError(err, "Could not deactivate botanical item.") });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleReceiveBatch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const mg = parseMilligrams(receivedGramsInput);
+    if (!batchItemId || !batchReferenceInput.trim() || !mg) {
+      setBatchMessage({
+        tone: "error",
+        text: "Error (422): Select an active botanical item, enter a unique batch reference, and specify positive grams (up to 3 decimals).",
+      });
+      return;
+    }
+    const expiresVal = expiresAtInput.trim() ? expiresAtInput.trim() : null;
+    if (preview) {
+      const item = items.find((i) => i.id === batchItemId);
+      if (!item || !item.active) {
+        setBatchMessage({ tone: "error", text: "Conflict (409): Cannot receive batch for a deactivated botanical item." });
+        return;
+      }
+      const eligibility: EligibilityStatus = !expiresVal
+        ? "unknown_expiry"
+        : expiresVal < clinicDate
+          ? "expired"
+          : "eligible";
+      const created: StockBatch = {
+        id: `d-batch-${Date.now()}`,
+        itemId: item.id,
+        itemCode: item.code,
+        itemDisplayName: item.displayName,
+        batchReference: batchReferenceInput.trim(),
+        receivedGrams: formatMilligrams(mg),
+        remainingGrams: formatMilligrams(mg),
+        expiresAt: expiresVal,
+        blocked: false,
+        blockReason: null,
+        eligibility,
+        receivedBy: "d-dispensary",
+        receivedAt: new Date().toISOString(),
+      };
+      const next = [created, ...batches];
+      setBatches(next);
+      setSummary(computeSummaryFromBatches(next));
+      setBlockTargetId(created.id);
+      setBatchReferenceInput("");
+      setBatchMessage({
+        tone: "info",
+        text: `Received batch ${created.batchReference} (${created.receivedGrams} g · ${created.eligibility}).`,
+      });
+      return;
+    }
+    setBusy(true);
+    setBatchMessage(null);
+    try {
+      const created = await receiveStockBatch({
+        itemId: batchItemId,
+        batchReference: batchReferenceInput.trim(),
+        receivedGrams: formatMilligrams(mg),
+        expiresAt: expiresVal,
+      });
+      setBatchReferenceInput("");
+      await loadLiveInventory(eligibleOnlyFilter);
+      setBlockTargetId(created.id);
+      setBatchMessage({
+        tone: "info",
+        text: `Received batch ${created.batchReference} (${created.receivedGrams} g · eligibility: ${created.eligibility}) with audited event.`,
+      });
+    } catch (err) {
+      setBatchMessage({ tone: "error", text: formatAPIError(err, "Could not record batch receipt.") });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleBlockBatch = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!blockTargetId || !blockReason.trim()) {
+      setBatchMessage({
+        tone: "error",
+        text: "Error (422): Select a batch and enter a nonblank block reason for the audit record.",
+      });
+      return;
+    }
+    if (preview) {
+      const next: StockBatch[] = batches.map((b) =>
         b.id === blockTargetId
           ? { ...b, blocked: true, blockReason: blockReason.trim(), eligibility: "blocked" }
           : b
-      )
-    );
-    setBatchMessage(`Batch ${blockTargetId} blocked with audited reason: "${blockReason.trim()}".`);
+      );
+      setBatches(next);
+      setSummary(computeSummaryFromBatches(next));
+      setBatchMessage({
+        tone: "info",
+        text: `Batch ${blockTargetId} blocked with audited reason: "${blockReason.trim()}".`,
+      });
+      return;
+    }
+    setBusy(true);
+    setBatchMessage(null);
+    try {
+      const blocked = await blockStockBatch(blockTargetId, blockReason.trim());
+      await loadLiveInventory(eligibleOnlyFilter);
+      setBatchMessage({
+        tone: "info",
+        text: `Batch ${blocked.batchReference} blocked with audited reason: "${blocked.blockReason}".`,
+      });
+    } catch (err) {
+      setBatchMessage({ tone: "error", text: formatAPIError(err, "Could not block stock batch.") });
+    } finally {
+      setBusy(false);
+    }
   };
 
   const handleSaveSnapshot = (e: React.FormEvent) => {
@@ -276,23 +598,23 @@ export default function InventoryWorkspace({ preview = false }: { preview?: bool
       });
       return;
     }
-    setBatches((prev) =>
-      prev.map((b) => {
-        if (b.id === "d-batch-ashwa-a") {
-          const rem = (parseMilligrams(b.remainingGrams) ?? 1000000) - ashwaAMg;
-          return { ...b, remainingGrams: formatMilligrams(rem) };
-        }
-        if (b.id === "d-batch-ashwa-b") {
-          const rem = (parseMilligrams(b.remainingGrams) ?? 500000) - ashwaBMg;
-          return { ...b, remainingGrams: formatMilligrams(rem) };
-        }
-        if (b.id === "d-batch-guduchi-a") {
-          const rem = (parseMilligrams(b.remainingGrams) ?? 400000) - guduAMg;
-          return { ...b, remainingGrams: formatMilligrams(rem) };
-        }
-        return b;
-      })
-    );
+    const next = batches.map((b) => {
+      if (b.id === "d-batch-ashwa-a") {
+        const rem = (parseMilligrams(b.remainingGrams) ?? 1000000) - ashwaAMg;
+        return { ...b, remainingGrams: formatMilligrams(rem) };
+      }
+      if (b.id === "d-batch-ashwa-b") {
+        const rem = (parseMilligrams(b.remainingGrams) ?? 500000) - ashwaBMg;
+        return { ...b, remainingGrams: formatMilligrams(rem) };
+      }
+      if (b.id === "d-batch-guduchi-a") {
+        const rem = (parseMilligrams(b.remainingGrams) ?? 400000) - guduAMg;
+        return { ...b, remainingGrams: formatMilligrams(rem) };
+      }
+      return b;
+    });
+    setBatches(next);
+    setSummary(computeSummaryFromBatches(next));
     setSavedSnapshot((prev) => ({
       ...prev,
       status: "consumed",
@@ -321,53 +643,39 @@ export default function InventoryWorkspace({ preview = false }: { preview?: bool
           <div>
             <h1 className={styles.title}>Botanical Batches, Flat Recipes &amp; Traceability</h1>
             <p className={styles.subtitle}>
-              Fixed-precision grams (<code>0.001 g</code>), immutable preparation snapshots, manual batch selection, and atomic consumption.
+              Fixed-precision grams (<code>0.001 g</code>), Asia/Colombo expiry evaluation (<code>{clinicDate}</code>), immutable preparation snapshots, manual batch selection, and atomic consumption.
             </p>
           </div>
-          <div>
+          {preview && <div>
             <span className={savedSnapshot.status === "consumed" ? styles.badgeConsumed : styles.badgePrepared}>
               Active Prep {savedSnapshot.id}:{" "}
               {savedSnapshot.status === "consumed"
                 ? "Consumed · Stock Deducted (Immutable)"
                 : "Prepared · No Stock Deducted"}
             </span>
-          </div>
+          </div>}
         </div>
       </header>
 
       <section className={styles.statsGrid} aria-label="Inventory summary metrics">
         <div className={styles.statCard}>
           <div className={styles.statLabel}>Consumable Stock (Eligible)</div>
-          <div className={styles.statValue}>
-            {formatMilligrams(
-              batches
-                .filter((b) => b.eligibility === "eligible")
-                .reduce((acc, b) => acc + (parseMilligrams(b.remainingGrams) ?? 0), 0)
-            )}{" "}
-            g
-          </div>
+          <div className={styles.statValue}>{summary.eligibleGrams} g</div>
           <div className={styles.statSub}>Excludes blocked, expired &amp; unknown-expiry batches</div>
         </div>
         <div className={styles.statCard}>
           <div className={styles.statLabel}>Blocked Stock (Excluded)</div>
-          <div className={styles.statValue}>
-            {formatMilligrams(
-              batches
-                .filter((b) => b.eligibility === "blocked")
-                .reduce((acc, b) => acc + (parseMilligrams(b.remainingGrams) ?? 0), 0)
-            )}{" "}
-            g
-          </div>
+          <div className={styles.statValue}>{summary.blockedGrams} g</div>
           <div className={styles.statSub}>Requires audited block reason (INV-02)</div>
         </div>
         <div className={styles.statCard}>
           <div className={styles.statLabel}>Expired Stock (Excluded)</div>
-          <div className={styles.statValue}>250.000 g</div>
-          <div className={styles.statSub}>Evaluated against Asia/Colombo date</div>
+          <div className={styles.statValue}>{summary.expiredGrams} g</div>
+          <div className={styles.statSub}>Evaluated against Asia/Colombo date ({clinicDate})</div>
         </div>
         <div className={styles.statCard}>
           <div className={styles.statLabel}>Unknown Expiry (SRS §8 Gate)</div>
-          <div className={styles.statValue}>200.000 g</div>
+          <div className={styles.statValue}>{summary.unknownExpiryGrams} g</div>
           <div className={styles.statSub}>Not consumable until DEC03 policy / date verified</div>
         </div>
       </section>
@@ -407,22 +715,142 @@ export default function InventoryWorkspace({ preview = false }: { preview?: bool
         <div className={styles.splitGrid}>
           <div className={styles.panel}>
             <div className={styles.panelHeader}>
-              <h2 className={styles.panelTitle}>Block Batch / Eligibility Check</h2>
+              <h2 className={styles.panelTitle}>1. Register Botanical Item &amp; Receive Batch (INV-01)</h2>
             </div>
+
+            {batchMessage && (
+              <div
+                role={batchMessage.tone === "error" ? "alert" : "status"}
+                className={batchMessage.tone === "error" ? styles.calloutError : styles.calloutInfo}
+              >
+                {batchMessage.text}
+              </div>
+            )}
+
+            <form onSubmit={handleCreateItem}>
+              <div className={styles.fieldGroup}>
+                <label className={styles.label} htmlFor="new-item-code">
+                  New botanical item code (unique, base unit fixed to grams <code>g</code>)
+                </label>
+                <input
+                  id="new-item-code"
+                  className={`${styles.input} ${styles.mono}`}
+                  type="text"
+                  placeholder="e.g. BOT-ASHWA-001"
+                  value={newItemCode}
+                  onChange={(e) => setNewItemCode(e.target.value)}
+                  disabled={busy}
+                />
+              </div>
+              <div className={styles.fieldGroup}>
+                <label className={styles.label} htmlFor="new-item-name">
+                  Botanical display name (Unicode supported)
+                </label>
+                <input
+                  id="new-item-name"
+                  className={styles.input}
+                  type="text"
+                  placeholder="e.g. Ashwagandha Root (Withania somnifera)"
+                  value={newItemName}
+                  onChange={(e) => setNewItemName(e.target.value)}
+                  disabled={busy}
+                />
+              </div>
+              <div className={styles.actions}>
+                <button type="submit" className={styles.secondaryBtn} disabled={busy}>
+                  Register Botanical Item
+                </button>
+              </div>
+            </form>
+
+            <hr style={{ margin: "1.25rem 0", borderColor: "rgba(30, 63, 48, 0.12)" }} />
+
+            <form onSubmit={handleReceiveBatch}>
+              <div className={styles.fieldGroup}>
+                <label className={styles.label} htmlFor="batch-item-select">
+                  Botanical item for batch receipt (active items only)
+                </label>
+                <select
+                  id="batch-item-select"
+                  className={styles.select}
+                  value={batchItemId}
+                  onChange={(e) => setBatchItemId(e.target.value)}
+                  disabled={busy}
+                >
+                  <option value="">Select botanical item…</option>
+                  {items.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      {item.code} · {item.displayName} ({item.active ? "Active" : "Deactivated"})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className={styles.fieldGroup}>
+                <label className={styles.label} htmlFor="batch-reference-input">
+                  Batch reference (unique clinic/supplier lot identifier)
+                </label>
+                <input
+                  id="batch-reference-input"
+                  className={`${styles.input} ${styles.mono}`}
+                  type="text"
+                  placeholder="e.g. CLN-BATCH-2026-A01"
+                  value={batchReferenceInput}
+                  onChange={(e) => setBatchReferenceInput(e.target.value)}
+                  disabled={busy}
+                />
+              </div>
+              <div className={styles.fieldGroup}>
+                <label className={styles.label} htmlFor="received-grams-input">
+                  Received quantity in grams (fixed-precision <code>0.001 g</code>)
+                </label>
+                <input
+                  id="received-grams-input"
+                  className={`${styles.input} ${styles.mono}`}
+                  type="text"
+                  value={receivedGramsInput}
+                  onChange={(e) => setReceivedGramsInput(e.target.value)}
+                  disabled={busy}
+                />
+              </div>
+              <div className={styles.fieldGroup}>
+                <label className={styles.label} htmlFor="expires-at-input">
+                  Expiry date (<code>YYYY-MM-DD</code> in Asia/Colombo; leave blank to test Unknown Expiry gate)
+                </label>
+                <input
+                  id="expires-at-input"
+                  className={`${styles.input} ${styles.mono}`}
+                  type="text"
+                  placeholder="YYYY-MM-DD"
+                  value={expiresAtInput}
+                  onChange={(e) => setExpiresAtInput(e.target.value)}
+                  disabled={busy}
+                />
+              </div>
+              <div className={styles.actions}>
+                <button type="submit" className={styles.primaryBtn} disabled={busy}>
+                  Receive Stock Batch
+                </button>
+              </div>
+            </form>
+
+            <hr style={{ margin: "1.25rem 0", borderColor: "rgba(30, 63, 48, 0.12)" }} />
+
             <form onSubmit={handleBlockBatch}>
               <div className={styles.fieldGroup}>
                 <label className={styles.label} htmlFor="block-batch-select">
-                  Select active batch to block (INV-02)
+                  Block Stock Batch (INV-02)
                 </label>
                 <select
                   id="block-batch-select"
                   className={styles.select}
                   value={blockTargetId}
                   onChange={(e) => setBlockTargetId(e.target.value)}
+                  disabled={busy}
                 >
+                  <option value="">Select batch to block…</option>
                   {batches.map((b) => (
                     <option key={b.id} value={b.id}>
-                      {b.batchReference} · {b.itemName} ({b.eligibility})
+                      {b.batchReference} · {b.itemDisplayName} ({b.eligibility})
                     </option>
                   ))}
                 </select>
@@ -437,77 +865,150 @@ export default function InventoryWorkspace({ preview = false }: { preview?: bool
                   type="text"
                   value={blockReason}
                   onChange={(e) => setBlockReason(e.target.value)}
+                  disabled={busy}
                 />
                 <p className={styles.hint}>
                   Blocking a batch immediately prevents consumption confirmation even if a preparation screen was already open.
                 </p>
               </div>
               <div className={styles.actions}>
-                <button type="submit" className={styles.dangerBtn}>
+                <button type="submit" className={styles.dangerBtn} disabled={busy}>
                   Block Selected Batch
                 </button>
               </div>
             </form>
-            {batchMessage && <div className={styles.calloutInfo}>{batchMessage}</div>}
+
+            <hr style={{ margin: "1.25rem 0", borderColor: "rgba(30, 63, 48, 0.12)" }} />
+
+            <form onSubmit={handleDeactivateItem}>
+              <div className={styles.fieldGroup}>
+                <label className={styles.label} htmlFor="deactivate-item-select">
+                  Deactivate Botanical Item (ADM-01 retention rule)
+                </label>
+                <select
+                  id="deactivate-item-select"
+                  className={styles.select}
+                  value={deactivateItemId}
+                  onChange={(e) => setDeactivateItemId(e.target.value)}
+                  disabled={busy}
+                >
+                  <option value="">Select item to deactivate…</option>
+                  {items
+                    .filter((i) => i.active)
+                    .map((item) => (
+                      <option key={item.id} value={item.id}>
+                        {item.code} · {item.displayName}
+                      </option>
+                    ))}
+                </select>
+              </div>
+              <div className={styles.fieldGroup}>
+                <label className={styles.label} htmlFor="deactivate-reason-input">
+                  Deactivation reason (audited; retains historical batch references)
+                </label>
+                <input
+                  id="deactivate-reason-input"
+                  className={styles.input}
+                  type="text"
+                  placeholder="e.g. Replaced by standardized extract catalog entry"
+                  value={deactivateReason}
+                  onChange={(e) => setDeactivateReason(e.target.value)}
+                  disabled={busy}
+                />
+              </div>
+              <div className={styles.actions}>
+                <button type="submit" className={styles.secondaryBtn} disabled={busy}>
+                  Deactivate Item
+                </button>
+              </div>
+            </form>
           </div>
 
           <div className={styles.panel}>
             <div className={styles.panelHeader}>
-              <h2 className={styles.panelTitle}>Botanical Batch Registry (Manual Selection View)</h2>
-              <span className={styles.hint}>No automatic FEFO or stock reservation (INV-03)</span>
+              <div>
+                <h2 className={styles.panelTitle}>2. Botanical Batch Registry (Manual Selection View)</h2>
+                <span className={styles.hint}>No automatic FEFO or stock reservation (INV-03)</span>
+              </div>
+              <label className={styles.hint} style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem" }}>
+                <input
+                  type="checkbox"
+                  checked={eligibleOnlyFilter}
+                  onChange={(e) => setEligibleOnlyFilter(e.target.checked)}
+                />
+                Show eligible batches only
+              </label>
             </div>
-            <div className={styles.tableWrap}>
-              <table className={styles.table}>
-                <thead>
-                  <tr>
-                    <th>Batch Ref &amp; Botanical Item</th>
-                    <th>Received</th>
-                    <th>Remaining</th>
-                    <th>Expiry (Colombo)</th>
-                    <th>Eligibility Badge</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {batches.map((batch) => (
-                    <tr key={batch.id}>
-                      <td>
-                        <strong className={styles.mono}>{batch.batchReference}</strong>
-                        <div className={styles.hint}>
-                          {batch.itemCode} · {batch.itemName}
-                        </div>
-                        {batch.blockReason && (
-                          <div className={styles.hint}>Block reason: {batch.blockReason}</div>
-                        )}
-                      </td>
-                      <td className={styles.mono}>{batch.receivedGrams} g</td>
-                      <td className={styles.mono}>
-                        <strong>{batch.remainingGrams} g</strong>
-                      </td>
-                      <td className={styles.mono}>{batch.expiresAt ?? "None supplied"}</td>
-                      <td>
-                        {batch.eligibility === "eligible" && (
-                          <span className={styles.badgeEligible}>Eligible</span>
-                        )}
-                        {batch.eligibility === "blocked" && (
-                          <span className={styles.badgeBlocked}>Blocked · Ineligible</span>
-                        )}
-                        {batch.eligibility === "expired" && (
-                          <span className={styles.badgeBlocked}>Expired · Ineligible</span>
-                        )}
-                        {batch.eligibility === "unknown_expiry" && (
-                          <span className={styles.badgeUnknown}>Unknown Expiry · Not Consumable</span>
-                        )}
-                      </td>
+
+            {loading ? (
+              <p className={styles.hint}>Loading botanical items and stock batches…</p>
+            ) : (
+              <div className={styles.tableWrap}>
+                <table className={styles.table}>
+                  <thead>
+                    <tr>
+                      <th>Batch Ref &amp; Botanical Item</th>
+                      <th>Received</th>
+                      <th>Remaining</th>
+                      <th>Expiry (Colombo)</th>
+                      <th>Eligibility Badge</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {batches.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className={styles.hint}>
+                          No stock batches recorded yet. Register a botanical item and receive a batch on the left.
+                        </td>
+                      </tr>
+                    ) : (
+                      batches.map((batch) => (
+                        <tr key={batch.id}>
+                          <td>
+                            <strong className={styles.mono}>{batch.batchReference}</strong>
+                            <div className={styles.hint}>
+                              {batch.itemCode} · {batch.itemDisplayName}
+                            </div>
+                            {batch.blockReason && (
+                              <div className={styles.hint}>Block reason: {batch.blockReason}</div>
+                            )}
+                          </td>
+                          <td className={styles.mono}>{batch.receivedGrams} g</td>
+                          <td className={styles.mono}>
+                            <strong>{batch.remainingGrams} g</strong>
+                          </td>
+                          <td className={styles.mono}>{batch.expiresAt ?? "None supplied"}</td>
+                          <td>
+                            {batch.eligibility === "eligible" && (
+                              <span className={styles.badgeEligible}>Eligible</span>
+                            )}
+                            {batch.eligibility === "blocked" && (
+                              <span className={styles.badgeBlocked}>Blocked · Ineligible</span>
+                            )}
+                            {batch.eligibility === "expired" && (
+                              <span className={styles.badgeBlocked}>Expired · Ineligible</span>
+                            )}
+                            {batch.eligibility === "unknown_expiry" && (
+                              <span className={styles.badgeUnknown}>Unknown Expiry · Not Consumable</span>
+                            )}
+                            {batch.eligibility === "depleted" && (
+                              <span className={styles.badgeUnknown}>Depleted · 0.000 g</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </div>
       )}
 
-      {activeTab === "recipes" && (
+      {!preview && activeTab !== "batches" && <InventoryLiveWorkflows tab={activeTab} items={items} batches={batches} refreshBatches={() => loadLiveInventory(eligibleOnlyFilter)} />}
+
+      {preview && activeTab === "recipes" && (
         <div className={styles.splitGrid}>
           <div className={styles.panel}>
             <div className={styles.panelHeader}>
@@ -607,9 +1108,8 @@ export default function InventoryWorkspace({ preview = false }: { preview?: bool
         </div>
       )}
 
-      {activeTab === "consumption" && (
+      {preview && activeTab === "consumption" && (
         <div className={styles.equalGrid}>
-          {/* LEFT: PREPARED / MANUAL BATCH ALLOCATION */}
           <div className={styles.panelPrepared}>
             <div className={styles.panelHeader}>
               <div>
@@ -643,7 +1143,7 @@ export default function InventoryWorkspace({ preview = false }: { preview?: bool
             <div className={styles.fieldGroup}>
               <label className={styles.label} htmlFor="alloc-ashwa-b">
                 Ashwagandha Root — Second Batch <code>CLN-BATCH-2026-A02</code> (Status:{" "}
-                {batches.find((b) => b.id === "d-batch-ashwa-b")?.eligibility})
+                {batches.find((b) => b.id === "d-batch-ashwa-b")?.eligibility ?? "eligible"})
               </label>
               <input
                 id="alloc-ashwa-b"
@@ -693,7 +1193,10 @@ export default function InventoryWorkspace({ preview = false }: { preview?: bool
                   type="button"
                   className={styles.secondaryBtn}
                   onClick={() => {
-                    setBatches(INITIAL_BATCHES);
+                    if (preview) {
+                      setBatches(PREVIEW_BATCHES);
+                      setSummary(computeSummaryFromBatches(PREVIEW_BATCHES));
+                    }
                     setSavedSnapshot((prev) => ({ ...prev, status: "prepared", confirmedAt: null }));
                     setConsumptionNotice(null);
                   }}
@@ -704,7 +1207,6 @@ export default function InventoryWorkspace({ preview = false }: { preview?: bool
             </div>
           </div>
 
-          {/* RIGHT: CONSUMED (IMMUTABLE CONFIRMED STATE) */}
           <div className={styles.panelConsumed}>
             <div className={styles.panelHeader}>
               <div>
@@ -762,7 +1264,7 @@ export default function InventoryWorkspace({ preview = false }: { preview?: bool
         </div>
       )}
 
-      {activeTab === "traceability" && (
+      {preview && activeTab === "traceability" && (
         <div className={styles.equalGrid}>
           <div className={styles.panel}>
             <div className={styles.panelHeader}>
