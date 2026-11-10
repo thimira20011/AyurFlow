@@ -117,7 +117,7 @@ Status values: **Pending** = not started; **In progress** = work underway but co
 | TASK-QA-01 | Requirement/test checklist and synthetic journey data | F; all owners supply examples | A | In progress | B's [synthetic AT02–05 examples](qa/member-b-examples.md) and D's [synthetic AT08–11 examples](qa/member-d-examples.md) (`tests/fixtures/member-d-cases.json`); F/A review and other modules pending |
 | TASK-QA-02 | Authorized report navigation | F with D/E; A checks access | A | Pending | — |
 | TASK-QA-03 | Patient-to-receipt walkthrough | F; owners fix modules | A | Pending | — |
-| TASK-QA-04 | Critical audit and permission sweep | A with F | F | Pending | — |
+| TASK-QA-04 | Critical audit and permission sweep | A with F | F | In progress | `codex/qa-04-permissions-audit` restricts reception observation access and adds PostgreSQL audit-failure regressions. [Review findings and evidence](audits/qa-04-permissions.md). F and module-owner review, open findings and full AT13 remain. |
 | TASK-QA-05 | Performance and viewport/keyboard evidence | F; A supports host | A | Pending | — |
 | TASK-QA-06 | Clinic UAT, triage and acceptance record | F; owners attend | A; clinic review | Pending | — |
 
