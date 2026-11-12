@@ -4,13 +4,13 @@ This is the single tracking board for the 64 tasks in the *AyurFlow Team task pl
 
 ## Assignment and status rules
 
-**Assignment slots are provisional.** The current user has confirmed they are Member B; their personal name and the other team member names have not been supplied. Add the confirmed name for each A–F slot and for the team lead below; then confirm the accountable person and reviewer for **each row**. A review slot is a proposed peer reviewer, not clinic approval. The clinic reviewer for DEC01–06/08 and UAT must be named separately when agreed. Until that happens, `TASK-SET-01` remains in progress.
+**Assignment slots are provisional.** On 12 November 2026, the current user confirmed they are Member C; their personal name remains pending. Earlier records identify a previous contributor as Member B; that member's name still needs confirmation. Add the confirmed name for each A–F slot and for the team lead below; then confirm the accountable person and reviewer for **each row**. A review slot is a proposed peer reviewer, not clinic approval. The clinic reviewer for DEC01–06/08 and UAT must be named separately when agreed. Until that happens, `TASK-SET-01` remains in progress. [Member C's step-by-step checklist](member-c-tasks.md) records the existing scheduling implementation, verification work and provisional end-of-November target; it does not change acceptance statuses.
 
 | Slot | Confirmed name | Primary area | Peer reviewer |
 | --- | --- | --- | --- |
 | A | Pending | Shared API, auth, audit, deployment | F |
-| B | Current user; name pending | Patients and clinical workflow | C |
-| C | Pending | Scheduling and session delivery | B |
+| B | Earlier contributor; name pending | Patients and clinical workflow | C |
+| C | Current user; name pending | Scheduling and session delivery | B |
 | D | K. I. R. Perera (`22FIS0506`) | Inventory and preparation | E |
 | E | Pending | Billing | D |
 | F | Pending | Shared UI, integration and UAT | A |
