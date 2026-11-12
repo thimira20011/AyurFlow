@@ -15,6 +15,7 @@ This is an execution checklist, not an acceptance claim. Unchecked items require
 - [x] Create the Member C execution checklist and record the confirmed member slot (SET-01 contribution only; full named team allocation remains open).
 - [x] Inspect the existing scheduling implementation and historical evidence to identify the starting point. See [baseline record](evidence/member-c-baseline-2026-11-12.md).
 - [ ] Complete Step 1 startup and baseline verification: toolchain/setup blockers remain; no AT06/07 pass is claimed.
+- [x] Draft C's source-verified scheduling API/schema contract on `codex/member-c-scheduling-contract`; see [contract and review handoffs](api/member-c-contract.md). B/A/D/F review and the shared SET-06 acceptance remain open.
 
 ## Read first and understand the starting point
 
@@ -65,7 +66,7 @@ Done when: you can start and explain the module, and B can reproduce the baselin
 
 ## Step 2 — Agree the scheduling contract and design
 
-- [ ] Draft `docs/api/member-c-contract.md` for C's SET-06 contribution: actual routes, request/response examples, bounded list behavior, validation/errors, role/record permissions, audit events and cross-module IDs.
+- [x] Draft `docs/api/member-c-contract.md` for C's SET-06 contribution: actual routes, request/response examples, bounded list behavior, validation/errors, role/record permissions, audit events and cross-module IDs. Source inspection complete; independent reviews remain pending in the contract.
 - [ ] For SET-03, supply synthetic availability/booking examples: adjacent slots, room overlap, therapist overlap, unavailable resource and failed reschedule.
 - [ ] Review DEC02/08 with B: current-stage approval, hold/resume/cancel, future booking cancellation, completion of sessions already started during hold, and stage completion evidence. Keep undecided choices as gates.
 - [ ] Review the existing empty-stage completion guard with B; the 9 November record describes a conservative guard, not clinic approval of a final completion policy. Coordinate D's preparation evidence requirements.
