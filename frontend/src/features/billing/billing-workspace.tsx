@@ -1,6 +1,9 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { StaffDialog } from "@/components/staff-dialog";
+import { Field } from "@/components/staff-field";
+import { StateMessage, StatusBadge } from "@/components/staff-feedback";
 import styles from "./billing-workspace.module.css";
 import { parseLKRMinor, toLKRInput } from "./money";
 import { formatLKR, formatClinicDateTime } from "@/lib/format";
@@ -815,9 +818,9 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
                         <td><span className={styles.moneyDisplay} style={{ fontWeight: 700 }}>{inv.id}</span></td>
                         <td><span style={{ color: "var(--bill-accent)", fontWeight: 600 }}>{inv.patientId}</span></td>
                         <td>
-                          {inv.status === "draft" && <span className={styles.badgeDraft}>Draft</span>}
-                          {inv.status === "issued" && <span className={styles.badgeIssued}>Issued</span>}
-                          {inv.status === "void" && <span className={styles.badgeVoid}>Void</span>}
+                          {inv.status === "draft" && <StatusBadge>Draft</StatusBadge>}
+                          {inv.status === "issued" && <StatusBadge tone="positive">Issued</StatusBadge>}
+                          {inv.status === "void" && <StatusBadge tone="negative">Void</StatusBadge>}
                         </td>
                         <td style={{ fontSize: "0.85rem", color: "var(--bill-muted)" }}>{formatClinicDateTime(inv.createdAt)}</td>
                         <td>
@@ -897,7 +900,7 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
             )}
           </div>
 
-          {loadingReport && <div style={{ padding: "2rem", textAlign: "center", color: "var(--bill-muted)" }}>Loading report…</div>}
+          {loadingReport && <StateMessage>Loading report…</StateMessage>}
 
           {/* Live report from API */}
           {access === "ready" && report && !loadingReport && (
@@ -988,27 +991,24 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
 
       {/* MODAL 1: Create Draft Invoice */}
       {isNewInvoiceOpen && (
-        <div className={styles.modalOverlay} onClick={() => setIsNewInvoiceOpen(false)}>
-          <div role="dialog" aria-modal="true" aria-labelledby="billing-draft-heading" className={styles.modalCard} onClick={(e) => e.stopPropagation()}>
+        <StaffDialog labelledBy="billing-draft-heading" onDismiss={() => setIsNewInvoiceOpen(false)}>
             <div className={styles.modalHeader}>
               <h2 id="billing-draft-heading" className={styles.modalTitle}>Open Draft Invoice</h2>
-              <button aria-label="Close draft form" className={styles.closeBtn} onClick={() => setIsNewInvoiceOpen(false)}>×</button>
+              <button type="button" aria-label="Close draft form" className={styles.closeBtn} onClick={() => setIsNewInvoiceOpen(false)}>×</button>
             </div>
             {actionError && <p role="alert">{actionError}</p>}
             <form onSubmit={(e) => void handleCreateInvoice(e)} className={styles.formGrid}>
-              <div className={styles.formGroup}>
-                <label className={styles.formLabel} htmlFor="billing-new-patient">Patient ID</label>
-                <input
+              <Field id="billing-new-patient" label="Patient ID" hint="The invoice will be opened in draft status. Add treatment line items before issuing.">
+                {control => <input
+                  {...control}
                   type="text"
                   required
-                  id="billing-new-patient"
                   placeholder="e.g. 30ad6d29-79b0-4028-93c4-614df48ec3ea"
                   className={styles.formInput}
                   value={newPatientId}
                   onChange={(e) => setNewPatientId(e.target.value)}
-                />
-                <span className={styles.formHelp}>The invoice will be opened in draft status. Add treatment line items before issuing.</span>
-              </div>
+                />}
+              </Field>
               <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem", marginTop: "1rem" }}>
                 <button type="button" className={styles.secondaryBtn} onClick={() => setIsNewInvoiceOpen(false)}>Cancel</button>
                 <button type="submit" className={styles.primaryBtn} disabled={submittingInvoice}>
@@ -1016,8 +1016,7 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
+        </StaffDialog>
       )}
 
       {/* MODAL 2: Invoice Detail — Line Items + Receipt History */}
