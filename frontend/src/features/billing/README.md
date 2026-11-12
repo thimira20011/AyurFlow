@@ -17,3 +17,16 @@ history before starting another payment.
 responses. `tests/fullstack/member-e.spec.ts` exercises draft, issue, deposit
 and reload against the disposable Go/PostgreSQL browser fixture. See
 `tests/fullstack/README.md` for setup.
+
+## TASK-QA-02 report navigation (Member F)
+
+The shared billing entry permits `billing` and `report_reader`. Report readers have a
+Billing reports workspace with an Outstanding invoices link, including on multi-role
+accounts. The existing billing component restricts report-only users to the report;
+invoice creation, issue and receipt mutations retain their existing billing-only
+checks. Reception access is unchanged. Backend role checks remain authoritative.
+
+This matches E's existing `OutstandingReport` service permission (`billing` or
+`report_reader`); F has not changed backend permissions. A/E peer review remains
+pending before marking the QA-02 slice accepted. Full report-category/filter/export
+acceptance is outside this navigation fix.
