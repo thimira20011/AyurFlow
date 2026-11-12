@@ -16,6 +16,7 @@ This is an execution checklist, not an acceptance claim. Unchecked items require
 - [x] Inspect the existing scheduling implementation and historical evidence to identify the starting point. See [baseline record](evidence/member-c-baseline-2026-11-12.md).
 - [ ] Complete Step 1 startup and baseline verification: toolchain/setup blockers remain; no AT06/07 pass is claimed.
 - [x] Draft C's source-verified scheduling API/schema contract on `codex/member-c-scheduling-contract`; see [contract and review handoffs](api/member-c-contract.md). B/A/D/F review and the shared SET-06 acceptance remain open.
+- [x] Implement independent room/therapist overlap, separate-resource and adjacent-boundary PostgreSQL cases on `codex/member-c-booking-race-tests`; [test setup and expected outcomes](evidence/member-c-booking-resources-2026-11-12.md). CI execution and B acceptance must be recorded before parent task closure.
 
 ## Read first and understand the starting point
 

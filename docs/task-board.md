@@ -84,7 +84,7 @@ Status values: **Pending** = not started; **In progress** = work underway but co
 | TASK-SCH-03 | Booking and atomic rescheduling | C | B | Pending | — |
 | TASK-SCH-04 | Start, observations, completion and cancellation | C with B | B | Pending | — |
 | TASK-SCH-05 | Booking/availability/therapist screens | C | B | Pending | — |
-| TASK-SCH-06 | AT06–07 overlap and clearance verification | C | B | Pending | — |
+| TASK-SCH-06 | AT06–07 overlap and clearance verification | C | B | In progress | [Independent resource booking cases](evidence/member-c-booking-resources-2026-11-12.md) on `codex/member-c-booking-race-tests` cover room-only/therapist-only races, separate-resource concurrency, adjacent boundaries and booking/audit consistency. CI results, remaining integrated AT06–07 cases and B review required |
 
 ## 7. Inventory and preparation (weeks 2–6)
 
