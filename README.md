@@ -59,7 +59,7 @@ This Compose file binds application/database ports to localhost for development.
 
 ## Start Go and Next.js locally
 
-Use Go 1.27.3, Node.js 22.23.2 and npm 10.9.8. The root `.nvmrc` records Node; `frontend/package.json` and `.npmrc` enforce exact Node/npm versions for installs. See [toolchain setup and lockfile recovery](docs/ci-and-test-guide.md#frontend-toolchain-and-lockfile-recovery). Start PostgreSQL using `docker compose up -d db` or your own PostgreSQL 17 installation. Create the `.env` file first if using Compose.
+Use Go 1.27.4, Node.js 22.23.2 and npm 10.9.8. The root `.nvmrc` records Node; `frontend/package.json` and `.npmrc` enforce exact Node/npm versions for installs. See [toolchain setup and lockfile recovery](docs/ci-and-test-guide.md#frontend-toolchain-and-lockfile-recovery). Start PostgreSQL using `docker compose up -d db` or your own PostgreSQL 17 installation. Create the `.env` file first if using Compose.
 
 Backend, in one PowerShell terminal:
 
