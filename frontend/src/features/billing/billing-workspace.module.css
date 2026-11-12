@@ -295,45 +295,6 @@
   background: oklch(0.985 0.008 145);
 }
 
-.badgeDraft {
-  background: var(--bill-draft-bg);
-  border: 1px solid oklch(0.85 0.08 70);
-  border-radius: 9999px;
-  color: var(--bill-draft);
-  display: inline-block;
-  font-size: 0.74rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  padding: 0.2rem 0.65rem;
-  text-transform: uppercase;
-}
-
-.badgeIssued {
-  background: var(--bill-issued-bg);
-  border: 1px solid oklch(0.82 0.08 155);
-  border-radius: 9999px;
-  color: var(--bill-issued);
-  display: inline-block;
-  font-size: 0.74rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  padding: 0.2rem 0.65rem;
-  text-transform: uppercase;
-}
-
-.badgeVoid {
-  background: var(--bill-void-bg);
-  border: 1px solid oklch(0.85 0.08 25);
-  border-radius: 9999px;
-  color: var(--bill-void);
-  display: inline-block;
-  font-size: 0.74rem;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  padding: 0.2rem 0.65rem;
-  text-transform: uppercase;
-}
-
 .modalOverlay {
   align-items: center;
   background: rgba(15, 23, 42, 0.55);
