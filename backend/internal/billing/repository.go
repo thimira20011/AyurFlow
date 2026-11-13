@@ -7,20 +7,13 @@ import (
 	"ayurflow/backend/internal/audit"
 
 	"github.com/jackc/pgx/v5"
-	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/jackc/pgx/v5/pgconn"
 )
 
 // Repository implements all parameterized database access for the billing
 // module. Handlers and services must never write raw SQL outside this file.
 // All queries use $N placeholders to prevent SQL injection.
-type Repository struct {
-	pool *pgxpool.Pool
-}
-
-// NewRepository creates a Repository backed by the shared connection pool.
-func NewRepository(pool *pgxpool.Pool) *Repository {
-	return &Repository{pool: pool}
-}
+type Repository struct{}
 
 // ---------------------------------------------------------------------------
 // Invoice queries
@@ -28,9 +21,9 @@ func NewRepository(pool *pgxpool.Pool) *Repository {
 
 // GetInvoice fetches a single invoice by ID. Returns ErrNotFound when absent.
 // Items are NOT loaded; call GetInvoiceItems separately.
-func (r *Repository) GetInvoice(ctx context.Context, id string) (Invoice, error) {
+func (r *Repository) GetInvoice(ctx context.Context, tx pgx.Tx, id string) (Invoice, error) {
 	var inv Invoice
-	err := r.pool.QueryRow(ctx, `
+	err := tx.QueryRow(ctx, `
 		SELECT id::text, patient_id::text, status,
 		       total_minor_units, issued_at, issued_by::text,
 		       created_at, updated_at
@@ -69,7 +62,7 @@ func (r *Repository) GetInvoiceForUpdate(ctx context.Context, tx pgx.Tx, id stri
 
 // ListInvoicesForPatient returns a page of invoices for one patient, ordered
 // by created_at DESC with id as tie-breaker. Cursor is opaque (id-based).
-func (r *Repository) ListInvoicesForPatient(ctx context.Context, patientID string, limit int, afterID string) ([]Invoice, error) {
+func (r *Repository) ListInvoicesForPatient(ctx context.Context, tx pgx.Tx, patientID string, limit int, afterID string) ([]Invoice, error) {
 	q := `SELECT id::text, patient_id::text, status,
 		         total_minor_units, issued_at, issued_by::text,
 		         created_at, updated_at
@@ -77,19 +70,29 @@ func (r *Repository) ListInvoicesForPatient(ctx context.Context, patientID strin
 	args := []any{patientID}
 	if afterID != "" {
 		q += ` AND (created_at, id) < (
-				SELECT created_at, id FROM invoices WHERE id = $2
+				SELECT created_at, id FROM invoices WHERE id = $2 AND patient_id = $1
 			  )`
 		args = append(args, afterID)
 	}
 	q += ` ORDER BY created_at DESC, id DESC LIMIT $` + itoa(len(args)+1)
 	args = append(args, limit)
 
-	rows, err := r.pool.Query(ctx, q, args...)
+	rows, err := tx.Query(ctx, q, args...)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	return scanInvoiceRows(rows)
+}
+
+// PatientIDByRegistryNumber resolves only the internal billing reference.
+func (r *Repository) PatientIDByRegistryNumber(ctx context.Context, tx pgx.Tx, number int64) (string, error) {
+	var id string
+	err := tx.QueryRow(ctx, "SELECT id::text FROM patients WHERE registry_number = $1", number).Scan(&id)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return "", ErrNotFound
+	}
+	return id, err
 }
 
 // CreateInvoice inserts a new draft invoice and returns the created record.
@@ -106,6 +109,10 @@ func (r *Repository) CreateInvoice(ctx context.Context, tx pgx.Tx, patientID str
 		&inv.TotalMinor, &inv.IssuedAt, &inv.IssuedBy,
 		&inv.CreatedAt, &inv.UpdatedAt,
 	)
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.Code == "23503" && pgErr.ConstraintName == "invoices_patient_fk" {
+		return Invoice{}, ErrNotFound
+	}
 	return inv, err
 }
 
@@ -138,8 +145,8 @@ func (r *Repository) VoidInvoice(ctx context.Context, tx pgx.Tx, id string) erro
 // ---------------------------------------------------------------------------
 
 // GetInvoiceItems returns all line items for an invoice, ordered by created_at.
-func (r *Repository) GetInvoiceItems(ctx context.Context, invoiceID string) ([]InvoiceItem, error) {
-	rows, err := r.pool.Query(ctx, `
+func (r *Repository) GetInvoiceItems(ctx context.Context, tx pgx.Tx, invoiceID string) ([]InvoiceItem, error) {
+	rows, err := tx.Query(ctx, `
 		SELECT id::text, invoice_id::text, description,
 		       quantity, unit_price_minor, created_at
 		FROM invoice_items WHERE invoice_id = $1
@@ -184,7 +191,7 @@ func (r *Repository) RemoveInvoiceItem(ctx context.Context, tx pgx.Tx, itemID, i
 func (r *Repository) SumInvoiceItems(ctx context.Context, tx pgx.Tx, invoiceID string) (int64, error) {
 	var total int64
 	err := tx.QueryRow(ctx, `
-		SELECT COALESCE(SUM(quantity::bigint * unit_price_minor), 0)
+		SELECT COALESCE(SUM(quantity::bigint * unit_price_minor), 0)::bigint
 		FROM invoice_items WHERE invoice_id = $1`, invoiceID,
 	).Scan(&total)
 	return total, err
@@ -252,8 +259,8 @@ func (r *Repository) InsertReceipt(ctx context.Context, tx pgx.Tx, invoiceID, op
 }
 
 // ListReceipts returns all receipts for an invoice, ordered by issued_at.
-func (r *Repository) ListReceipts(ctx context.Context, invoiceID string) ([]Receipt, error) {
-	rows, err := r.pool.Query(ctx, `
+func (r *Repository) ListReceipts(ctx context.Context, tx pgx.Tx, invoiceID string) ([]Receipt, error) {
+	rows, err := tx.Query(ctx, `
 		SELECT id::text, invoice_id::text, operation_id::text,
 		       amount_minor, payment_method, COALESCE(label, ''),
 		       issued_at, issued_by::text
@@ -284,8 +291,8 @@ func (r *Repository) ListReceipts(ctx context.Context, invoiceID string) ([]Rece
 
 // OutstandingInvoices returns all issued invoices with outstanding balances.
 // Access control (role + record) is enforced by the service before calling this.
-func (r *Repository) OutstandingInvoices(ctx context.Context) ([]OutstandingReportRow, error) {
-	rows, err := r.pool.Query(ctx, `
+func (r *Repository) OutstandingInvoices(ctx context.Context, tx pgx.Tx) ([]OutstandingReportRow, error) {
+	rows, err := tx.Query(ctx, `
 		SELECT i.id::text, i.patient_id::text, i.issued_at,
 		       i.total_minor_units,
 		       COALESCE(SUM(rec.amount_minor), 0)          AS paid_minor,
@@ -294,15 +301,14 @@ func (r *Repository) OutstandingInvoices(ctx context.Context) ([]OutstandingRepo
 		FROM invoices i
 		LEFT JOIN receipts rec ON rec.invoice_id = i.id
 		WHERE i.status = 'issued'
-		  AND i.total_minor_units > COALESCE(
-		      (SELECT SUM(r2.amount_minor) FROM receipts r2 WHERE r2.invoice_id = i.id), 0)
 		GROUP BY i.id, i.patient_id, i.issued_at, i.total_minor_units
+		HAVING i.total_minor_units > COALESCE(SUM(rec.amount_minor), 0)
 		ORDER BY i.issued_at ASC, i.id ASC`)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var result []OutstandingReportRow
+	result := []OutstandingReportRow{}
 	for rows.Next() {
 		var row OutstandingReportRow
 		if err := rows.Scan(
