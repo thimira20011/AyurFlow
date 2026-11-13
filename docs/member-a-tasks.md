@@ -90,3 +90,7 @@ Sources: *AyurFlow Team task plan* (1 October 2026), especially pp. 2–5 and 11
 - Give B–E a usable session/authorization/audit contract early. Each feature owner integrates its own migration, UI, permission checks, audit calls and tests; A reviews shared conflicts rather than implementing all module schemas.
 - Use `AT01`, `AT13`, `AT16`, `AT17` as A's primary acceptance evidence. Contribute host evidence to `AT14` and permission review to `AT11`. F is the reviewer for A-owned work.
 - The Sprint 1 exit is deployed login → registration → search; Sprint 2 is approved plan → safe booking → authorized start; Sprint 3 is the full synthetic patient-to-receipt journey and feature freeze; Sprint 4 is UAT and integrity/restore evidence; Sprint 5 is clean delivery and handover.
+
+### AUTH-06 trusted deployment follow-up — 13 November 2026
+
+The synthetic Render API verification passed real role-change/disable revocation, CSRF, secure cookie/no-store rules, logout replay, identifier throttling/cooldown and five-minute idle expiry; all created accounts were disabled afterwards. [Runner and nine-group execution record](evidence/member-a-auth-06-deployed-2026-11-13.md). The reusable runner and guard are on `codex/auth-06-deployed-verification`. Absolute expiry, current deployed browser/module checks, actual audit/hosting-log review, Render release-version evidence, final DEC07 and independent review remain required. This follow-up does not mark full AUTH-06 accepted.
