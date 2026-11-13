@@ -12,7 +12,7 @@ This guide describes the current synthetic-development application. Use assigned
 
 The `/patients/preview` and `/clinical/preview` pages are development-only synthetic screen previews. Their changes stay in browser memory and are lost on refresh. They are not patient records or evidence that a clinical action was saved.
 
-The **Reception desk** page and its **Register Walk-in Patient** dialog are also a labelled synthetic preview. **Open Full Registry Form** leads to the working patient registration screen. Do not treat **Register & Check In** in that preview as a saved patient record.
+On the **Reception desk** page, **Register patient** opens the protected full registration form and **Find a patient** opens the registry. The overview does not show session counts or appointments until the scheduling service is connected. Use the patient form for saved records; registration does not automatically book or check in a session.
 
 ## Register and find a patient
 

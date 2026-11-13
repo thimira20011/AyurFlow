@@ -46,7 +46,7 @@ type CompletionPolicy interface {
 // SessionCancellation runs inside the plan transaction after the plan row is
 // locked. C's adapter must cancel future unstarted sessions and retain history.
 type SessionCancellation interface {
-	CancelFuture(context.Context, pgx.Tx, string) error
+	CancelFuture(context.Context, pgx.Tx, string, string) error
 }
 
 type Service struct {

@@ -52,7 +52,7 @@ func (s *Service) changeStatus(ctx context.Context, actor, planID string, versio
 			return ErrConflict
 		}
 		if cancellation != nil {
-			if err := cancellation.CancelFuture(ctx, tx, planID); err != nil {
+			if err := cancellation.CancelFuture(ctx, tx, planID, actor); err != nil {
 				return err
 			}
 		}

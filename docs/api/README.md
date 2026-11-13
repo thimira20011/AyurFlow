@@ -6,6 +6,8 @@
 
 [Member B's patient and clinical contract](member-b-contract.md) is the TASK-SET-06 contribution draft. It records proposed relationships, protected resource shapes and the B/C session-clearance join for review; it is not an implemented endpoint list.
 
+[Member C's scheduling contract](member-c-contract.md) inventories the implemented rooms, availability and session routes, role/record checks, errors, audit events and clinical adapters. It records bounded-list and lifecycle gaps for B/A/D/F review. It is C's TASK-SET-06 contribution, not published OpenAPI or AT06–07 acceptance.
+
 [Member D's inventory, recipes, preparation and consumption contract](member-d-contract.md) is the TASK-SET-06 contribution draft for botanical items, batches, flat recipes, immutable preparation snapshots, manual batch selection, atomic consumption retries and bidirectional traceability (`INV-01`–`04`, `PRE-01`–`06`, `REP-01`).
 
 [Member E's billing and invoicing contract](member-e-contract.md) is the TASK-SET-06 contribution draft for draft/issued invoices, direct receipts, labelled deposits, balances and outstanding invoice reporting (`BIL-01`–`06`).

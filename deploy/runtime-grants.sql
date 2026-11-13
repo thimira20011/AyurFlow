@@ -15,9 +15,16 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON
 TO :"app_role";
 GRANT SELECT, INSERT, UPDATE ON
     :"schema".patient_clinician_assignments, :"schema".care_plans,
-    :"schema".plan_stages
+    :"schema".plan_stages, :"schema".botanical_items,
+    :"schema".stock_batches, :"schema".clinic_rooms,
+    :"schema".resource_availability, :"schema".therapy_sessions,
+    :"schema".recipes, :"schema".recipe_ingredients,
+    :"schema".preparations
 TO :"app_role";
-GRANT SELECT, INSERT ON :"schema".plan_decisions TO :"app_role";
+GRANT SELECT, INSERT ON :"schema".plan_decisions,
+    :"schema".preparation_snapshot_items, :"schema".batch_consumptions,
+    :"schema".consumption_operations TO :"app_role";
+GRANT DELETE ON :"schema".recipe_ingredients TO :"app_role";
 GRANT SELECT ON :"schema".roles TO :"app_role";
 GRANT SELECT, INSERT ON :"schema".audit_events TO :"app_role";
 GRANT USAGE ON SEQUENCE :"schema".audit_events_id_seq TO :"app_role";
