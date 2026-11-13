@@ -5,10 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -16,12 +18,6 @@ import (
 // Service enforces authorization, workflow rules and transaction boundaries
 // for all billing operations. All protected mutations write an audit event
 // in the same transaction; a failed audit write rolls back the mutation.
-//
-// AUTH-03 (role and record checks) is not yet implemented. Every method that
-// requires a caller identity accepts actorID and roles parameters so that the
-// permission logic can be added in place once AUTH-03 lands. Methods marked
-// with "AUTH-03 TODO" must not be exposed on protected routes until that work
-// is integrated.
 //
 // DEC04 TODO: rounding rule, allowed payment methods and tariff examples must
 // be confirmed with the clinic billing staff before AT12 acceptance.
@@ -32,7 +28,7 @@ type Service struct {
 
 // NewService creates a billing Service.
 func NewService(pool *pgxpool.Pool) *Service {
-	return &Service{pool: pool, repo: NewRepository(pool)}
+	return &Service{pool: pool, repo: &Repository{}}
 }
 
 // ---------------------------------------------------------------------------
@@ -41,15 +37,6 @@ func NewService(pool *pgxpool.Pool) *Service {
 
 // CreateInvoice opens a new draft invoice for the given patient.
 func (s *Service) CreateInvoice(ctx context.Context, actorID string, req CreateInvoiceRequest) (Invoice, error) {
-	if strings.TrimSpace(req.PatientID) == "" {
-		return Invoice{}, fmt.Errorf("%w: patientId is required", ErrValidation)
-	}
-	canonicalPatient, err := canonicalUUID(req.PatientID)
-	if err != nil {
-		return Invoice{}, fmt.Errorf("%w: patientId must be a valid UUID", ErrValidation)
-	}
-	req.PatientID = canonicalPatient
-
 	tx, err := s.pool.Begin(ctx)
 	if err != nil {
 		return Invoice{}, err
@@ -60,7 +47,11 @@ func (s *Service) CreateInvoice(ctx context.Context, actorID string, req CreateI
 		return Invoice{}, err
 	}
 
-	inv, err := s.repo.CreateInvoice(ctx, tx, req.PatientID)
+	patientID, err := s.resolvePatientID(ctx, tx, req.PatientID)
+	if err != nil {
+		return Invoice{}, err
+	}
+	inv, err := s.repo.CreateInvoice(ctx, tx, patientID)
 	if err != nil {
 		return Invoice{}, err
 	}
@@ -94,26 +85,22 @@ func (s *Service) GetInvoice(ctx context.Context, actorID string, invoiceID stri
 		return Invoice{}, err
 	}
 
-	inv, err := s.repo.GetInvoice(ctx, invoiceID)
+	inv, err := s.repo.GetInvoice(ctx, tx, invoiceID)
 	if err != nil {
 		return Invoice{}, err
 	}
-	inv.Items, err = s.repo.GetInvoiceItems(ctx, invoiceID)
+	inv.Items, err = s.repo.GetInvoiceItems(ctx, tx, invoiceID)
 	if err != nil {
 		return Invoice{}, err
 	}
-	_ = tx.Commit(ctx)
+	if err := tx.Commit(ctx); err != nil {
+		return Invoice{}, err
+	}
 	return inv, nil
 }
 
 // ListInvoicesForPatient returns a paginated list of invoices for one patient.
 func (s *Service) ListInvoicesForPatient(ctx context.Context, actorID string, patientID string, limit int, afterID string) (InvoicePage, error) {
-	canonicalPatient, err := canonicalUUID(patientID)
-	if err != nil {
-		return InvoicePage{}, fmt.Errorf("%w: patientId must be a valid UUID", ErrValidation)
-	}
-	patientID = canonicalPatient
-
 	if afterID != "" {
 		canonicalAfter, err := canonicalUUID(afterID)
 		if err != nil {
@@ -132,11 +119,15 @@ func (s *Service) ListInvoicesForPatient(ctx context.Context, actorID string, pa
 		return InvoicePage{}, err
 	}
 
+	patientID, err = s.resolvePatientID(ctx, tx, patientID)
+	if err != nil {
+		return InvoicePage{}, err
+	}
 	if limit <= 0 || limit > 100 {
 		limit = 25
 	}
 	// Fetch limit+1 to detect whether there is a next page.
-	items, err := s.repo.ListInvoicesForPatient(ctx, patientID, limit+1, afterID)
+	items, err := s.repo.ListInvoicesForPatient(ctx, tx, patientID, limit+1, afterID)
 	if err != nil {
 		return InvoicePage{}, err
 	}
@@ -146,8 +137,26 @@ func (s *Service) ListInvoicesForPatient(ctx context.Context, actorID string, pa
 		last := items[len(items)-1].ID
 		nextCursor = &last
 	}
-	_ = tx.Commit(ctx)
+	if err := tx.Commit(ctx); err != nil {
+		return InvoicePage{}, err
+	}
 	return InvoicePage{Items: items, NextCursor: nextCursor}, nil
+}
+
+// resolvePatientID limits lookup to an exact registry code after billing authorization.
+func (s *Service) resolvePatientID(ctx context.Context, tx pgx.Tx, reference string) (string, error) {
+	reference = strings.TrimSpace(reference)
+	if number, ok := strings.CutPrefix(strings.ToUpper(reference), "AYUR-PT-"); ok {
+		registryNumber, err := strconv.ParseUint(number, 10, 63)
+		if err == nil && registryNumber > 0 {
+			return s.repo.PatientIDByRegistryNumber(ctx, tx, int64(registryNumber))
+		}
+	}
+	id, err := canonicalUUID(reference)
+	if err != nil {
+		return "", fmt.Errorf("%w: enter a patient registry code or UUID", ErrValidation)
+	}
+	return id, nil
 }
 
 // AddItem adds a line item to a draft invoice.
@@ -268,6 +277,10 @@ func (s *Service) IssueInvoice(ctx context.Context, actorID, invoiceID string) (
 	}
 
 	totalMinor, err := s.repo.SumInvoiceItems(ctx, tx, invoiceID)
+	var pgErr *pgconn.PgError
+	if errors.As(err, &pgErr) && pgErr.Code == "22003" {
+		return Invoice{}, fmt.Errorf("%w: invoice total exceeds the supported amount", ErrValidation)
+	}
 	if err != nil {
 		return Invoice{}, err
 	}
@@ -285,12 +298,18 @@ func (s *Service) IssueInvoice(ctx context.Context, actorID, invoiceID string) (
 		return Invoice{}, err
 	}
 
+	inv, err = s.repo.GetInvoice(ctx, tx, invoiceID)
+	if err != nil {
+		return Invoice{}, err
+	}
+	inv.Items, err = s.repo.GetInvoiceItems(ctx, tx, invoiceID)
+	if err != nil {
+		return Invoice{}, err
+	}
 	if err := tx.Commit(ctx); err != nil {
 		return Invoice{}, err
 	}
-
-	// Re-fetch the fully updated invoice with lines.
-	return s.GetInvoice(ctx, actorID, invoiceID)
+	return inv, nil
 }
 
 // VoidInvoice transitions a draft invoice to 'void'. Fails if any receipts exist.
@@ -398,6 +417,9 @@ func (s *Service) PostReceipt(ctx context.Context, actorID, invoiceID string, re
 	if !errors.Is(err, ErrNotFound) {
 		return Receipt{}, false, err
 	}
+	if req.PaymentMethod == "direct_deposit" && strings.TrimSpace(req.Label) == "" {
+		return Receipt{}, false, fmt.Errorf("%w: direct deposits require a payment reference", ErrValidation)
+	}
 
 	// Lock the invoice row to serialize balance checks.
 	inv, err := s.repo.GetInvoiceForUpdate(ctx, tx, invoiceID)
@@ -458,7 +480,7 @@ func (s *Service) GetBalance(ctx context.Context, actorID string, invoiceID stri
 		return InvoiceBalance{}, err
 	}
 
-	inv, err := s.repo.GetInvoice(ctx, invoiceID)
+	inv, err := s.repo.GetInvoice(ctx, tx, invoiceID)
 	if err != nil {
 		return InvoiceBalance{}, err
 	}
@@ -470,7 +492,9 @@ func (s *Service) GetBalance(ctx context.Context, actorID string, invoiceID stri
 	if err != nil {
 		return InvoiceBalance{}, err
 	}
-	_ = tx.Commit(ctx)
+	if err := tx.Commit(ctx); err != nil {
+		return InvoiceBalance{}, err
+	}
 
 	return InvoiceBalance{
 		InvoiceID:        invoiceID,
@@ -499,14 +523,16 @@ func (s *Service) ListReceipts(ctx context.Context, actorID string, invoiceID st
 	}
 
 	// Confirm invoice exists before querying receipts.
-	if _, err := s.repo.GetInvoice(ctx, invoiceID); err != nil {
+	if _, err := s.repo.GetInvoice(ctx, tx, invoiceID); err != nil {
 		return nil, err
 	}
-	receipts, err := s.repo.ListReceipts(ctx, invoiceID)
+	receipts, err := s.repo.ListReceipts(ctx, tx, invoiceID)
 	if err != nil {
 		return nil, err
 	}
-	_ = tx.Commit(ctx)
+	if err := tx.Commit(ctx); err != nil {
+		return nil, err
+	}
 	return receipts, nil
 }
 
@@ -526,11 +552,13 @@ func (s *Service) OutstandingReport(ctx context.Context, actorID string) (Outsta
 		return OutstandingReport{}, err
 	}
 
-	rows, err := s.repo.OutstandingInvoices(ctx)
+	rows, err := s.repo.OutstandingInvoices(ctx, tx)
 	if err != nil {
 		return OutstandingReport{}, err
 	}
-	_ = tx.Commit(ctx)
+	if err := tx.Commit(ctx); err != nil {
+		return OutstandingReport{}, err
+	}
 	return OutstandingReport{
 		GeneratedAt: time.Now().UTC(),
 		Rows:        rows,

@@ -17,6 +17,7 @@ import (
 )
 
 const billingTestActor = "d02c1c97-7588-4455-a045-127158e311f6"
+const billingTestPatient = "30ad6d29-79b0-4028-93c4-614df48ec3ea"
 
 func billingFixture(t *testing.T) (*Service, *pgxpool.Pool) {
 	t.Helper()
@@ -32,15 +33,113 @@ func billingFixture(t *testing.T) (*Service, *pgxpool.Pool) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	_, err = pool.Exec(t.Context(), `INSERT INTO patients(id, display_name, created_by, updated_by)
+		VALUES ($1, 'Synthetic billing patient', $2, $2)`, billingTestPatient, billingTestActor)
+	if err != nil {
+		t.Fatal(err)
+	}
 	return NewService(pool), pool
+}
+
+func TestBillingPatientReferenceIntegration(t *testing.T) {
+	service, pool := billingFixture(t)
+	const missing = "88bbe00a-dfd6-43db-a226-9a00ccc91b25"
+	if _, err := service.CreateInvoice(t.Context(), billingTestActor, CreateInvoiceRequest{PatientID: missing}); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("create for missing patient: %v", err)
+	}
+	var count int
+	if err := pool.QueryRow(t.Context(), "SELECT count(*) FROM audit_events WHERE action = 'invoice.created'").Scan(&count); err != nil || count != 0 {
+		t.Fatalf("rejected create wrote an audit event: count=%d err=%v", count, err)
+	}
+	invoice, err := service.CreateInvoice(t.Context(), billingTestActor, CreateInvoiceRequest{PatientID: "ayur-pt-00001"})
+	if err != nil || invoice.PatientID != billingTestPatient {
+		t.Fatalf("create by registry code: invoice=%+v err=%v", invoice, err)
+	}
+	page, err := service.ListInvoicesForPatient(t.Context(), billingTestActor, "AYUR-PT-00001", 25, "")
+	if err != nil || len(page.Items) != 1 || page.Items[0].ID != invoice.ID {
+		t.Fatalf("list by registry code: page=%+v err=%v", page, err)
+	}
+	if _, err := pool.Exec(t.Context(), "DELETE FROM patients WHERE id = $1", billingTestPatient); err == nil {
+		t.Fatal("deleted a patient with an invoice")
+	}
+}
+
+func TestBillingReadsAndOutstandingReportIntegration(t *testing.T) {
+	_, fixturePool := billingFixture(t)
+	config := fixturePool.Config()
+	config.MaxConns = 1
+	pool, err := pgxpool.NewWithConfig(t.Context(), config)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(pool.Close)
+	service := NewService(pool)
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+	defer cancel()
+
+	const reportReader = "66dfe495-0d03-44b0-9803-1a0dffd6ba8d"
+	if _, err := pool.Exec(ctx, `INSERT INTO staff_accounts(id, login_identifier, password_hash)
+		VALUES ($1, 'synthetic-report-reader', '$argon2id$synthetic-non-login-fixture')`, reportReader); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := pool.Exec(ctx, "INSERT INTO staff_roles(staff_id, role_code) VALUES ($1, 'report_reader')", reportReader); err != nil {
+		t.Fatal(err)
+	}
+	invoice, err := service.CreateInvoice(ctx, billingTestActor, CreateInvoiceRequest{PatientID: billingTestPatient})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.AddItem(ctx, billingTestActor, invoice.ID, AddItemRequest{Description: "Synthetic fee", Quantity: 1, UnitPriceMinor: 100025}); err != nil {
+		t.Fatal(err)
+	}
+	report, err := service.OutstandingReport(ctx, reportReader)
+	if err != nil || len(report.Rows) != 0 {
+		t.Fatalf("draft appeared in outstanding report: %+v, %v", report, err)
+	}
+	if _, err := service.IssueInvoice(ctx, billingTestActor, invoice.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.GetInvoice(ctx, billingTestActor, invoice.ID); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := service.GetInvoice(ctx, reportReader, invoice.ID); !errors.Is(err, ErrForbidden) {
+		t.Fatalf("report-only account read invoice detail: %v", err)
+	}
+	deposit := PostReceiptRequest{OperationID: receiptOperation(t, pool), AmountMinor: 40010, PaymentMethod: "direct_deposit", Label: "Synthetic deposit"}
+	unlabelled := deposit
+	unlabelled.Label = "  "
+	if _, _, err := service.PostReceipt(ctx, billingTestActor, invoice.ID, unlabelled); !errors.Is(err, ErrValidation) {
+		t.Fatalf("accepted an unlabelled deposit: %v", err)
+	}
+	if _, _, err := service.PostReceipt(ctx, billingTestActor, invoice.ID, deposit); err != nil {
+		t.Fatal(err)
+	}
+	balance, err := service.GetBalance(ctx, billingTestActor, invoice.ID)
+	if err != nil || balance.OutstandingMinor != 60015 {
+		t.Fatalf("balance after deposit: %+v, %v", balance, err)
+	}
+	receipts, err := service.ListReceipts(ctx, billingTestActor, invoice.ID)
+	if err != nil || len(receipts) != 1 || receipts[0].Label != deposit.Label {
+		t.Fatalf("receipt history: %+v, %v", receipts, err)
+	}
+	report, err = service.OutstandingReport(ctx, reportReader)
+	if err != nil || len(report.Rows) != 1 || report.Rows[0].InvoiceID != invoice.ID || report.Rows[0].OutstandingMinor != 60015 {
+		t.Fatalf("partially paid invoice report: %+v, %v", report, err)
+	}
+	finalPayment := PostReceiptRequest{OperationID: receiptOperation(t, pool), AmountMinor: 60015, PaymentMethod: "cash"}
+	if _, _, err := service.PostReceipt(ctx, billingTestActor, invoice.ID, finalPayment); err != nil {
+		t.Fatal(err)
+	}
+	report, err = service.OutstandingReport(ctx, reportReader)
+	if err != nil || len(report.Rows) != 0 {
+		t.Fatalf("settled invoice appeared in outstanding report: %+v, %v", report, err)
+	}
 }
 
 func issuedTestInvoice(t *testing.T, service *Service, total int64) Invoice {
 	t.Helper()
-	// PAT-01 has not supplied its patient FK/fixture yet. These synthetic IDs
-	// exercise the current billing schema without inventing a patient schema.
 	invoice, err := service.CreateInvoice(t.Context(), billingTestActor, CreateInvoiceRequest{
-		PatientID: "30ad6d29-79b0-4028-93c4-614df48ec3ea",
+		PatientID: billingTestPatient,
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -229,7 +328,7 @@ func TestReceiptAuditFailureRollsBackIntegration(t *testing.T) {
 
 func TestInvoiceDraftAndIssueLifecycleIntegration(t *testing.T) {
 	service, pool := billingFixture(t)
-	patientID := "30ad6d29-79b0-4028-93c4-614df48ec3ea"
+	patientID := billingTestPatient
 
 	// 1. Create draft invoice
 	inv, err := service.CreateInvoice(t.Context(), billingTestActor, CreateInvoiceRequest{
@@ -326,7 +425,7 @@ func TestInvoiceDraftAndIssueLifecycleIntegration(t *testing.T) {
 
 func TestInvoiceRoleAccessDeniedIntegration(t *testing.T) {
 	service, pool := billingFixture(t)
-	patientID := "30ad6d29-79b0-4028-93c4-614df48ec3ea"
+	patientID := billingTestPatient
 
 	// Staff account with therapist role only (no billing role)
 	therapistActor := "e11e11e1-1111-4444-a045-127158e311f6"
@@ -370,7 +469,7 @@ func TestInvoiceRoleAccessDeniedIntegration(t *testing.T) {
 
 func TestVoidDraftInvoiceIntegration(t *testing.T) {
 	service, pool := billingFixture(t)
-	patientID := "30ad6d29-79b0-4028-93c4-614df48ec3ea"
+	patientID := billingTestPatient
 
 	inv, err := service.CreateInvoice(t.Context(), billingTestActor, CreateInvoiceRequest{PatientID: patientID})
 	if err != nil {

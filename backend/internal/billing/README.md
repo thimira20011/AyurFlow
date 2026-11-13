@@ -43,3 +43,20 @@ and `go test -tags=integration -count=1 ./internal/billing` with a disposable
 
 `member-e/task-bill-05-billing-ui`
 
+
+## Patient references and report verification
+
+Billing accepts an exact patient registry code or the existing UUID when opening
+a draft or loading a patient's invoices. The lookup uses the existing patient
+registry number and returns no demographic or clinical fields.
+
+Migration `000017_invoice_patient_reference.up.sql` adds a foreign key that
+enforces new references and retains any historical orphan invoices. A database
+operator can identify existing orphans with a left join from invoices to
+patients on patient_id, filtering for missing patients. Agree a resolution
+with A, B and D for any results. Apply a subsequent migration to validate
+the constraint after reconciliation.
+
+Billing and report-reader accounts can view committed outstanding balances.
+Only issued invoices with a positive balance appear. See the
+[manual billing walkthrough](../../../docs/guides/member-e-billing.md).
