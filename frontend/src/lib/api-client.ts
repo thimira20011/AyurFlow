@@ -69,7 +69,7 @@ export const staffAreas = [
   { href: "/clinical", title: "Clinical pathway", roles: ["clinician"] },
   { href: "/scheduling", title: "Scheduling", roles: ["receptionist", "therapist", "clinician"] },
   { href: "/inventory", title: "Inventory", roles: ["dispensary"] },
-  { href: "/billing", title: "Billing", roles: ["billing"] },
+  { href: "/billing", title: "Billing", roles: ["billing", "report_reader"] },
   { href: "/administration", title: "Staff administration", roles: ["administrator"] },
 ];
 

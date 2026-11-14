@@ -16,6 +16,9 @@ export const workspaces = [
   { role: "billing", title: "Billing", home: "/billing", links: [
     { label: "Overview", href: "/workspace" }, { label: "Invoices", href: "/billing" },
   ] },
+  { role: "report_reader", title: "Billing reports", home: "/billing", links: [
+    { label: "Overview", href: "/workspace" }, { label: "Outstanding invoices", href: "/billing" },
+  ] },
   { role: "administrator", title: "Administration", home: "/administration", links: [
     { label: "Overview", href: "/workspace" }, { label: "Staff & roles", href: "/administration" },
     { label: "Clinician assignments", href: "/administration/clinical-assignments" },

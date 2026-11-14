@@ -98,6 +98,7 @@ function billingErrorText(error: unknown, action: string): string {
   if (error instanceof APIRequestError) {
     if (error.status === 401) return "Your session has ended. Sign in again before continuing.";
     if (error.status === 403) return "This account does not have billing access.";
+    if (error.status === 404 && (action === "create" || action === "list")) return "Patient not found. Check the registry code or UUID.";
     if (error.status === 404) return "The billing resource was not found.";
     if (error.status === 409 && action === "receipt") return "Payment rejected: overpayment or changed details. Refresh and try again.";
     if (error.status === 409) return "This action is no longer valid for the current invoice state. Reload and try again.";
@@ -188,7 +189,14 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
         setCanWrite(billing);
         setCanReadInvoices(invoiceAccess);
         setCanReadReport(billing || session.roles.includes("report_reader"));
-        if (!invoiceAccess) setActiveTab("report");
+        if (!invoiceAccess) {
+          setActiveTab("report");
+          setLoadingReport(true);
+          void getOutstandingReport().then(
+            (result) => { if (liveRef.current) setReport(result); },
+            (error: unknown) => { if (liveRef.current) setActionError(billingErrorText(error, "report")); }
+          ).finally(() => { if (liveRef.current) setLoadingReport(false); });
+        }
         setAccess("ready");
       },
       (error: unknown) => {
@@ -311,7 +319,7 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
     e.preventDefault();
     setActionError(null);
     if (!canWrite || submittingInvoice) return;
-    if (!newPatientId.trim()) { setActionError("Patient ID is required."); return; }
+    if (!newPatientId.trim()) { setActionError("Enter a patient code or UUID."); return; }
 
     if (access !== "ready") {
       // Preview mode: local state mutation
@@ -335,7 +343,7 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
     try {
       const inv = await createInvoice({ patientId: newPatientId.trim() });
       if (!liveRef.current) return;
-      setPatientIdQuery(inv.patientId);
+      setPatientIdQuery(newPatientId.trim());
       setInvoices(prev => [inv, ...prev.filter(i => i.patientId === inv.patientId)]);
       setFilterStatus("all");
       setSearchQuery("");
@@ -702,7 +710,7 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
                 <input
                   type="text"
                   className={styles.searchInput}
-                  aria-label="Patient ID to load invoices" placeholder="Patient ID to load invoices…"
+                  aria-label="Patient code or UUID to load invoices" placeholder="e.g. AYUR-PT-00001"
                   value={patientIdQuery}
                   onChange={(e) => setPatientIdQuery(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter" && !loadingInvoices) void fetchInvoicesForPatient(patientIdQuery); }}
@@ -756,7 +764,7 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
           className={`${styles.tabButton} ${activeTab === "report" ? styles.tabButtonActive : ""}`}
           onClick={() => {
             setActiveTab("report");
-            if (access === "ready" && !report) {
+            if (access === "ready" && !loadingReport) {
               void fetchOutstandingReport();
             }
           }}
@@ -997,12 +1005,12 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
             {actionError && <p role="alert">{actionError}</p>}
             <form onSubmit={(e) => void handleCreateInvoice(e)} className={styles.formGrid}>
               <div className={styles.formGroup}>
-                <label className={styles.formLabel} htmlFor="billing-new-patient">Patient ID</label>
+                <label className={styles.formLabel} htmlFor="billing-new-patient">Patient code or UUID</label>
                 <input
                   type="text"
                   required
                   id="billing-new-patient"
-                  placeholder="e.g. 30ad6d29-79b0-4028-93c4-614df48ec3ea"
+                  placeholder="e.g. AYUR-PT-00001"
                   className={styles.formInput}
                   value={newPatientId}
                   onChange={(e) => setNewPatientId(e.target.value)}

@@ -4,6 +4,33 @@ const patientId = "30ad6d29-79b0-4028-93c4-614df48ec3ea";
 const invoiceId = "18333333-152d-4602-8b7b-c33413727ba1";
 const timestamp = "2026-11-08T10:00:00Z";
 
+test("report-only staff can open outstanding invoices from the staff workspace", async ({ page }) => {
+  const requestedPaths: string[] = [];
+  await page.route("**/api/v1/**", async route => {
+    const { pathname } = new URL(route.request().url());
+    requestedPaths.push(pathname);
+    if (pathname.endsWith("/auth/session")) {
+      return route.fulfill({ json: {
+        staffId: "synthetic-report-reader", roles: ["report_reader"], csrfToken: "synthetic-csrf",
+        expiresAt: new Date(Date.now() + 120_000).toISOString(),
+      } });
+    }
+    if (pathname.endsWith("/reports/billing/outstanding")) {
+      return route.fulfill({ json: {
+        generatedAt: timestamp,
+        rows: [{ invoiceId, patientId, issuedAt: timestamp, totalMinor: 1000025, paidMinor: 400010, outstandingMinor: 600015, ageDays: 1 }],
+      } });
+    }
+    return route.fulfill({ status: 403, json: { error: { code: "forbidden" } } });
+  });
+
+  await page.goto("/workspace");
+  await page.getByRole("link", { name: "Outstanding invoices", exact: true }).last().click();
+  await expect(page.getByRole("row").filter({ hasText: patientId }).getByText(/6,000\.15/)).toBeVisible();
+  await expect(page.getByRole("button", { name: /Open Draft Invoice/ })).toHaveCount(0);
+  expect(requestedPaths.filter(pathname => pathname.startsWith("/api/v1/invoices"))).toEqual([]);
+});
+
 test("receipt retry preserves the original payment and reload shows the saved balance", async ({ page }) => {
   const invoice = { id: invoiceId, patientId, status: "issued", totalMinor: 1000025, issuedAt: timestamp, createdAt: timestamp };
   const session = {
@@ -32,7 +59,7 @@ test("receipt retry preserves the original payment and reload shows the saved ba
   });
 
   async function loadInvoice() {
-    await page.getByLabel("Patient ID to load invoices").fill(patientId);
+    await page.getByLabel("Patient code or UUID to load invoices").fill(patientId);
     await page.getByRole("button", { name: "Load", exact: true }).click();
     return page.getByRole("row").filter({ hasText: invoiceId });
   }

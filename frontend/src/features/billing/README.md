@@ -17,3 +17,7 @@ history before starting another payment.
 responses. `tests/fullstack/member-e.spec.ts` exercises draft, issue, deposit
 and reload against the disposable Go/PostgreSQL browser fixture. See
 `tests/fullstack/README.md` for setup.
+
+Staff can load invoices and open a draft with the patient's registry code or
+UUID. Report readers open **Outstanding invoices** from the staff workspace.
+See the [manual billing walkthrough](../../../../docs/guides/member-e-billing.md).

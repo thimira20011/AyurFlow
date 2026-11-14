@@ -6,6 +6,7 @@ test("BILL-05: issue an invoice, record a deposit and reload its receipt history
   const origin = "https://localhost:3443";
   const reception = await playwright.request.newContext({ baseURL: origin, ignoreHTTPSErrors: true });
   let patientId: string;
+  let patientCode: string;
   try {
     const login = await reception.post("/api/v1/auth/login", {
       headers: { Origin: origin },
@@ -19,7 +20,9 @@ test("BILL-05: issue an invoice, record a deposit and reload its receipt history
       data: { displayName: "Synthetic Billing Patient", birthDate: "1990-01-01", gender: "OTHER", phone: "+94770000072" },
     });
     expect(patient.status()).toBe(201);
-    patientId = (await patient.json()).id;
+    const registered = await patient.json();
+    patientId = registered.id;
+    patientCode = registered.patientCode;
   } finally {
     await reception.dispose();
   }
@@ -32,7 +35,7 @@ test("BILL-05: issue an invoice, record a deposit and reload its receipt history
   await page.goto("/billing");
   await page.getByRole("button", { name: /Open Draft Invoice/ }).click();
   const draft = page.getByRole("dialog", { name: "Open Draft Invoice" });
-  await draft.getByLabel("Patient ID").fill(patientId);
+  await draft.getByLabel("Patient code or UUID").fill(patientCode);
   await draft.getByRole("button", { name: "Create Draft" }).click();
 
   const invoice = page.getByRole("dialog", { name: /^Invoice / });
@@ -54,11 +57,31 @@ test("BILL-05: issue an invoice, record a deposit and reload its receipt history
   await expect(invoice.getByText(/6,000\.15/)).toBeVisible();
 
   await page.reload();
-  await page.getByLabel("Patient ID to load invoices").fill(patientId);
+  await page.getByLabel("Patient code or UUID to load invoices").fill(patientCode);
   await page.getByRole("button", { name: "Load", exact: true }).click();
   const row = page.getByRole("row").filter({ hasText: patientId });
   await expect(row.getByText(/6,000\.15/)).toBeVisible();
   await row.getByRole("button", { name: "View" }).click();
   await expect(invoice.getByRole("cell", { name: "Synthetic deposit E05" })).toHaveCount(1);
   await expect(invoice.getByText(/6,000\.15/)).toBeVisible();
+
+  const invoiceId = (await invoice.getByRole("heading", { level: 2, name: /^Invoice / }).textContent())?.replace(/^Invoice /, "");
+  expect(invoiceId).toBeTruthy();
+  await invoice.getByRole("button", { name: "Close invoice" }).click();
+  await page.getByRole("button", { name: /Outstanding Aging Report/ }).click();
+  const reportRow = page.getByRole("row").filter({ hasText: patientId });
+  await expect(reportRow.getByText(/6,000\.15/)).toBeVisible();
+
+  const reader = await playwright.request.newContext({ baseURL: origin, ignoreHTTPSErrors: true });
+  try {
+    const login = await reader.post("/api/v1/auth/login", {
+      headers: { Origin: origin },
+      data: { loginIdentifier: fixture.accounts.report_reader, password: fixture.password },
+    });
+    expect(login.status()).toBe(200);
+    expect((await reader.get("/api/v1/reports/billing/outstanding")).status()).toBe(200);
+    expect((await reader.get(`/api/v1/invoices/${invoiceId}`)).status()).toBe(403);
+  } finally {
+    await reader.dispose();
+  }
 });
