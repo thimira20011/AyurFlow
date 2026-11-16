@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
+import { Notice, StateMessage } from "@/components/staff-feedback";
+import { TableRegion } from "@/components/staff-table";
 import { APIRequestError } from "@/lib/api-client";
 import {
   confirmConsumption, createRecipe, listPreparations, listRecipes, savePreparation, traceBatch, tracePatient,
@@ -114,7 +116,7 @@ export default function InventoryLiveWorkflows({ tab, items, batches, refreshBat
   }
 
   return <div className={styles.splitGrid}>
-    {notice && <p role={isError ? "alert" : "status"} className={isError ? styles.calloutError : styles.calloutInfo}>{notice}</p>}
+    {notice && <Notice tone={isError ? "error" : "success"}>{notice}</Notice>}
     {tab === "recipes" && <>
       <section className={styles.panel} aria-labelledby="live-recipe-title"><h2 id="live-recipe-title" className={styles.panelTitle}>Flat botanical recipes</h2>
         <p className={styles.hint}>Each ingredient links directly to an active botanical item. Saved preparation snapshots keep their original recipe quantities.</p>
@@ -143,8 +145,8 @@ export default function InventoryLiveWorkflows({ tab, items, batches, refreshBat
         <form onSubmit={loadPatient}><div className={styles.fieldGroup}><label className={styles.label} htmlFor="find-preparation-patient">Patient ID</label><input id="find-preparation-patient" className={styles.input} value={patientID} onChange={event => setPatientID(event.target.value)} required /></div><button className={styles.secondaryBtn} disabled={busy}>Load preparations</button></form>
         <label className={styles.label} htmlFor="live-preparation-select">Preparation</label><select id="live-preparation-select" className={styles.select} value={selectedPreparation?.id ?? ""} onChange={event => choosePreparation(event.target.value)}><option value="">Choose saved preparation</option>{preparations.map(item => <option key={item.id} value={item.id}>{item.id} · {item.status}</option>)}</select>
         {selectedPreparation && <><p className={styles.hint}>Status: <strong>{selectedPreparation.status}</strong> · Recipe version {selectedPreparation.recipeVersion} · Target {selectedPreparation.targetYieldGrams} g</p>
-          <div className={styles.tableWrap}><table className={styles.table}><thead><tr><th>Snapshot ingredient</th><th>Required</th></tr></thead><tbody>{selectedPreparation.snapshot.map(item => <tr key={item.itemId}><td>{item.itemDisplayName}</td><td>{item.requiredGrams} g</td></tr>)}</tbody></table></div>
-          {selectedPreparation.status === "consumed" && <p role="status" className={styles.calloutInfo}>Confirmed consumption is immutable. {selectedPreparation.consumptions.length} batch allocation(s) recorded.</p>}</>}
+          <TableRegion label="Preparation snapshot"><table className={styles.table}><thead><tr><th scope="col">Snapshot ingredient</th><th scope="col">Required</th></tr></thead><tbody>{selectedPreparation.snapshot.map(item => <tr key={item.itemId}><td>{item.itemDisplayName}</td><td>{item.requiredGrams} g</td></tr>)}</tbody></table></TableRegion>
+          {selectedPreparation.status === "consumed" && <Notice>Confirmed consumption is immutable. {selectedPreparation.consumptions.length} batch allocation(s) recorded.</Notice>}</>}
       </section>
       <section className={styles.panel} aria-labelledby="confirm-consumption-title"><h2 id="confirm-consumption-title" className={styles.panelTitle}>Manual batch allocation</h2><p className={styles.hint}>Choose eligible batches. Quantities for each ingredient must exactly equal its saved snapshot requirement. Keep the operation ID for a safe retry.</p>
         {selectedPreparation?.status === "prepared" ? <form onSubmit={submitConsumption}>
@@ -157,7 +159,8 @@ export default function InventoryLiveWorkflows({ tab, items, batches, refreshBat
     {tab === "traceability" && <section className={styles.panel} aria-labelledby="live-trace-title"><h2 id="live-trace-title" className={styles.panelTitle}>Confirmed batch traceability</h2><p className={styles.hint}>Only actual confirmed consumption appears here. Prepared snapshots are excluded.</p>
       <form onSubmit={submitTrace}><div className={styles.fieldGroup}><label className={styles.label} htmlFor="trace-type">Trace direction</label><select id="trace-type" className={styles.select} value={traceType} onChange={event => { setTraceType(event.target.value as "batch" | "patient"); setTraceRows([]); }}><option value="batch">Batch → patients</option><option value="patient">Patient → batches</option></select></div>
         <div className={styles.fieldGroup}><label className={styles.label} htmlFor="trace-record">{traceType === "batch" ? "Batch ID" : "Patient ID"}</label><input id="trace-record" className={styles.input} value={traceID} onChange={event => setTraceID(event.target.value)} required /></div><button className={styles.primaryBtn} disabled={busy}>Trace confirmed use</button></form>
-      <div className={styles.tableWrap}><table className={styles.table}><thead><tr><th>Patient</th><th>Batch</th><th>Actual quantity</th><th>Session</th><th>Confirmed</th></tr></thead><tbody>{traceRows.map((row, index) => <tr key={`${row.preparationId}-${row.batchId}-${index}`}><td>{row.patientDisplayName}<div className={styles.hint}>{row.patientId}</div></td><td>{row.batchReference}</td><td>{row.quantityGrams} g</td><td>{row.sessionId}</td><td>{new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Colombo", dateStyle: "medium", timeStyle: "short" }).format(new Date(row.confirmedAt))}</td></tr>)}</tbody></table>{traceRows.length === 0 && <p role="status" className={styles.hint}>No confirmed consumption is loaded.</p>}</div>
+      <TableRegion label="Batch traceability results"><table className={styles.table}><thead><tr><th scope="col">Patient</th><th scope="col">Batch</th><th scope="col">Actual quantity</th><th scope="col">Session</th><th scope="col">Confirmed</th></tr></thead><tbody>{traceRows.map((row, index) => <tr key={`${row.preparationId}-${row.batchId}-${index}`}><td>{row.patientDisplayName}<div className={styles.hint}>{row.patientId}</div></td><td>{row.batchReference}</td><td>{row.quantityGrams} g</td><td>{row.sessionId}</td><td>{new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Colombo", dateStyle: "medium", timeStyle: "short" }).format(new Date(row.confirmedAt))}</td></tr>)}</tbody></table></TableRegion>
+      {traceRows.length === 0 && <StateMessage>No confirmed consumption is loaded.</StateMessage>}
     </section>}
   </div>;
 }

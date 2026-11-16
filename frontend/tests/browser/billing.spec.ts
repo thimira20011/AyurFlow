@@ -31,6 +31,27 @@ test("report-only staff can open outstanding invoices from the staff workspace",
   expect(requestedPaths.filter(pathname => pathname.startsWith("/api/v1/invoices"))).toEqual([]);
 });
 
+test("draft dialog keeps keyboard focus inside and restores focus on Escape", async ({ page }) => {
+  await page.setViewportSize({ width: 1024, height: 768 });
+  await page.route("**/api/v1/auth/session", route => route.fulfill({ json: {
+    staffId: "synthetic", roles: ["billing"], csrfToken: "synthetic-csrf",
+    expiresAt: new Date(Date.now() + 120_000).toISOString(),
+  } }));
+  await page.goto("/billing");
+  const openDraft = page.getByRole("button", { name: "Open Draft Invoice" });
+  await openDraft.press("Enter");
+  const dialog = page.getByRole("dialog", { name: "Open Draft Invoice" });
+  const close = dialog.getByRole("button", { name: "Close draft form" });
+  const patient = dialog.getByRole("textbox", { name: "Patient code or UUID" });
+  await expect(close).toBeFocused();
+  await expect(patient).toHaveAccessibleDescription("The invoice will be opened in draft status. Add treatment line items before issuing.");
+  await page.keyboard.press("Tab");
+  await expect(patient).toBeFocused();
+  await page.keyboard.press("Escape");
+  await expect(dialog).toHaveCount(0);
+  await expect(openDraft).toBeFocused();
+});
+
 test("receipt retry preserves the original payment and reload shows the saved balance", async ({ page }) => {
   const invoice = { id: invoiceId, patientId, status: "issued", totalMinor: 1000025, issuedAt: timestamp, createdAt: timestamp };
   const session = {
