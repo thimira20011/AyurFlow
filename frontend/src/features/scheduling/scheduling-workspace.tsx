@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
+import { Notice, StateMessage, StatusBadge } from "@/components/staff-feedback";
+import { Field } from "@/components/staff-field";
 import { useStaffSession } from "@/features/administration/session";
 import { APIRequestError } from "@/lib/api-client";
 import {
@@ -43,6 +45,7 @@ function errorText(error: unknown) {
 
 const emptyBooking = { patientId: "", planId: "", stageId: "", roomId: "", therapistId: "", startsAt: "", endsAt: "" };
 const windowError = "Enter an end time after the start time.";
+const sessionLabels = { booked: "Booked", in_progress: "In progress", completed: "Completed", cancelled: "Cancelled" };
 
 export default function SchedulingWorkspace() {
   const { session } = useStaffSession();
@@ -53,6 +56,7 @@ export default function SchedulingWorkspace() {
   const [availability, setAvailability] = useState<Availability[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
   const [noticeError, setNoticeError] = useState(false);
@@ -83,9 +87,10 @@ export default function SchedulingWorkspace() {
       setRooms(roomResult.items ?? []);
       setAvailability(availabilityResult.items ?? []);
       setSessions(sessionResult.items ?? []);
+      setLoadFailed(false);
       setNotice("");
       return true;
-    } catch (error) { setNoticeError(true); setNotice(errorText(error)); return false; }
+    } catch (error) { setLoadFailed(true); setNoticeError(true); setNotice(errorText(error)); return false; }
     finally { setLoading(false); }
   }, [date]);
 
@@ -163,11 +168,13 @@ export default function SchedulingWorkspace() {
     </header>
     <div className={styles.toolbar}><label htmlFor="schedule-date">Clinic date</label><input id="schedule-date" type="date" value={date} onChange={event => setDate(event.target.value)} />
       <button type="button" onClick={() => void load()} disabled={busy || loading}>Refresh schedule</button><span>Asia/Colombo</span></div>
-    {notice && <p className={noticeError ? styles.error : styles.success} role={noticeError ? "alert" : "status"}>{notice}</p>}
+    {notice && <Notice tone={noticeError ? "error" : "success"}>{notice}</Notice>}
     <div className={styles.columns}>
       <section className={styles.panel} aria-labelledby="sessions-title"><div className={styles.panelHead}><h2 id="sessions-title">{receptionist ? "Booked sessions" : "My sessions"}</h2><span>{sessions.length} shown</span></div>
-        {loading ? <p role="status">Loading the schedule…</p> : sessions.length === 0 ? <p role="status">No sessions are recorded for this date.</p> : <ul className={styles.sessionList}>{sessions.map(item =>
-          <li key={item.id}><div className={styles.sessionTop}><strong>{timeFormat.format(new Date(item.startsAt))} – {timeFormat.format(new Date(item.endsAt))}</strong><span className={styles.badge}>{item.status.replace("_", " ")}</span></div>
+        {loading ? <StateMessage>Loading the schedule…</StateMessage> : sessions.length === 0 ? (
+          !loadFailed && <StateMessage>No sessions are recorded for this date.</StateMessage>
+        ) : <ul className={styles.sessionList}>{sessions.map(item =>
+          <li key={item.id}><div className={styles.sessionTop}><strong>{timeFormat.format(new Date(item.startsAt))} – {timeFormat.format(new Date(item.endsAt))}</strong><StatusBadge tone={item.status === "completed" ? "positive" : item.status === "cancelled" ? "negative" : "neutral"}>{sessionLabels[item.status]}</StatusBadge></div>
             <p>Patient {item.patientId}</p><p>Room {rooms.find(room => room.id === item.roomId)?.name ?? item.roomId}</p>
             {receptionist && <p>Therapist {item.therapistId}</p>}
             {item.observations && <p className={styles.observation}>Delivery observation: {item.observations}</p>}
@@ -188,17 +195,29 @@ export default function SchedulingWorkspace() {
         </section>
         {receptionist && <><section className={styles.panel} aria-labelledby="booking-title"><h2 id="booking-title">{editing?.status === "booked" ? "Reschedule session" : "Book a session"}</h2><p>Use the patient&apos;s active, approved plan and current stage IDs.</p>
           <form className={styles.form} onSubmit={submitBooking}>
-            {(["patientId", "planId", "stageId"] as const).map(key => <label key={key}>{key === "patientId" ? "Patient ID" : key === "planId" ? "Plan ID" : "Stage ID"}<input value={booking[key]} onChange={event => setBooking({ ...booking, [key]: event.target.value })} required disabled={Boolean(editing)} /></label>)}
-            <div className={styles.field}><label htmlFor="booking-room">Room</label><select id="booking-room" value={booking.roomId} onChange={event => setBooking({ ...booking, roomId: event.target.value })} required><option value="">Choose a room</option>{rooms.map(room => <option key={room.id} value={room.id}>{room.name}</option>)}</select></div>
-            <div className={styles.field}><label htmlFor="booking-therapist">Therapist</label><select id="booking-therapist" value={booking.therapistId} onChange={event => setBooking({ ...booking, therapistId: event.target.value })} required><option value="">Choose an available therapist</option>{therapistIDs.map(id => <option key={id} value={id}>{id}</option>)}</select></div>
-            <label>Start · Asia/Colombo<input type="datetime-local" value={booking.startsAt} onChange={event => { setBooking({ ...booking, startsAt: event.target.value }); setInvalidBookingWindow(false); }} required /></label>
-            <div className={styles.field}>
-              <label htmlFor="booking-end">End · Asia/Colombo</label>
-              <input id="booking-end" type="datetime-local" value={booking.endsAt} required
-                aria-invalid={invalidBookingWindow || undefined} aria-describedby={invalidBookingWindow ? "booking-end-error" : undefined}
-                onChange={event => { setBooking({ ...booking, endsAt: event.target.value }); setInvalidBookingWindow(false); }} />
-              {invalidBookingWindow && <p id="booking-end-error" role="alert" className={styles.fieldError}>{windowError}</p>}
-            </div>
+            {(["patientId", "planId", "stageId"] as const).map(key =>
+              <Field key={key} label={key === "patientId" ? "Patient ID" : key === "planId" ? "Plan ID" : "Stage ID"}>
+                {control => <input {...control} value={booking[key]} onChange={event => setBooking({ ...booking, [key]: event.target.value })} required disabled={Boolean(editing)} />}
+              </Field>
+            )}
+            <Field label="Room">
+              {control => <select {...control} value={booking.roomId} onChange={event => setBooking({ ...booking, roomId: event.target.value })} required>
+                <option value="">Choose a room</option>
+                {rooms.map(room => <option key={room.id} value={room.id}>{room.name}</option>)}
+              </select>}
+            </Field>
+            <Field label="Therapist">
+              {control => <select {...control} value={booking.therapistId} onChange={event => setBooking({ ...booking, therapistId: event.target.value })} required>
+                <option value="">Choose an available therapist</option>
+                {therapistIDs.map(id => <option key={id} value={id}>{id}</option>)}
+              </select>}
+            </Field>
+            <Field label="Start · Asia/Colombo">
+              {control => <input {...control} type="datetime-local" value={booking.startsAt} onChange={event => { setBooking({ ...booking, startsAt: event.target.value }); setInvalidBookingWindow(false); }} required />}
+            </Field>
+            <Field id="booking-end" label="End · Asia/Colombo" error={invalidBookingWindow ? windowError : undefined}>
+              {control => <input {...control} type="datetime-local" value={booking.endsAt} onChange={event => { setBooking({ ...booking, endsAt: event.target.value }); setInvalidBookingWindow(false); }} required />}
+            </Field>
             <div className={styles.actions}><button disabled={busy}>{busy ? "Saving…" : editing?.status === "booked" ? "Save new slot" : "Book session"}</button>{editing?.status === "booked" && <button type="button" onClick={() => { setInvalidBookingWindow(false); setEditing(null); setBooking(emptyBooking); }}>Discard changes</button>}</div>
           </form></section>
           <details className={styles.panel} open={editingAvailability !== null || undefined}><summary>Manage rooms and availability</summary><form className={styles.form} onSubmit={submitRoom}><label>Room code<input value={roomCode} onChange={event => setRoomCode(event.target.value)} required maxLength={64} /></label><label>Room name<input value={roomName} onChange={event => setRoomName(event.target.value)} required maxLength={120} /></label><button disabled={busy}>Add room</button></form>

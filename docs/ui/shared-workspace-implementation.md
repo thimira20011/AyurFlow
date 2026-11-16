@@ -8,4 +8,6 @@ The shared Living Heritage shell now provides the paper canvas, forest sidebar, 
 
 The shared surface styles cover the role landing, placeholders and clinician-assignment controls; existing patient, consultation and staff tables retain their tested feature components. This slice does not implement the scheduling, inventory or billing business journeys.
 
+For the reusable field, feedback, table and dialog controls added later, see the [shared staff UI patterns and examples](shared-staff-patterns.md).
+
 Verification on 7 November 2026: `npm run typecheck`, `npm run lint`, `npm run build` passed; `AYURFLOW_BROWSER_CHANNEL=msedge npm run test:browser -- --reporter=list` passed 20 synthetic browser tests, including role navigation, logout, staff management and 1366×768/1024×768 focus/layout checks. The bundled Playwright Chromium was absent locally, so Edge was used. These are UI regression checks, not full AT15 or real backend acceptance.
