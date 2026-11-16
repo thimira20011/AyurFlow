@@ -27,5 +27,5 @@ export const workspaces = [
 
 export function workspaceFor(roles: string[], section?: string) {
   const available = workspaces.filter(workspace => roles.includes(workspace.role));
-  return available.find(workspace => workspace.title === section) ?? available[0];
+  return available.find(workspace => workspace.title === section || (section === "Billing" && workspace.role === "report_reader")) ?? available[0];
 }
