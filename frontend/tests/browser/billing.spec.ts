@@ -67,6 +67,10 @@ test("receipt retry preserves the original payment and reload shows the saved ba
   await page.goto("/billing");
   const row = await loadInvoice();
   await row.getByRole("button", { name: "View" }).click();
+  await expect(page.getByRole("dialog", { name: /Invoice / })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(row.getByRole("button", { name: "View" })).toBeFocused();
+  await row.getByRole("button", { name: "View" }).press("Enter");
   await page.getByRole("button", { name: "Record Payment" }).click();
   const form = page.getByRole("dialog", { name: "Post Payment Receipt" });
   await form.getByLabel("Payment Method").selectOption("direct_deposit");
@@ -74,6 +78,8 @@ test("receipt retry preserves the original payment and reload shows the saved ba
   await form.getByLabel("Amount (LKR)").fill("4000.105");
   await form.getByRole("button", { name: "Post Receipt" }).click();
   await expect(form.getByRole("alert")).toContainText("at most two decimal places");
+  await expect(form.getByLabel("Amount (LKR)")).toBeFocused();
+  await expect(form.getByLabel("Amount (LKR)")).toHaveAccessibleDescription("Enter a positive LKR amount with at most two decimal places.");
   expect(attempts).toHaveLength(0);
   await form.getByLabel("Amount (LKR)").fill("4000.10");
   await form.getByRole("button", { name: "Post Receipt" }).click();

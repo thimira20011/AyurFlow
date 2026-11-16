@@ -39,7 +39,7 @@ Status values: **Pending** = not started; **In progress** = work underway but co
 | TASK-UI-04 | Batch, recipe, preparation and traceability wireframes | F with D | A | In review | [Wireframes and interaction contract](ui/member-d-inventory-wireframes.md) ([HTML](ui/member-d-inventory-wireframes.html)) and dev-only preview (`/inventory/preview`) on `member-d/task-ui-04-inventory-wireframes`; F/A/E review pending |
 | TASK-UI-05 | Invoice, receipt, balance and admin wireframes | F with E/A | A | Pending | — |
 | TASK-UI-06 | Shared layout, forms, tables and error components | F | A | In progress | Shared shell and surface styles on `member-b/shared-workspace-ui`; [implementation and checks](ui/shared-workspace-implementation.md). Remaining module journeys and F/A review stay open. |
-| TASK-UI-07 | Keyboard, viewport and Unicode checks | F; owners fix screens | A | Pending | — |
+| TASK-UI-07 | Keyboard, viewport and Unicode checks | F; owners fix screens | A | In review | [Member F fixes and browser checks at both viewports](evidence/member-f-ui-07-2026-11-16.md). |
 
 ## 3. Authentication and administration (weeks 1–3)
 

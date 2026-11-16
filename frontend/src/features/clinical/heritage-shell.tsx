@@ -33,7 +33,7 @@ export default function HeritageShell({ section, children }: { section: "Overvie
     </aside>
     <div className={styles.body}>
       <header className={styles.topbar}><span>{section === "Overview" ? workspace?.title ?? "Staff workspace" : section}</span><time className={styles.date} suppressHydrationWarning>{date} · Asia/Colombo</time><span className={styles.identity}>{workspace?.title ?? "Staff"}<small>Staff account</small></span><button type="button" disabled={signingOut} onClick={() => void signOut()}>{signingOut ? "Signing out…" : "Sign out"}</button></header>
-      <div className={styles.content}><Image className={styles.leafStart} src="/brand/leaf.svg" alt="" width={16} height={16} />{children}<Image className={styles.leafEnd} src="/brand/leaf.svg" alt="" width={16} height={16} /></div>
+      <div className={styles.content} data-skip-target tabIndex={-1}><Image className={styles.leafStart} src="/brand/leaf.svg" alt="" width={16} height={16} />{children}<Image className={styles.leafEnd} src="/brand/leaf.svg" alt="" width={16} height={16} /></div>
     </div>
   </div>;
 }
