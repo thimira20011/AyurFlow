@@ -104,7 +104,7 @@ export default function AdministrationPage() {
         <span className={styles.identity}>Administrator<small>Staff account</small></span>
         <button className={styles.signOut} type="button" disabled={signingOut} onClick={() => void signOut()}>{signingOut ? "Signing out…" : "Sign out"}</button>
       </header>
-      <section className={styles.content} aria-label="Staff administration">
+      <section className={styles.content} aria-label="Staff administration" data-skip-target tabIndex={-1}>
         <span className={styles.leafStart} aria-hidden="true"><img src="/brand/leaf.svg" alt="" /></span>
         <header className={styles.contentHeading}>
           <div><p className={styles.eyebrow}>ADMINISTRATION</p><h1>The people behind the care.</h1><p>Create controlled staff access with explicitly assigned roles.</p></div>
@@ -114,7 +114,7 @@ export default function AdministrationPage() {
         {!editing && errorMessage}
         {notice && <p role="status" className={styles.notice}>{notice}</p>}
         {loading && <p role="status">Loading staff…</p>}
-        <div className={styles.tableWrap}><table className={styles.staffTable} aria-label="Staff accounts" aria-busy={loading || busy}>
+        <div className={`${styles.tableWrap} keyboard-scroll`} role="region" aria-label="Staff account results" tabIndex={0}><table className={styles.staffTable} aria-label="Staff accounts" aria-busy={loading || busy}>
           <thead><tr><th scope="col">Staff member</th><th scope="col">Login</th><th scope="col">Assigned roles</th><th scope="col">Status</th><th scope="col">Action</th></tr></thead>
           <tbody>{page.items.map(staff => <tr key={staff.id}>
             <td>{session?.staffId === staff.id ? "Your account" : "Staff account"}</td><td>{staff.loginIdentifier}</td>

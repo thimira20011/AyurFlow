@@ -1,5 +1,23 @@
 @import "tailwindcss";
 
+@font-face {
+  font-family: "AyurFlow Sinhala";
+  src: url("/fonts/noto-sans-sinhala.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  unicode-range: U+0964-0965, U+0D81-0DF4, U+1CF2, U+200C-200D, U+25CC, U+111E1-111F4;
+}
+
+@font-face {
+  font-family: "AyurFlow Tamil";
+  src: url("/fonts/noto-sans-tamil.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  unicode-range: U+0964-0965, U+0B82-0BFA, U+200C-200D, U+20B9, U+25CC;
+}
+
 /* ─── Design Tokens ─────────────────────────────────────────── */
 :root {
   color-scheme: light;
@@ -13,8 +31,9 @@
   --staff-surface: #fcf8ee;
   --staff-sage: #e7eee2;
   --staff-error: #713c30;
-  --font-lora: 'Lora', Georgia;
-  --font-dm-sans: 'DM Sans', Arial;
+  --font-local-scripts: "AyurFlow Sinhala", "AyurFlow Tamil", "Nirmala UI", "Iskoola Pota", Latha;
+  --font-lora: 'Lora', Georgia, var(--font-local-scripts);
+  --font-dm-sans: 'DM Sans', Arial, var(--font-local-scripts);
 
   /* Brand palette */
   --green-950: #0c1f16;
@@ -59,8 +78,23 @@ body {
   margin: 0;
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-inter), system-ui, Arial, Helvetica, sans-serif;
+  font-family: var(--font-inter), system-ui, Arial, var(--font-local-scripts), sans-serif;
 }
+
+.skip-link {
+  position: fixed;
+  inset-block-start: .75rem;
+  inset-inline-start: .75rem;
+  z-index: 100;
+  padding: .75rem 1rem;
+  border-radius: .25rem;
+  background: white;
+  color: var(--staff-forest);
+}
+
+.skip-link:not(:focus) { clip-path: inset(50%); width: 1px; height: 1px; padding: 0; overflow: hidden; }
+.keyboard-scroll:focus-visible { outline-offset: -3px; }
+[data-skip-target]:focus-visible { outline-offset: -4px; }
 
 a, button, input, select, textarea { outline-offset: 4px; }
 
@@ -470,7 +504,6 @@ a, button, input, select, textarea { outline-offset: 4px; }
   border-color: var(--heritage-forest);
   background-color: #FFFFFF;
   box-shadow: 0 0 0 3px rgba(30, 63, 48, 0.14);
-  outline: none;
 }
 
 .heritage-input:disabled {
