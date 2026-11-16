@@ -42,6 +42,7 @@ function errorText(error: unknown) {
 }
 
 const emptyBooking = { patientId: "", planId: "", stageId: "", roomId: "", therapistId: "", startsAt: "", endsAt: "" };
+const windowError = "Enter an end time after the start time.";
 
 export default function SchedulingWorkspace() {
   const { session } = useStaffSession();
@@ -66,6 +67,8 @@ export default function SchedulingWorkspace() {
   const [editing, setEditing] = useState<Session | null>(null);
   const [observations, setObservations] = useState("");
   const [cancelReason, setCancelReason] = useState("");
+  const [invalidBookingWindow, setInvalidBookingWindow] = useState(false);
+  const [invalidAvailabilityWindow, setInvalidAvailabilityWindow] = useState(false);
 
   const load = useCallback(async () => {
     const start = new Date(`${date}T00:00:00+05:30`);
@@ -101,9 +104,7 @@ export default function SchedulingWorkspace() {
 
   function makeWindow(start: string, end: string) {
     const startsAt = toUTC(start), endsAt = toUTC(end);
-    if (!startsAt || !endsAt || new Date(endsAt) <= new Date(startsAt)) {
-      setNoticeError(true); setNotice("Enter a valid start and end time in Asia/Colombo."); return null;
-    }
+    if (!startsAt || !endsAt || new Date(endsAt) <= new Date(startsAt)) return null;
     return { startsAt, endsAt };
   }
 
@@ -112,10 +113,15 @@ export default function SchedulingWorkspace() {
     void perform(() => createRoom(roomCode, roomName), "Room added.");
   }
 
-  function submitAvailability(event: FormEvent) {
+  function submitAvailability(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const window = makeWindow(availableStart, availableEnd);
-    if (!window) return;
+    if (!window) {
+      setInvalidAvailabilityWindow(true);
+      event.currentTarget.querySelector<HTMLInputElement>("#availability-end")?.focus();
+      return;
+    }
+    setInvalidAvailabilityWindow(false);
     if (editingAvailability) {
       void (async () => {
         if (await perform(() => changeAvailability(editingAvailability.id, window.startsAt, window.endsAt), "Availability changed.")) {
@@ -128,10 +134,15 @@ export default function SchedulingWorkspace() {
     }
   }
 
-  function submitBooking(event: FormEvent) {
+  function submitBooking(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const window = makeWindow(booking.startsAt, booking.endsAt);
-    if (!window) return;
+    if (!window) {
+      setInvalidBookingWindow(true);
+      event.currentTarget.querySelector<HTMLInputElement>("#booking-end")?.focus();
+      return;
+    }
+    setInvalidBookingWindow(false);
     if (editing) {
       void (async () => {
         if (await perform(() => rescheduleSession(editing.id, { roomId: booking.roomId, therapistId: booking.therapistId,
@@ -162,7 +173,7 @@ export default function SchedulingWorkspace() {
             {item.observations && <p className={styles.observation}>Delivery observation: {item.observations}</p>}
             {item.cancellationReason && <p>Cancellation reason: {item.cancellationReason}</p>}
             <div className={styles.actions}>
-              {receptionist && item.status === "booked" && <button type="button" disabled={busy} onClick={() => { setEditing(item); setBooking({ patientId: item.patientId, planId: item.planId, stageId: item.stageId, roomId: item.roomId, therapistId: item.therapistId, startsAt: clinicInput(item.startsAt), endsAt: clinicInput(item.endsAt) }); }}>Reschedule</button>}
+              {receptionist && item.status === "booked" && <button type="button" disabled={busy} onClick={() => { setInvalidBookingWindow(false); setEditing(item); setBooking({ patientId: item.patientId, planId: item.planId, stageId: item.stageId, roomId: item.roomId, therapistId: item.therapistId, startsAt: clinicInput(item.startsAt), endsAt: clinicInput(item.endsAt) }); }}>Reschedule</button>}
               {therapist && item.status === "booked" && <button type="button" disabled={busy} onClick={() => void perform(() => startSession(item.id), "Session started.")}>Start session</button>}
               {therapist && item.status === "in_progress" && <button type="button" disabled={busy} onClick={() => { setEditing(item); setObservations(""); }}>Record completion</button>}
             </div>
@@ -173,21 +184,36 @@ export default function SchedulingWorkspace() {
       <aside className={styles.side}>
         <section className={styles.panel} aria-labelledby="availability-title"><h2 id="availability-title">Availability</h2>
           <p>Recorded windows for the selected clinic date. A booking needs both room and therapist coverage.</p>
-          {availability.length ? <ul className={styles.simpleList}>{availability.map(item => <li key={item.id}><strong>{item.roomId ? rooms.find(room => room.id === item.roomId)?.name ?? "Room" : "Therapist"}</strong><span>{item.therapistId ?? item.roomId}</span><span>{timeFormat.format(new Date(item.startsAt))} – {timeFormat.format(new Date(item.endsAt))}</span>{receptionist && <button type="button" disabled={busy} onClick={() => { setEditingAvailability(item); setResourceType(item.roomId ? "room" : "therapist"); setResourceID(item.roomId ?? item.therapistId ?? ""); setAvailableStart(clinicInput(item.startsAt)); setAvailableEnd(clinicInput(item.endsAt)); }}>Change window</button>}</li>)}</ul> : <p>No availability windows are recorded.</p>}
+          {availability.length ? <ul className={styles.simpleList}>{availability.map(item => <li key={item.id}><strong>{item.roomId ? rooms.find(room => room.id === item.roomId)?.name ?? "Room" : "Therapist"}</strong><span>{item.therapistId ?? item.roomId}</span><span>{timeFormat.format(new Date(item.startsAt))} – {timeFormat.format(new Date(item.endsAt))}</span>{receptionist && <button type="button" disabled={busy} onClick={() => { setInvalidAvailabilityWindow(false); setEditingAvailability(item); setResourceType(item.roomId ? "room" : "therapist"); setResourceID(item.roomId ?? item.therapistId ?? ""); setAvailableStart(clinicInput(item.startsAt)); setAvailableEnd(clinicInput(item.endsAt)); }}>Change window</button>}</li>)}</ul> : <p>No availability windows are recorded.</p>}
         </section>
         {receptionist && <><section className={styles.panel} aria-labelledby="booking-title"><h2 id="booking-title">{editing?.status === "booked" ? "Reschedule session" : "Book a session"}</h2><p>Use the patient&apos;s active, approved plan and current stage IDs.</p>
           <form className={styles.form} onSubmit={submitBooking}>
             {(["patientId", "planId", "stageId"] as const).map(key => <label key={key}>{key === "patientId" ? "Patient ID" : key === "planId" ? "Plan ID" : "Stage ID"}<input value={booking[key]} onChange={event => setBooking({ ...booking, [key]: event.target.value })} required disabled={Boolean(editing)} /></label>)}
-            <label>Room<select value={booking.roomId} onChange={event => setBooking({ ...booking, roomId: event.target.value })} required><option value="">Choose a room</option>{rooms.map(room => <option key={room.id} value={room.id}>{room.name}</option>)}</select></label>
-            <label>Therapist<select value={booking.therapistId} onChange={event => setBooking({ ...booking, therapistId: event.target.value })} required><option value="">Choose an available therapist</option>{therapistIDs.map(id => <option key={id} value={id}>{id}</option>)}</select></label>
-            <label>Start · Asia/Colombo<input type="datetime-local" value={booking.startsAt} onChange={event => setBooking({ ...booking, startsAt: event.target.value })} required /></label>
-            <label>End · Asia/Colombo<input type="datetime-local" value={booking.endsAt} onChange={event => setBooking({ ...booking, endsAt: event.target.value })} required /></label>
-            <div className={styles.actions}><button disabled={busy}>{busy ? "Saving…" : editing?.status === "booked" ? "Save new slot" : "Book session"}</button>{editing?.status === "booked" && <button type="button" onClick={() => { setEditing(null); setBooking(emptyBooking); }}>Discard changes</button>}</div>
+            <div className={styles.field}><label htmlFor="booking-room">Room</label><select id="booking-room" value={booking.roomId} onChange={event => setBooking({ ...booking, roomId: event.target.value })} required><option value="">Choose a room</option>{rooms.map(room => <option key={room.id} value={room.id}>{room.name}</option>)}</select></div>
+            <div className={styles.field}><label htmlFor="booking-therapist">Therapist</label><select id="booking-therapist" value={booking.therapistId} onChange={event => setBooking({ ...booking, therapistId: event.target.value })} required><option value="">Choose an available therapist</option>{therapistIDs.map(id => <option key={id} value={id}>{id}</option>)}</select></div>
+            <label>Start · Asia/Colombo<input type="datetime-local" value={booking.startsAt} onChange={event => { setBooking({ ...booking, startsAt: event.target.value }); setInvalidBookingWindow(false); }} required /></label>
+            <div className={styles.field}>
+              <label htmlFor="booking-end">End · Asia/Colombo</label>
+              <input id="booking-end" type="datetime-local" value={booking.endsAt} required
+                aria-invalid={invalidBookingWindow || undefined} aria-describedby={invalidBookingWindow ? "booking-end-error" : undefined}
+                onChange={event => { setBooking({ ...booking, endsAt: event.target.value }); setInvalidBookingWindow(false); }} />
+              {invalidBookingWindow && <p id="booking-end-error" role="alert" className={styles.fieldError}>{windowError}</p>}
+            </div>
+            <div className={styles.actions}><button disabled={busy}>{busy ? "Saving…" : editing?.status === "booked" ? "Save new slot" : "Book session"}</button>{editing?.status === "booked" && <button type="button" onClick={() => { setInvalidBookingWindow(false); setEditing(null); setBooking(emptyBooking); }}>Discard changes</button>}</div>
           </form></section>
           <details className={styles.panel} open={editingAvailability !== null || undefined}><summary>Manage rooms and availability</summary><form className={styles.form} onSubmit={submitRoom}><label>Room code<input value={roomCode} onChange={event => setRoomCode(event.target.value)} required maxLength={64} /></label><label>Room name<input value={roomName} onChange={event => setRoomName(event.target.value)} required maxLength={120} /></label><button disabled={busy}>Add room</button></form>
-            <form className={styles.form} onSubmit={submitAvailability}><label>Resource type<select value={resourceType} disabled={Boolean(editingAvailability)} onChange={event => { setResourceType(event.target.value as "room" | "therapist"); setResourceID(""); }}><option value="room">Room</option><option value="therapist">Therapist</option></select></label>
-              <label>{resourceType === "room" ? "Room" : "Therapist staff ID"}{resourceType === "room" ? <select value={resourceID} onChange={event => setResourceID(event.target.value)} required disabled={Boolean(editingAvailability)}><option value="">Choose a room</option>{rooms.map(room => <option key={room.id} value={room.id}>{room.name}</option>)}</select> : <input value={resourceID} onChange={event => setResourceID(event.target.value)} required disabled={Boolean(editingAvailability)} />}</label>
-              <label>Available from · Asia/Colombo<input type="datetime-local" value={availableStart} onChange={event => setAvailableStart(event.target.value)} required /></label><label>Available until · Asia/Colombo<input type="datetime-local" value={availableEnd} onChange={event => setAvailableEnd(event.target.value)} required /></label><button disabled={busy}>{editingAvailability ? "Save availability change" : "Record availability"}</button>{editingAvailability && <button type="button" onClick={() => { setEditingAvailability(null); setAvailableStart(""); setAvailableEnd(""); }}>Discard change</button>}
+            <form className={styles.form} onSubmit={submitAvailability}>
+              <div className={styles.field}><label htmlFor="availability-resource-type">Resource type</label><select id="availability-resource-type" value={resourceType} disabled={Boolean(editingAvailability)} onChange={event => { setResourceType(event.target.value as "room" | "therapist"); setResourceID(""); }}><option value="room">Room</option><option value="therapist">Therapist</option></select></div>
+              <div className={styles.field}><label htmlFor="availability-resource">{resourceType === "room" ? "Room" : "Therapist staff ID"}</label>{resourceType === "room" ? <select id="availability-resource" value={resourceID} onChange={event => setResourceID(event.target.value)} required disabled={Boolean(editingAvailability)}><option value="">Choose a room</option>{rooms.map(room => <option key={room.id} value={room.id}>{room.name}</option>)}</select> : <input id="availability-resource" value={resourceID} onChange={event => setResourceID(event.target.value)} required disabled={Boolean(editingAvailability)} />}</div>
+              <label>Available from · Asia/Colombo<input type="datetime-local" value={availableStart} onChange={event => { setAvailableStart(event.target.value); setInvalidAvailabilityWindow(false); }} required /></label>
+              <div className={styles.field}>
+                <label htmlFor="availability-end">Available until · Asia/Colombo</label>
+                <input id="availability-end" type="datetime-local" value={availableEnd} required
+                  aria-invalid={invalidAvailabilityWindow || undefined} aria-describedby={invalidAvailabilityWindow ? "availability-end-error" : undefined}
+                  onChange={event => { setAvailableEnd(event.target.value); setInvalidAvailabilityWindow(false); }} />
+                {invalidAvailabilityWindow && <p id="availability-end-error" role="alert" className={styles.fieldError}>{windowError}</p>}
+              </div>
+              <button disabled={busy}>{editingAvailability ? "Save availability change" : "Record availability"}</button>{editingAvailability && <button type="button" onClick={() => { setEditingAvailability(null); setAvailableStart(""); setAvailableEnd(""); setInvalidAvailabilityWindow(false); }}>Discard change</button>}
             </form></details></>}
       </aside>
     </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { WorkspaceDialog } from "@/components/workspace-dialog";
 import styles from "./billing-workspace.module.css";
 import { parseLKRMinor, toLKRInput } from "./money";
 import { formatLKR, formatClinicDateTime } from "@/lib/format";
@@ -164,6 +165,7 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
   const pendingReceipts = useRef<Record<string, PostReceiptRequest>>({});
   const [uncertainInvoices, setUncertainInvoices] = useState<string[]>([]);
   const [receiptError, setReceiptError] = useState<string | null>(null);
+  const [receiptErrorField, setReceiptErrorField] = useState<"amount" | "reference" | null>(null);
   const [submittingReceipt, setSubmittingReceipt] = useState(false);
 
   // Notifications
@@ -519,8 +521,15 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
     setReceiptMethod(pending?.paymentMethod ?? "cash");
     setReceiptLabel(pending?.label ?? "");
     setReceiptError(null);
+    setReceiptErrorField(null);
     setActionSuccess(null);
     setIsReceiptModalOpen(true);
+  }
+
+  function clearReceiptFieldError(field: "amount" | "reference") {
+    if (receiptErrorField !== field) return;
+    setReceiptErrorField(null);
+    setReceiptError(null);
   }
 
   function rememberReceipt(rec: Receipt) {
@@ -534,23 +543,30 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
     e.preventDefault();
     if (!receiptInvoice || !canWrite || submittingReceipt) return;
     setReceiptError(null);
+    setReceiptErrorField(null);
+
+    function invalid(field: "amount" | "reference", message: string) {
+      setReceiptError(message);
+      setReceiptErrorField(field);
+      e.currentTarget.querySelector<HTMLInputElement>(`#billing-${field}`)?.focus();
+    }
 
     const invoiceId = receiptInvoice.id;
     let intent = pendingReceipts.current[invoiceId];
     if (!intent) {
       const amountMinor = parseLKRMinor(receiptAmountRupees);
       if (amountMinor === null || amountMinor <= 0) {
-        setReceiptError("Enter a positive LKR amount with at most two decimal places.");
+        invalid("amount", "Enter a positive LKR amount with at most two decimal places.");
         return;
       }
       const label = receiptLabel.trim();
       if (receiptMethod === "direct_deposit" && !label) {
-        setReceiptError("Enter a reference for the direct deposit.");
+        invalid("reference", "Enter a reference for the direct deposit.");
         return;
       }
       const bal = balanceForListRow(receiptInvoice);
       if (!bal || amountMinor > bal.outstanding) {
-        setReceiptError("The payment exceeds the available balance. Review the invoice and try again.");
+        invalid("amount", "The payment exceeds the available balance. Review the invoice and try again.");
         return;
       }
       if (!globalThis.crypto?.randomUUID) {
@@ -753,14 +769,16 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
 
       {/* Tabs */}
       <div className={styles.tabsRow}>
-        {canReadInvoices && <><button className={`${styles.tabButton} ${activeTab === "invoices" ? styles.tabButtonActive : ""}`} onClick={() => setActiveTab("invoices")}>
+        {canReadInvoices && <><button type="button" aria-pressed={activeTab === "invoices"} className={`${styles.tabButton} ${activeTab === "invoices" ? styles.tabButtonActive : ""}`} onClick={() => setActiveTab("invoices")}>
           📄 Invoices &amp; Drafts ({invoices.length})
         </button>
-        <button className={`${styles.tabButton} ${activeTab === "receipts" ? styles.tabButtonActive : ""}`} onClick={() => setActiveTab("receipts")}>
+        <button type="button" aria-pressed={activeTab === "receipts"} className={`${styles.tabButton} ${activeTab === "receipts" ? styles.tabButtonActive : ""}`} onClick={() => setActiveTab("receipts")}>
           💳 Receipts &amp; Payments ({receipts.length})
         </button>
         </>}
         {canReadReport && <button
+          type="button"
+          aria-pressed={activeTab === "report"}
           className={`${styles.tabButton} ${activeTab === "report" ? styles.tabButtonActive : ""}`}
           onClick={() => {
             setActiveTab("report");
@@ -780,6 +798,7 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
             <div className={styles.searchGroup}>
               <input
                 type="text"
+                aria-label="Filter by invoice or patient ID"
                 className={styles.searchInput}
                 placeholder="Filter by Invoice ID or Patient ID…"
                 value={searchQuery}
@@ -788,14 +807,14 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
             </div>
             <div className={styles.filterPills}>
               {(["all", "draft", "issued", "void"] as const).map((st) => (
-                <button key={st} className={`${styles.pill} ${filterStatus === st ? styles.pillActive : ""}`} onClick={() => setFilterStatus(st)}>
+                <button type="button" key={st} aria-pressed={filterStatus === st} className={`${styles.pill} ${filterStatus === st ? styles.pillActive : ""}`} onClick={() => setFilterStatus(st)}>
                   {st.charAt(0).toUpperCase() + st.slice(1)}
                 </button>
               ))}
             </div>
           </div>
 
-          <div className={styles.tableWrap}>
+          <div className={`${styles.tableWrap} keyboard-scroll`} role="region" aria-label="Invoice results" tabIndex={0}>
             <table className={styles.table}>
               <thead>
                 <tr>
@@ -859,7 +878,7 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
 
       {/* TAB 2: Receipts */}
       {activeTab === "receipts" && canReadInvoices && (
-        <div className={styles.tableWrap}>
+        <div className={`${styles.tableWrap} keyboard-scroll`} role="region" aria-label="Receipt results" tabIndex={0}>
           <table className={styles.table}>
             <thead>
               <tr>
@@ -913,7 +932,7 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
               <div style={{ fontSize: "0.82rem", color: "var(--bill-muted)", marginBottom: "0.75rem" }}>
                 Generated: {formatClinicDateTime(report.generatedAt)}
               </div>
-              <div className={styles.tableWrap}>
+              <div className={`${styles.tableWrap} keyboard-scroll`} role="region" aria-label="Outstanding invoice results" tabIndex={0}>
                 <table className={styles.table}>
                   <thead>
                     <tr>
@@ -954,7 +973,7 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
 
           {/* Preview mode: derive from local state */}
           {access !== "ready" && (
-            <div className={styles.tableWrap}>
+            <div className={`${styles.tableWrap} keyboard-scroll`} role="region" aria-label="Outstanding invoice results" tabIndex={0}>
               <table className={styles.table}>
                 <thead>
                   <tr>
@@ -996,8 +1015,7 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
 
       {/* MODAL 1: Create Draft Invoice */}
       {isNewInvoiceOpen && (
-        <div className={styles.modalOverlay} onClick={() => setIsNewInvoiceOpen(false)}>
-          <div role="dialog" aria-modal="true" aria-labelledby="billing-draft-heading" className={styles.modalCard} onClick={(e) => e.stopPropagation()}>
+        <WorkspaceDialog labelledBy="billing-draft-heading" className={styles.modalCard} onDismiss={() => setIsNewInvoiceOpen(false)}>
             <div className={styles.modalHeader}>
               <h2 id="billing-draft-heading" className={styles.modalTitle}>Open Draft Invoice</h2>
               <button aria-label="Close draft form" className={styles.closeBtn} onClick={() => setIsNewInvoiceOpen(false)}>×</button>
@@ -1024,14 +1042,12 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
+        </WorkspaceDialog>
       )}
 
       {/* MODAL 2: Invoice Detail — Line Items + Receipt History */}
       {selectedInvoice && (
-        <div className={styles.modalOverlay} onClick={closeInvoiceDetail}>
-          <div role="dialog" aria-modal="true" aria-labelledby="billing-invoice-heading" className={styles.modalCard} style={{ maxWidth: "820px" }} onClick={(e) => e.stopPropagation()}>
+        <WorkspaceDialog labelledBy="billing-invoice-heading" className={styles.modalCard} style={{ maxWidth: "820px" }} onDismiss={closeInvoiceDetail}>
             <div className={styles.modalHeader}>
               <div>
                 <h2 id="billing-invoice-heading" className={styles.modalTitle}>Invoice {selectedInvoice.id}</h2>
@@ -1069,7 +1085,7 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
             {/* Line Items */}
             <div style={{ marginBottom: "1.5rem" }}>
               <h3 style={{ fontSize: "1rem", fontWeight: 700, marginBottom: "0.75rem" }}>Treatment Line Items</h3>
-              <div className={styles.tableWrap}>
+              <div className={`${styles.tableWrap} keyboard-scroll`} role="region" aria-label="Treatment line items" tabIndex={0}>
                 <table className={styles.table}>
                   <thead>
                     <tr>
@@ -1139,7 +1155,7 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
             {!loadingDetail && selectedInvoice.status === "issued" && currentDetailBalance && (
               <div style={{ marginBottom: "1.5rem" }}>
                 <h3 style={{ fontSize: "1rem", fontWeight: 700, marginBottom: "0.75rem" }}>Payment Receipt History</h3>
-                <div className={styles.tableWrap}>
+                <div className={`${styles.tableWrap} keyboard-scroll`} role="region" aria-label="Payment receipt history" tabIndex={0}>
                   <table className={styles.table}>
                     <thead>
                       <tr>
@@ -1193,14 +1209,12 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
                 )}
               </div>
             </div>
-          </div>
-        </div>
+        </WorkspaceDialog>
       )}
 
       {/* MODAL 3: Post Payment Receipt */}
       {isReceiptModalOpen && receiptInvoice && (
-        <div className={styles.modalOverlay} onClick={() => { if (!submittingReceipt) setIsReceiptModalOpen(false); }}>
-          <div role="dialog" aria-modal="true" aria-labelledby="billing-receipt-heading" className={styles.modalCard} onClick={(e) => e.stopPropagation()}>
+        <WorkspaceDialog labelledBy="billing-receipt-heading" className={styles.modalCard} onDismiss={() => { if (!submittingReceipt) setIsReceiptModalOpen(false); }}>
             <div className={styles.modalHeader}>
               <h2 id="billing-receipt-heading" className={styles.modalTitle}>Post Payment Receipt</h2>
               <button aria-label="Close receipt form" className={styles.closeBtn} disabled={submittingReceipt} onClick={() => setIsReceiptModalOpen(false)}>×</button>
@@ -1211,7 +1225,7 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
                 <div style={{ marginTop: "0.25rem" }}>Outstanding Balance: <strong className={styles.moneyDisplay}>{currentBalForModal ? formatLKR(currentBalForModal.outstanding) : "Unavailable"}</strong></div>
               </div>
 
-              {receiptError && <p role="alert">{receiptError}</p>}
+              {receiptError && <p id="billing-receipt-error" role="alert">{receiptError}</p>}
               {retryReceipt && <p>Retrying will check the result of the same payment.</p>}
 
               <div className={styles.formGroup}>
@@ -1224,12 +1238,16 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
 
               <div className={styles.formGroup}>
                 <label className={styles.formLabel} htmlFor="billing-amount">Amount (LKR)</label>
-                <input id="billing-amount" type="text" inputMode="decimal" required readOnly={submittingReceipt || retryReceipt} className={styles.formInput} value={receiptAmountRupees} onChange={(e) => setReceiptAmountRupees(e.target.value)} />
+                <input id="billing-amount" type="text" inputMode="decimal" required readOnly={submittingReceipt || retryReceipt} className={styles.formInput} value={receiptAmountRupees}
+                  aria-invalid={receiptErrorField === "amount" || undefined} aria-describedby={receiptErrorField === "amount" ? "billing-receipt-error" : undefined}
+                  onChange={e => { setReceiptAmountRupees(e.target.value); clearReceiptFieldError("amount"); }} />
               </div>
 
               <div className={styles.formGroup}>
                 <label className={styles.formLabel} htmlFor="billing-reference">Payment reference</label>
-                <input id="billing-reference" required={receiptMethod === "direct_deposit"} readOnly={submittingReceipt || retryReceipt} type="text" placeholder="Deposit slip or counter reference" className={styles.formInput} value={receiptLabel} onChange={(e) => setReceiptLabel(e.target.value)} />
+                <input id="billing-reference" required={receiptMethod === "direct_deposit"} readOnly={submittingReceipt || retryReceipt} type="text" placeholder="Deposit slip or counter reference" className={styles.formInput} value={receiptLabel}
+                  aria-invalid={receiptErrorField === "reference" || undefined} aria-describedby={receiptErrorField === "reference" ? "billing-receipt-error" : undefined}
+                  onChange={e => { setReceiptLabel(e.target.value); clearReceiptFieldError("reference"); }} />
               </div>
 
               <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem", marginTop: "1rem" }}>
@@ -1239,8 +1257,7 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
+        </WorkspaceDialog>
       )}
     </div>
   );
