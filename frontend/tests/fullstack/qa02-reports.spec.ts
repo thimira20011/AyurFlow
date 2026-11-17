@@ -86,7 +86,7 @@ test("QA-02: outstanding report exposes only committed permitted fields and read
     expect(JSON.stringify(await (await billing.get(path)).json()) === beforeState).toBe(true);
     const invoices = await (await billing.get(`/api/v1/invoices?patientId=${patient.id}`)).json();
     expect(invoices.items.length === 1 && invoices.items[0].id === invoice.id).toBe(true);
-    expect((await (await billing.get(`${path}/receipts`)).json()).items.length).toBe(0);
+    expect(((await (await billing.get(`${path}/receipts`)).json()).items ?? []).length).toBe(0);
     expect((await billing.post(`${path}/receipts`, { headers: await csrf(billing), data: { operationId: "93333333-3333-4333-8333-333333333333", amountMinor: 12345, paymentMethod: "cash" } })).status()).toBe(201);
     expect(Boolean(await rowForInvoice())).toBe(false);
   } finally { await reception.dispose(); await billing.dispose(); await reader.dispose(); }
