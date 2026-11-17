@@ -32,6 +32,8 @@ Run the focused database checks with `go test -tags=integration -run '^TestQA02'
 
 The new real fullstack cases require execution in the branch's auth-browser CI job; their result must be recorded separately before they count as passed. Full QA-02/AT11/AT13 acceptance remains in progress pending F/D/E review, policy decisions and the handoffs below. No production endpoint, schema, permission or OpenAPI publication changed in this review slice.
 
+Initial [CI run 44045591552](https://github.com/thimira20011/AyurFlow/actions/runs/44045591552) passed the two PostgreSQL regressions and three of four new fullstack cases. The projection case initially expected 403 for a forbidden patient detail; the existing handler intentionally conceals it as 404/`not_found`. The corrected assertion now requires that exact response. The frontend job also exposed a pre-existing accessibility-test race: Tab was pressed while the staff-create button was disabled during asynchronous loading. The test now waits for that button to become enabled before tabbing; its focus/outline assertions remain intact. A local production-build attempt was blocked by Turbopack rejecting the isolated checkout's dependency junction; Linux CI had already built/type-checked successfully. Final corrected CI results remain required; initial failures are not recorded as passes.
+
 ## Handoffs and limits
 
 - D/F: report-reader navigation currently exposes billing reports. Inventory API report reads exist, but the shared `/inventory` area is dispensary-only and its workspace contains write controls. A dedicated reviewed read-only inventory report entry is a remaining UI handoff; do not widen the area guard to expose the existing mutation workspace.

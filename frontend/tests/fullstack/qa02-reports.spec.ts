@@ -67,9 +67,12 @@ test("QA-02: outstanding report exposes only committed permitted fields and read
     expect(Object.keys(row).sort()).toEqual(["ageDays", "invoiceId", "issuedAt", "outstandingMinor", "paidMinor", "patientId", "totalMinor"]);
     expect(row.patientId === patient.id && row.totalMinor === 12345 && row.paidMinor === 0 && row.outstandingMinor === 12345).toBe(true);
     expect(JSON.stringify(row).includes("canary")).toBe(false);
-    for (const endpoint of [path, `${path}/balance`, `${path}/receipts`, `/api/v1/invoices?patientId=${patient.id}`, `/api/v1/patients/${patient.id}`]) {
+    for (const endpoint of [path, `${path}/balance`, `${path}/receipts`, `/api/v1/invoices?patientId=${patient.id}`]) {
       expect((await reader.get(endpoint)).status()).toBe(403);
     }
+    const hiddenPatient = await reader.get(`/api/v1/patients/${patient.id}`);
+    expect(hiddenPatient.status()).toBe(404);
+    expect((await hiddenPatient.json()).error.code).toBe("not_found");
     const beforeState = JSON.stringify(await (await billing.get(path)).json());
     const headers = await csrf(reader);
     for (const [endpoint, data] of [
