@@ -179,8 +179,9 @@ for (const width of [1366, 1024]) {
       await expectVisibleFocus(page.getByRole("link", { name: "Skip to content" }));
       await page.keyboard.press("Enter");
       await expect(page.getByRole("region", { name: "Staff administration" })).toBeFocused();
-      await page.keyboard.press("Tab");
       const create = page.getByRole("button", { name: /Create staff account/ });
+      await expect(create).toBeEnabled();
+      await page.keyboard.press("Tab");
       await expectVisibleFocus(create);
       await page.keyboard.press("Enter");
       await expect(page.getByRole("dialog")).toBeVisible();

@@ -115,7 +115,7 @@ Status values: **Pending** = not started; **In progress** = work underway but co
 | Task | Deliverable | Owner slot | Peer reviewer | Status | Evidence |
 | --- | --- | --- | --- | --- | --- |
 | TASK-QA-01 | Requirement/test checklist and synthetic journey data | F; all owners supply examples | A | In progress | [Linked patient-to-receipt fixture](qa/patient-to-receipt-fixture.md) reuses B's [clinical examples](qa/member-b-examples.md) and D's [inventory examples](qa/member-d-examples.md). Full requirements checklist and A review pending. |
-| TASK-QA-02 | Authorized report navigation | F with D/E; A checks access | A | Pending | — |
+| TASK-QA-02 | Authorized report navigation | F with D/E; A checks access | A | In progress | Merged F report navigation; A adds real HTTP/browser role checks and PostgreSQL trace/filter regressions on `codex/qa-02-report-access`. [Review, evidence and D/E/F handoffs](audits/qa-02-report-access.md); independent review and full AT11/13 acceptance remain. |
 | TASK-QA-03 | Patient-to-receipt walkthrough | F; owners fix modules | A | Pending | — |
 | TASK-QA-04 | Critical audit and permission sweep | A with F | F | In progress | `codex/qa-04-permissions-audit` restricts reception observation access and adds PostgreSQL audit-failure regressions. [Review findings and evidence](audits/qa-04-permissions.md). F and module-owner review, open findings and full AT13 remain. |
 | TASK-QA-05 | Performance and viewport/keyboard evidence | F; A supports host | A | Pending | — |
