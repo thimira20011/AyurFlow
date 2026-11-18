@@ -1,0 +1,84 @@
+{
+  "dataset": "qa-01-patient-to-receipt-v1",
+  "clinicTimeZone": "Asia/Colombo",
+  "referenceClinicDate": "2026-11-18",
+  "patientFixtureId": "b-no-identity",
+  "consultation": {
+    "fixtureId": "f-consultation-01",
+    "patientFixtureId": "b-no-identity",
+    "draftText": "Synthetic pre-treatment assessment for the QA-01 journey.",
+    "expectedStatus": "signed"
+  },
+  "plan": {
+    "fixtureId": "f-plan-01",
+    "patientFixtureId": "b-no-identity",
+    "expectedStatusAtBooking": "active",
+    "currentStage": {
+      "fixtureId": "f-stage-preparatory",
+      "ordinal": 1,
+      "label": "Preparatory",
+      "expectedStatusAtBooking": "approved"
+    }
+  },
+  "room": {
+    "fixtureId": "f-room-01",
+    "code": "QA01-ROOM",
+    "name": "Synthetic QA-01 therapy room"
+  },
+  "availability": [
+    {
+      "roomFixtureId": "f-room-01",
+      "startsAt": "2026-11-18T03:30:00Z",
+      "endsAt": "2026-11-18T06:30:00Z"
+    },
+    {
+      "therapistFixtureId": "b-therapist-assigned",
+      "startsAt": "2026-11-18T03:30:00Z",
+      "endsAt": "2026-11-18T06:30:00Z"
+    }
+  ],
+  "session": {
+    "fixtureId": "c-session-01",
+    "patientFixtureId": "b-no-identity",
+    "planFixtureId": "f-plan-01",
+    "stageFixtureId": "f-stage-preparatory",
+    "roomFixtureId": "f-room-01",
+    "therapistFixtureId": "b-therapist-assigned",
+    "startsAt": "2026-11-18T04:30:00Z",
+    "endsAt": "2026-11-18T05:00:00Z",
+    "observations": "Synthetic session delivery completed.",
+    "expectedStatuses": ["booked", "in_progress", "completed"]
+  },
+  "preparationFixtureId": "d-prep-srs-scale",
+  "recipeCode": "QA01-RECIPE",
+  "invoice": {
+    "fixtureId": "f-invoice-01",
+    "patientFixtureId": "b-no-identity",
+    "expectedStatus": "issued",
+    "items": [
+      { "description": "Synthetic treatment", "quantity": 1, "unitPriceMinor": 1000025 }
+    ]
+  },
+  "receipts": [
+    {
+      "fixtureId": "f-receipt-01",
+      "invoiceFixtureId": "f-invoice-01",
+      "operationId": "7c4a1b9e-2001-4c9a-8a11-222222222222",
+      "amountMinor": 400010,
+      "paymentMethod": "direct_deposit",
+      "label": "Synthetic QA-01 deposit"
+    }
+  ],
+  "expected": {
+    "stockAfterPreparationSave": "unchanged",
+    "preparationStatuses": ["prepared", "consumed"],
+    "remainingGramsAfterConfirmation": {
+      "d-batch-ashwa-a": "970.000",
+      "d-batch-ashwa-b": "480.000",
+      "d-batch-guduchi-a": "362.500"
+    },
+    "invoiceTotalMinor": 1000025,
+    "paidMinor": 400010,
+    "outstandingMinor": 600015
+  }
+}
