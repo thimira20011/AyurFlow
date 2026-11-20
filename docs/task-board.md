@@ -50,7 +50,7 @@ Status values: **Pending** = not started; **In progress** = work underway but co
 | TASK-AUTH-03 | Backend role/record checks, cookies and CSRF | A | F | Pending | — |
 | TASK-AUTH-04 | Login, account/role screens and disabling | A with F | F | Pending | — |
 | TASK-AUTH-05 | Transactional audit and restricted retrieval | A | F | In review | `codex/auth-05-audit`; [PostgreSQL/race CI passed](https://github.com/thimira20011/AyurFlow/actions/runs/39791162419); AUTH-03/module integration/F/full AT13 pending |
-| TASK-AUTH-06 | AT01 identity/access and safe-log verification | A | F | In progress | Merged frontend repair; `codex/auth-06-fullstack-verification` adds 15 real HTTPS/Next/Go/PostgreSQL cases. [All six CI jobs passed](https://github.com/thimira20011/AyurFlow/actions/runs/41527635069) on `ea2aa3a`; [execution record](auth-06-verification.md#real-full-stack-browser-verification-3-november-2026). F review, trusted deployment, final policy/module gates and full AT01 remain open |
+| TASK-AUTH-06 | AT01 identity/access and safe-log verification | A | F | In progress | PR #87 added trusted HTTPS checks. The 20 November read-only database inspection verified 11 expected staff events and metadata. Deployed absolute expiry, hosting logs, release evidence, final policy and reviewer acceptance remain open. [Evidence](evidence/member-a-auth-06-deployed-2026-11-13.md) |
 
 ## 4. Patients and consultations (weeks 1–4)
 
@@ -126,7 +126,7 @@ Status values: **Pending** = not started; **In progress** = work underway but co
 | Task | Deliverable | Owner slot | Peer reviewer | Status | Evidence |
 | --- | --- | --- | --- | --- | --- |
 | TASK-OPS-01 | Compose, configuration, HTTPS and pilot deployment | A | F | Pending | — |
-| TASK-OPS-02 | Encrypted daily backup and isolated restore | A | F; clinic operations review | In progress | Actual off-host four-category recovery and audit links verified on 15 November; [execution evidence](evidence/member-a-ops-02-recovery-2026-11-15.md). Operator confirmations, budget, named independent review and staff walkthrough retain acceptance gates. |
+| TASK-OPS-02 | Encrypted daily backup and isolated restore | A | F; clinic operations review | In progress | Actual off-host four-category recovery verified on 15 November. Private backup helpers synchronized and tested on 20 November. Operator confirmations, budget, independent review and staff walkthrough remain open. [Evidence](evidence/member-a-ops-02-recovery-2026-11-15.md) |
 | TASK-OPS-03 | Usage, outage, API/setup and migration guides | F assembles; each owner writes module | A | In progress | B's [patient/clinical guide](guides/member-b-staff.md) reflects the current guarded plan actions, with [author check and verifier handoff](evidence/member-b-ops-03-guide-2026-11-07.md); A's [administration guide](guides/member-a-administration.md)/[operations runbook](operations.md), A slice on `codex/ops-03-admin-runbook`. Named-member walkthroughs and F/A assembly/review pending |
 | TASK-OPS-04 | Clean startup, migrations, seed and restart | A with F | F | In progress | `codex/ops-04-clean-start`; [isolated pilot-image verification](../deploy/verification/README.md) and [execution record](testing.md#task-ops-04-clean-startup-and-persistence-7-november-2026). Independent walkthrough/review and full AT17 remain open. |
 | TASK-OPS-05 | Data authorization, custody and support decisions | Team lead; A handles operations | Clinic/institution | Pending | — |
