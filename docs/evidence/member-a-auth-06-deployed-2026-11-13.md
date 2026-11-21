@@ -34,4 +34,17 @@ Local `npm test` passed all 14 tests, including the deployed-runner configuratio
 
 The original local checkout contains unrelated and prior work. Terminal Git fetching is blocked; only the named runner/test/documentation files are submitted through GitHub against the pinned current `dev` tree. Existing user changes remain untouched. Record the pushed branch's final CI results separately.
 
-Still pending: deployed absolute expiry despite keepalive; browser/UI checks on the current deployed revision; module-specific record/report restrictions; actual database audit and hosting/proxy log confidentiality inspection; independently recorded deployed release version; final DEC07 policy and F/named replacement review. Existing isolated CI tests provide separate clock, audit and browser evidence. This deployed API slice does not close AUTH-06/AT01/AT13 or authorize real-data use.
+## Deployed database audit follow-up — 20 November 2026
+
+At 16:44 Asia/Colombo (11:14 UTC), Codex automation inspected the five synthetic accounts from the 13 November run for Member A. The inspection used the existing read-only Neon backup role in an explicit read-only transaction over verified TLS. The evidence review was based on merged `dev` at `7d6f3334c77f339324d26616915df84c4d3390d3`.
+
+Matched the five exact run identifiers to their staff records, then joined their staff audit events and actor references. Compared counts per account, checked the stored metadata keys and exact changed-field names, and counted sessions that were unrevoked and inside their absolute lifetime. The query returned only counts and boolean results.
+
+| Expected | Actual |
+| --- | --- |
+| Five matched accounts, all disabled | 5 matched, 5 disabled |
+| One creation and one disable per account, one role change for the managed account only | 5 creations, 5 disables, 1 role change. All per-account counts matched. |
+| Staff events have an existing actor and timestamp, no reason payload or additional fields, and only the expected `roles` or `active` field name | All 11 events matched the metadata allowlist. |
+| No unrevoked test session within its absolute lifetime | 0 |
+
+The eleven inspected events satisfy the staff audit metadata check. This follow-up checked stored events for the original synthetic run. The Render dashboard could not be opened to verify hosting and proxy logs or identify the frontend and backend release revisions. Deployed absolute expiry despite keepalive, current deployed browser and module checks, final DEC07 policy, and independent reviewer acceptance also remain open. The isolated CI tests provide separate clock, audit and browser evidence.
