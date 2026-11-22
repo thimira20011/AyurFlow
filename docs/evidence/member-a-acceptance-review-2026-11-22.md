@@ -21,6 +21,19 @@ F owns TASK-QA-03 and Member A reviews. B, C, D and E own their module behavior.
 
 Run `npm run test:fullstack -- patient-to-receipt.spec.ts` from `frontend` after setting up the [disposable fullstack harness](../../frontend/tests/fullstack/README.md). The new test runs in the existing `auth-browser` job. It verifies the signed consultation and approved plan, the two availability windows and completed delivery, the undeducted preparation snapshot, exact one-time stock use and bidirectional traceability, and the committed invoice, receipt retry and outstanding report. It includes administrator denial for clinical notes and report-reader denial for invoice detail. F's staff walkthrough and formal module or clinic acceptance are tracked separately.
 
+Codex automation ran the test on `ac5fbc37a242a0622d0c6d9135185694411e912b` through GitHub Actions at 15:48 Asia/Colombo on 22 November. The environment used Ubuntu, Go 1.27.4, Node 22.23.2, Playwright 1.64.1 and disposable PostgreSQL 17.11. All 24 fullstack cases passed. The linked QA-03 scenario took 1.1 seconds inside that suite. [Fullstack execution](https://github.com/thimira20011/AyurFlow/actions/runs/45011527856/job/137174697128)
+
+| Checkpoint | Expected and observed |
+| --- | --- |
+| Patient and clinical plan | Reception registered one synthetic patient. The assigned clinician signed the consultation and approved the Preparatory stage. The administrator received 404 on consultation detail. |
+| Booking and delivery | Both availability windows covered the booking. The assigned therapist moved the linked session from booked to in progress to completed. |
+| Stock and traceability | Saving the snapshot left stock unchanged. Confirming twice with the same operation ID left the three batch balances at 970.000 g, 480.000 g and 362.500 g. Both trace directions linked the same patient, session, preparation and batches. |
+| Invoice and receipt | The invoice linked the same patient. The repeated deposit returned the original receipt. Total LKR 10,000.25, paid LKR 4,000.10 and outstanding LKR 6,000.15 matched the report. The report reader received 403 on invoice detail. |
+
+The first CI attempt could not load the ES module fixture. The test now uses a dynamic import. The production frontend container excludes test files since CI runs them from the complete checkout and the container build context contains only `frontend`. The clean-start workflow verifies that build separately.
+
+The 22 November daily backup and freshness checks passed in the private backup repository. [Encrypted daily backup](https://github.com/thimira20011/AyurFlow-backups/actions/runs/44966348834) · [Freshness check](https://github.com/thimira20011/AyurFlow-backups/actions/runs/44971139282)
+
 ## Hosted HTTPS spot check
 
 On 22 November, Codex checked the two public synthetic URLs from the Windows workspace using certificate-verified HTTPS without credentials. The backend returned the expected HTTP 200 on `/api/v1/ready` and 401 on `/api/v1/auth/session`. The frontend returned 429 for both, and a single readiness recheck also returned 429. The deployed revisions and reason for the 429 were not established. Frontend readiness and session behavior through the hosted proxy remain unverified by this run.
