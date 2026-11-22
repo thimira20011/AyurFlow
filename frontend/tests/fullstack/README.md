@@ -33,6 +33,8 @@ Fifteen cases cover anonymous browser/direct API denial; all seven single-role b
 
 For a cross-module scenario, the [QA-01 fixture](../../../docs/qa/patient-to-receipt-fixture.md) supplies linked synthetic records and expected stock and receipt balances. Its fixture IDs are test keys. Map them to the IDs returned by the live API during setup.
 
+`patient-to-receipt.spec.ts` runs that linked fixture through the real API as seven synthetic staff roles. It checks the clinical approval, booking and delivery, stock snapshot and retry, traceability, and issued invoice and receipt retry. To run just this case, use `npm run test:fullstack -- patient-to-receipt.spec.ts`. [QA-03 evidence](../../../docs/evidence/member-a-acceptance-review-2026-11-22.md#qa-03-automated-journey)
+
 `.cache/auth-e2e/` is ignored and private. Fixture credentials, certificate key and service output are never uploaded. Traces, video and automatic screenshots are disabled because they can capture passwords, cookies and CSRF headers. Only `results.json` (case names, statuses and safe assertion diagnostics) is retained as a CI artifact; assertions never print raw cookies, credentials, audit rows or note canaries. CI removes fixture credentials and TLS files even after failure. Local users must remove those private files after inspection. Do not publish raw Playwright network traces or service logs.
 
 Record run URL, commit, date/tester, environment, case outcomes and defects in `docs/auth-06-verification.md`/`docs/testing.md`. A green run supports current-version automated evidence; F review, approved DEC07 policy, deployed/trusted HTTPS and the remaining module scenarios still gate full AT01/AT13 acceptance.
