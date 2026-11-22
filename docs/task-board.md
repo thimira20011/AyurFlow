@@ -4,17 +4,17 @@ This is the single tracking board for the 64 tasks in the *AyurFlow Team task pl
 
 ## Assignment and status rules
 
-**Assignment slots are provisional.** On 12 November 2026, the current user confirmed they are Member C; their personal name remains pending. Earlier records identify a previous contributor as Member B; that member's name still needs confirmation. Add the confirmed name for each A–F slot and for the team lead below; then confirm the accountable person and reviewer for **each row**. A review slot is a proposed peer reviewer, not clinic approval. The clinic reviewer for DEC01–06/08 and UAT must be named separately when agreed. Until that happens, `TASK-SET-01` remains in progress. [Member C's step-by-step checklist](member-c-tasks.md) records the existing scheduling implementation, verification work and provisional end-of-November target; it does not change acceptance statuses.
+**Assignments and reviewers still need team confirmation.** THIMIRA has identified as Member A and lead developer. Record the outstanding names and confirm the accountable person and reviewer for each task. Clinic review for DEC01–06/08 and UAT needs a separately named reviewer. `TASK-SET-01` remains in progress. [Member C's checklist](member-c-tasks.md)
 
 | Slot | Confirmed name | Primary area | Peer reviewer |
 | --- | --- | --- | --- |
-| A | Pending | Shared API, auth, audit, deployment | F |
-| B | Earlier contributor; name pending | Patients and clinical workflow | C |
-| C | Current user; name pending | Scheduling and session delivery | B |
+| A | THIMIRA | Shared API, auth, audit, deployment | F |
+| B | Name pending | Patients and clinical workflow | C |
+| C | Name pending | Scheduling and session delivery | B |
 | D | K. I. R. Perera (`22FIS0506`) | Inventory and preparation | E |
 | E | Pending | Billing | D |
 | F | Pending | Shared UI, integration and UAT | A |
-| Team lead | Pending | Formal clinic/institution coordination | Pending |
+| Team lead | THIMIRA (lead developer) | Formal clinic/institution coordination | Pending |
 
 Status values: **Pending** = not started; **In progress** = work underway but completion evidence/review missing; **In review** = implementation and evidence ready for the named reviewer; **Done** = stated completion check, dependency integration and review passed; **Blocked** = named decision or external dependency prevents progress. Replace `—` in the Evidence column with a PR, test record, decision or review link. An owner slot alone does not make a task done.
 
@@ -47,8 +47,8 @@ Status values: **Pending** = not started; **In progress** = work underway but co
 | --- | --- | --- | --- | --- | --- |
 | TASK-AUTH-01 | Account/role/session schema and Argon2id | A | F | In review | `codex/auth-01-password-seed` (`8277cc7`); Go checks pass; PostgreSQL seed proof and F review pending |
 | TASK-AUTH-02 | Login, logout, expiry, revocation, throttling | A | F | In review | Merged PR #12; [PostgreSQL CI passed](https://github.com/thimira20011/AyurFlow/actions/runs/39788040138); DEC07/F/full AT01 pending |
-| TASK-AUTH-03 | Backend role/record checks, cookies and CSRF | A | F | Pending | — |
-| TASK-AUTH-04 | Login, account/role screens and disabling | A with F | F | Pending | — |
+| TASK-AUTH-03 | Backend role/record checks, cookies and CSRF | A | F | In review | Shared authorization merged. Module policy and independent acceptance tracked in [AUTH-06](auth-06-verification.md) and [QA-04](audits/qa-04-permissions.md). |
+| TASK-AUTH-04 | Login, account/role screens and disabling | A with F | F | In review | PRs #30 and #31 merged. Recovery policy, reviewer and AT01 acceptance remain open. [Staff contract](api/auth-04-staff.md) |
 | TASK-AUTH-05 | Transactional audit and restricted retrieval | A | F | In review | `codex/auth-05-audit`; [PostgreSQL/race CI passed](https://github.com/thimira20011/AyurFlow/actions/runs/39791162419); AUTH-03/module integration/F/full AT13 pending |
 | TASK-AUTH-06 | AT01 identity/access and safe-log verification | A | F | In progress | PR #87 added trusted HTTPS checks. The 20 November read-only database inspection verified 11 expected staff events and metadata. Deployed absolute expiry, hosting logs, release evidence, final policy and reviewer acceptance remain open. [Evidence](evidence/member-a-auth-06-deployed-2026-11-13.md) |
 

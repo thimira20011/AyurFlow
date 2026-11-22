@@ -1,6 +1,5 @@
 import { expect, test, type APIRequestContext } from "@playwright/test";
 import { readFileSync } from "node:fs";
-import { loadPatientToReceipt } from "../../../tests/fixtures/patient-to-receipt.mjs";
 
 const origin = "https://localhost:3443";
 const roles = ["administrator", "receptionist", "clinician", "therapist", "dispensary", "billing", "report_reader"] as const;
@@ -23,6 +22,7 @@ async function get(api: APIRequestContext, route: string) {
 }
 
 test("QA-03: one synthetic patient flows through clinical, delivery, stock and receipt", async ({ playwright }) => {
+  const { loadPatientToReceipt } = await import("../../../tests/fixtures/patient-to-receipt.mjs");
   const fixture = JSON.parse(readFileSync("../.cache/auth-e2e/fixture.json", "utf8")) as StaffFixture;
   const journey = loadPatientToReceipt();
   const contexts = new Map<Role, APIRequestContext>();
