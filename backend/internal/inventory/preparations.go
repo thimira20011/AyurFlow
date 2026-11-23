@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"math/big"
+	"sort"
 	"strings"
 	"time"
 
@@ -123,7 +124,7 @@ func validateRecipe(req RecipeRequest) (int64, map[string]int64, error) {
 }
 
 func recipeTx(ctx context.Context, tx pgx.Tx, id string) (Recipe, error) {
-	var out Recipe
+	out := Recipe{Ingredients: []RecipeIngredient{}}
 	err := tx.QueryRow(ctx, `SELECT id::text,code,display_name,base_yield_grams::text,version,active
 		FROM recipes WHERE id=$1`, id).Scan(&out.ID, &out.Code, &out.DisplayName, &out.BaseYieldGrams, &out.Version, &out.Active)
 	if errors.Is(err, pgx.ErrNoRows) {
@@ -149,10 +150,23 @@ func recipeTx(ctx context.Context, tx pgx.Tx, id string) (Recipe, error) {
 }
 
 func insertIngredients(ctx context.Context, tx pgx.Tx, recipeID string, items map[string]int64) error {
-	for id, quantity := range items {
+	ids := make([]string, 0, len(items))
+	for id := range items {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+	for _, id := range ids {
+		quantity := items[id]
 		var active bool
-		if err := tx.QueryRow(ctx, `SELECT active FROM botanical_items WHERE id=$1 FOR SHARE`, id).Scan(&active); err != nil || !active {
+		err := tx.QueryRow(ctx, `SELECT active FROM botanical_items WHERE id=$1 FOR SHARE`, id).Scan(&active)
+		if errors.Is(err, pgx.ErrNoRows) {
 			return ErrNotFound
+		}
+		if err != nil {
+			return err
+		}
+		if !active {
+			return ErrConflict
 		}
 		if _, err := tx.Exec(ctx, `INSERT INTO recipe_ingredients(recipe_id,item_id,quantity_grams)
 			VALUES ($1,$2,$3::numeric)`, recipeID, id, FormatMilligramsToGrams(quantity)); err != nil {
@@ -236,7 +250,7 @@ func (s *Service) UpdateRecipe(ctx context.Context, actor, id string, req Recipe
 }
 
 func (s *Service) ListRecipes(ctx context.Context, actor string) ([]Recipe, error) {
-	var result []Recipe
+	result := []Recipe{}
 	err := pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		if _, err := s.requireRole(ctx, tx, actor, "dispensary", "clinician", "report_reader"); err != nil {
 			return err
@@ -287,18 +301,32 @@ func (s *Service) GetRecipe(ctx context.Context, actor, id string) (Recipe, erro
 	return out, err
 }
 
-func scaleQuantity(base, target, yield int64) (int64, error) {
-	product := new(big.Int).Mul(big.NewInt(base), big.NewInt(target))
-	product.Add(product, new(big.Int).Div(big.NewInt(yield), big.NewInt(2)))
-	result := product.Div(product, big.NewInt(yield))
+// ScaleIngredientGrams scales baseQuantityMg by targetYieldMg / baseYieldMg
+// using deterministic Round Half Up at 0.001 g (1 milligram) precision (SRS PRE-02, DEC03).
+func ScaleIngredientGrams(baseQuantityMg, targetYieldMg, baseYieldMg int64) (int64, error) {
+	if baseQuantityMg < 1 || baseQuantityMg > MaxMilligrams ||
+		targetYieldMg < 1 || targetYieldMg > MaxMilligrams ||
+		baseYieldMg < 1 || baseYieldMg > MaxMilligrams {
+		return 0, ErrValidation
+	}
+	// Exact Round Half Up: floor((2 * base * target + yield) / (2 * yield))
+	numerator := new(big.Int).Mul(big.NewInt(baseQuantityMg), big.NewInt(targetYieldMg))
+	numerator.Mul(numerator, big.NewInt(2))
+	numerator.Add(numerator, big.NewInt(baseYieldMg))
+	denominator := new(big.Int).Mul(big.NewInt(baseYieldMg), big.NewInt(2))
+	result := numerator.Div(numerator, denominator)
 	if !result.IsInt64() || result.Int64() < 1 || result.Int64() > MaxMilligrams {
 		return 0, ErrValidation
 	}
 	return result.Int64(), nil
 }
 
+func scaleQuantity(base, target, yield int64) (int64, error) {
+	return ScaleIngredientGrams(base, target, yield)
+}
+
 func preparationTx(ctx context.Context, tx pgx.Tx, id string) (Preparation, error) {
-	var out Preparation
+	out := Preparation{Snapshot: []SnapshotItem{}, Consumptions: []Consumption{}}
 	err := tx.QueryRow(ctx, `SELECT id::text,patient_id::text,session_id::text,recipe_id::text,recipe_version,
 		target_yield_grams::text,status,prepared_by::text,prepared_at,consumed_by::text,consumed_at,operation_id::text
 		FROM preparations WHERE id=$1`, id).Scan(&out.ID, &out.PatientID, &out.SessionID, &out.RecipeID, &out.RecipeVersion,
@@ -459,7 +487,7 @@ func (s *Service) ListPreparations(ctx context.Context, actor, patientID string)
 	if err != nil {
 		return nil, err
 	}
-	var result []Preparation
+	result := []Preparation{}
 	err = pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		if _, err := s.requireRole(ctx, tx, actor, "dispensary"); err != nil {
 			return err

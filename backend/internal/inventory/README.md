@@ -15,8 +15,18 @@ Owner: Member D (`K. I. R. Perera`). Reviewer: Member E. SRS: `INV-01`–`04`, `
   - `ListBatches` (`dispensary`, `report_reader`): lists batches with real-time `eligibility` evaluated against the `Asia/Colombo` date and computes summary totals (`eligibleGrams`, `blockedGrams`, `expiredGrams`, `unknownExpiryGrams`).
 - HTTP Transport (`internal/transport/http/inventory.go`): wires `/api/v1/inventory/items` and `/api/v1/inventory/batches` under `RequireSession` (enforcing session cookie, `Origin`, and `X-CSRF-Token`).
 
+## Implemented in `TASK-INV-02`
+
+- Migration [`000016_preparations.up.sql`](../../db/migrations/000016_preparations.up.sql): defines `recipes` (with `version`, `base_yield_grams NUMERIC(12,3)`), `recipe_ingredients` (flat references to `botanical_items`, preventing nested/recursive recipes), `preparations`, `preparation_snapshot_items`, and `batch_consumptions`.
+- Domain scaling & recipe service (`preparations.go`):
+  - `ScaleIngredientGrams`: deterministic `0.001 g` Round Half Up scaling (`floor((2 * baseMg * targetMg + baseYieldMg) / (2 * baseYieldMg))`) using arbitrary-precision `big.Int` math (`PRE-02`, `DEC03`), rejecting non-positive inputs or results below `0.001 g`.
+  - `CreateRecipe` & `UpdateRecipe` (`dispensary`): lock referenced `botanical_items` in ascending UUID order `FOR SHARE`, reject missing (`ErrNotFound`) or deactivated (`ErrConflict`) items, enforce duplicate-ingredient rejection (`ErrValidation`) and optimistic `version` checks (`ErrConflict`), and record `recipe.created` / `recipe.updated` in `audit_events` within the same transaction.
+  - `ListRecipes` & `GetRecipe` (`dispensary`, `clinician`, `report_reader`): read flat recipes and resolved ingredient lists without leaking clinical notes or allowing unauthorized roles (`receptionist`, `administrator` without `dispensary`).
+- HTTP Transport (`internal/transport/http/preparations.go`): exposes `POST /api/v1/recipes`, `GET /api/v1/recipes`, `GET /api/v1/recipes/:id`, and `PATCH /api/v1/recipes/:id` under `RequireSession` with CSRF protection.
+- Frontend (`frontend/src/features/inventory/scaling.ts`, `inventory-live-workflows.tsx`): adds exact `BigInt` milligram scaling preview (`Round Half Up` at `0.001 g`) before saving immutable preparation snapshots and ingredient row removal.
+- Automated verification: unit tests (`TestScaleIngredientGrams`, `frontend/tests/inventory-scaling.test.mjs`), HTTP route tests (`TestRecipeHTTPRoutes`), and real PostgreSQL integration tests (`TestTaskINV02FlatRecipesAndScaling` covering `D-PRE-01`, `D-PRE-02`, `AT09`, role boundaries, deactivated item rejection, optimistic version conflict, snapshot preservation, and audit records).
+
 ## Additional implemented slices awaiting D/E review
 
-- Migration `000016_preparations.up.sql`, `preparations.go` and `consumption.go` add flat recipes with deterministic `0.001 g` scaling, immutable saved preparation snapshots with no stock deduction, manually selected batch allocations, ascending batch locks, atomic consumption and operation-ID retry safety.
-- Protected preparation handlers expose recipe, snapshot, consumption and bidirectional traceability actions. PostgreSQL integration tests cover snapshot immutability, rollback, idempotency, access and a concurrent stock race.
-- Formal `AT08`–`AT11` acceptance evidence and DEC03 clinic review remain open. No production data is used in the integration tests.
+- `SavePreparation`, `ConfirmConsumption`, `TraceBatch`, and `TracePatient` in `preparations.go` and `consumption.go` cover `TASK-INV-03`–`TASK-INV-06` and remain under D/E slice review.
+- Formal `AT08`–`AT11` acceptance evidence, Member E peer review, and DEC03 clinic review remain open. No production data is used in any tests.
