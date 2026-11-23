@@ -1,5 +1,7 @@
 # Member A task list
 
+[22 November acceptance review](evidence/member-a-acceptance-review-2026-11-22.md) records the merged checks, the automated QA-03 journey and the outstanding reviewer, operator and clinic actions.
+
 **Role:** shared Go/API foundation, authentication, role and record access, audit mechanism, deployment and backups. **Review partner:** Member F. Weeks below are relative to implementation kickoff, not calendar dates. A checked box means Member A's implementation and local checks are complete. Final task acceptance still requires the stated integration evidence and reviewer; record those separately rather than implying they passed.
 
 Sources: *AyurFlow Team task plan* (1 October 2026), especially pp. 2–5 and 11–14; *AyurFlow SRS* v1.0, especially pp. 4–6, 13, 17–21. See [the implementation plan](implementation-plan.md) for dependencies and release gates.

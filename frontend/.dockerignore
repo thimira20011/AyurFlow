@@ -1,5 +1,7 @@
 node_modules
 .next
+# CI runs these tests from the full repository. The runtime image only needs the app.
+tests/
 .env*
 !.env.example
 *.tsbuildinfo
