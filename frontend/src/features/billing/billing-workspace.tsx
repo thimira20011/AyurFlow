@@ -1,6 +1,9 @@
 "use client";
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { StaffDialog } from "@/components/staff-dialog";
+import { Field } from "@/components/staff-field";
+import { StateMessage, StatusBadge } from "@/components/staff-feedback";
 import styles from "./billing-workspace.module.css";
 import { parseLKRMinor, toLKRInput } from "./money";
 import { formatLKR, formatClinicDateTime } from "@/lib/format";
@@ -98,6 +101,7 @@ function billingErrorText(error: unknown, action: string): string {
   if (error instanceof APIRequestError) {
     if (error.status === 401) return "Your session has ended. Sign in again before continuing.";
     if (error.status === 403) return "This account does not have billing access.";
+    if (error.status === 404 && (action === "create" || action === "list")) return "Patient not found. Check the registry code or UUID.";
     if (error.status === 404) return "The billing resource was not found.";
     if (error.status === 409 && action === "receipt") return "Payment rejected: overpayment or changed details. Refresh and try again.";
     if (error.status === 409) return "This action is no longer valid for the current invoice state. Reload and try again.";
@@ -163,6 +167,7 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
   const pendingReceipts = useRef<Record<string, PostReceiptRequest>>({});
   const [uncertainInvoices, setUncertainInvoices] = useState<string[]>([]);
   const [receiptError, setReceiptError] = useState<string | null>(null);
+  const [receiptErrorField, setReceiptErrorField] = useState<"amount" | "reference" | null>(null);
   const [submittingReceipt, setSubmittingReceipt] = useState(false);
 
   // Notifications
@@ -188,7 +193,14 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
         setCanWrite(billing);
         setCanReadInvoices(invoiceAccess);
         setCanReadReport(billing || session.roles.includes("report_reader"));
-        if (!invoiceAccess) setActiveTab("report");
+        if (!invoiceAccess) {
+          setActiveTab("report");
+          setLoadingReport(true);
+          void getOutstandingReport().then(
+            (result) => { if (liveRef.current) setReport(result); },
+            (error: unknown) => { if (liveRef.current) setActionError(billingErrorText(error, "report")); }
+          ).finally(() => { if (liveRef.current) setLoadingReport(false); });
+        }
         setAccess("ready");
       },
       (error: unknown) => {
@@ -311,7 +323,7 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
     e.preventDefault();
     setActionError(null);
     if (!canWrite || submittingInvoice) return;
-    if (!newPatientId.trim()) { setActionError("Patient ID is required."); return; }
+    if (!newPatientId.trim()) { setActionError("Enter a patient code or UUID."); return; }
 
     if (access !== "ready") {
       // Preview mode: local state mutation
@@ -335,7 +347,7 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
     try {
       const inv = await createInvoice({ patientId: newPatientId.trim() });
       if (!liveRef.current) return;
-      setPatientIdQuery(inv.patientId);
+      setPatientIdQuery(newPatientId.trim());
       setInvoices(prev => [inv, ...prev.filter(i => i.patientId === inv.patientId)]);
       setFilterStatus("all");
       setSearchQuery("");
@@ -511,8 +523,15 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
     setReceiptMethod(pending?.paymentMethod ?? "cash");
     setReceiptLabel(pending?.label ?? "");
     setReceiptError(null);
+    setReceiptErrorField(null);
     setActionSuccess(null);
     setIsReceiptModalOpen(true);
+  }
+
+  function clearReceiptFieldError(field: "amount" | "reference") {
+    if (receiptErrorField !== field) return;
+    setReceiptErrorField(null);
+    setReceiptError(null);
   }
 
   function rememberReceipt(rec: Receipt) {
@@ -526,23 +545,30 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
     e.preventDefault();
     if (!receiptInvoice || !canWrite || submittingReceipt) return;
     setReceiptError(null);
+    setReceiptErrorField(null);
+
+    function invalid(field: "amount" | "reference", message: string) {
+      setReceiptError(message);
+      setReceiptErrorField(field);
+      e.currentTarget.querySelector<HTMLInputElement>(`#billing-${field}`)?.focus();
+    }
 
     const invoiceId = receiptInvoice.id;
     let intent = pendingReceipts.current[invoiceId];
     if (!intent) {
       const amountMinor = parseLKRMinor(receiptAmountRupees);
       if (amountMinor === null || amountMinor <= 0) {
-        setReceiptError("Enter a positive LKR amount with at most two decimal places.");
+        invalid("amount", "Enter a positive LKR amount with at most two decimal places.");
         return;
       }
       const label = receiptLabel.trim();
       if (receiptMethod === "direct_deposit" && !label) {
-        setReceiptError("Enter a reference for the direct deposit.");
+        invalid("reference", "Enter a reference for the direct deposit.");
         return;
       }
       const bal = balanceForListRow(receiptInvoice);
       if (!bal || amountMinor > bal.outstanding) {
-        setReceiptError("The payment exceeds the available balance. Review the invoice and try again.");
+        invalid("amount", "The payment exceeds the available balance. Review the invoice and try again.");
         return;
       }
       if (!globalThis.crypto?.randomUUID) {
@@ -702,7 +728,7 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
                 <input
                   type="text"
                   className={styles.searchInput}
-                  aria-label="Patient ID to load invoices" placeholder="Patient ID to load invoices…"
+                  aria-label="Patient code or UUID to load invoices" placeholder="e.g. AYUR-PT-00001"
                   value={patientIdQuery}
                   onChange={(e) => setPatientIdQuery(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter" && !loadingInvoices) void fetchInvoicesForPatient(patientIdQuery); }}
@@ -745,18 +771,20 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
 
       {/* Tabs */}
       <div className={styles.tabsRow}>
-        {canReadInvoices && <><button className={`${styles.tabButton} ${activeTab === "invoices" ? styles.tabButtonActive : ""}`} onClick={() => setActiveTab("invoices")}>
+        {canReadInvoices && <><button type="button" aria-pressed={activeTab === "invoices"} className={`${styles.tabButton} ${activeTab === "invoices" ? styles.tabButtonActive : ""}`} onClick={() => setActiveTab("invoices")}>
           📄 Invoices &amp; Drafts ({invoices.length})
         </button>
-        <button className={`${styles.tabButton} ${activeTab === "receipts" ? styles.tabButtonActive : ""}`} onClick={() => setActiveTab("receipts")}>
+        <button type="button" aria-pressed={activeTab === "receipts"} className={`${styles.tabButton} ${activeTab === "receipts" ? styles.tabButtonActive : ""}`} onClick={() => setActiveTab("receipts")}>
           💳 Receipts &amp; Payments ({receipts.length})
         </button>
         </>}
         {canReadReport && <button
+          type="button"
+          aria-pressed={activeTab === "report"}
           className={`${styles.tabButton} ${activeTab === "report" ? styles.tabButtonActive : ""}`}
           onClick={() => {
             setActiveTab("report");
-            if (access === "ready" && !report) {
+            if (access === "ready" && !loadingReport) {
               void fetchOutstandingReport();
             }
           }}
@@ -772,6 +800,7 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
             <div className={styles.searchGroup}>
               <input
                 type="text"
+                aria-label="Filter by invoice or patient ID"
                 className={styles.searchInput}
                 placeholder="Filter by Invoice ID or Patient ID…"
                 value={searchQuery}
@@ -780,14 +809,14 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
             </div>
             <div className={styles.filterPills}>
               {(["all", "draft", "issued", "void"] as const).map((st) => (
-                <button key={st} className={`${styles.pill} ${filterStatus === st ? styles.pillActive : ""}`} onClick={() => setFilterStatus(st)}>
+                <button type="button" key={st} aria-pressed={filterStatus === st} className={`${styles.pill} ${filterStatus === st ? styles.pillActive : ""}`} onClick={() => setFilterStatus(st)}>
                   {st.charAt(0).toUpperCase() + st.slice(1)}
                 </button>
               ))}
             </div>
           </div>
 
-          <div className={styles.tableWrap}>
+          <div className={`${styles.tableWrap} keyboard-scroll`} role="region" aria-label="Invoice results" tabIndex={0}>
             <table className={styles.table}>
               <thead>
                 <tr>
@@ -815,9 +844,9 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
                         <td><span className={styles.moneyDisplay} style={{ fontWeight: 700 }}>{inv.id}</span></td>
                         <td><span style={{ color: "var(--bill-accent)", fontWeight: 600 }}>{inv.patientId}</span></td>
                         <td>
-                          {inv.status === "draft" && <span className={styles.badgeDraft}>Draft</span>}
-                          {inv.status === "issued" && <span className={styles.badgeIssued}>Issued</span>}
-                          {inv.status === "void" && <span className={styles.badgeVoid}>Void</span>}
+                          {inv.status === "draft" && <StatusBadge>Draft</StatusBadge>}
+                          {inv.status === "issued" && <StatusBadge tone="positive">Issued</StatusBadge>}
+                          {inv.status === "void" && <StatusBadge tone="negative">Void</StatusBadge>}
                         </td>
                         <td style={{ fontSize: "0.85rem", color: "var(--bill-muted)" }}>{formatClinicDateTime(inv.createdAt)}</td>
                         <td>
@@ -851,7 +880,7 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
 
       {/* TAB 2: Receipts */}
       {activeTab === "receipts" && canReadInvoices && (
-        <div className={styles.tableWrap}>
+        <div className={`${styles.tableWrap} keyboard-scroll`} role="region" aria-label="Receipt results" tabIndex={0}>
           <table className={styles.table}>
             <thead>
               <tr>
@@ -897,7 +926,7 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
             )}
           </div>
 
-          {loadingReport && <div style={{ padding: "2rem", textAlign: "center", color: "var(--bill-muted)" }}>Loading report…</div>}
+          {loadingReport && <StateMessage>Loading report…</StateMessage>}
 
           {/* Live report from API */}
           {access === "ready" && report && !loadingReport && (
@@ -905,7 +934,7 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
               <div style={{ fontSize: "0.82rem", color: "var(--bill-muted)", marginBottom: "0.75rem" }}>
                 Generated: {formatClinicDateTime(report.generatedAt)}
               </div>
-              <div className={styles.tableWrap}>
+              <div className={`${styles.tableWrap} keyboard-scroll`} role="region" aria-label="Outstanding invoice results" tabIndex={0}>
                 <table className={styles.table}>
                   <thead>
                     <tr>
@@ -946,7 +975,7 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
 
           {/* Preview mode: derive from local state */}
           {access !== "ready" && (
-            <div className={styles.tableWrap}>
+            <div className={`${styles.tableWrap} keyboard-scroll`} role="region" aria-label="Outstanding invoice results" tabIndex={0}>
               <table className={styles.table}>
                 <thead>
                   <tr>
@@ -988,27 +1017,24 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
 
       {/* MODAL 1: Create Draft Invoice */}
       {isNewInvoiceOpen && (
-        <div className={styles.modalOverlay} onClick={() => setIsNewInvoiceOpen(false)}>
-          <div role="dialog" aria-modal="true" aria-labelledby="billing-draft-heading" className={styles.modalCard} onClick={(e) => e.stopPropagation()}>
+        <StaffDialog labelledBy="billing-draft-heading" onDismiss={() => setIsNewInvoiceOpen(false)}>
             <div className={styles.modalHeader}>
               <h2 id="billing-draft-heading" className={styles.modalTitle}>Open Draft Invoice</h2>
-              <button aria-label="Close draft form" className={styles.closeBtn} onClick={() => setIsNewInvoiceOpen(false)}>×</button>
+              <button type="button" aria-label="Close draft form" className={styles.closeBtn} onClick={() => setIsNewInvoiceOpen(false)}>×</button>
             </div>
             {actionError && <p role="alert">{actionError}</p>}
             <form onSubmit={(e) => void handleCreateInvoice(e)} className={styles.formGrid}>
-              <div className={styles.formGroup}>
-                <label className={styles.formLabel} htmlFor="billing-new-patient">Patient ID</label>
-                <input
+              <Field id="billing-new-patient" label="Patient code or UUID" hint="The invoice will be opened in draft status. Add treatment line items before issuing.">
+                {control => <input
+                  {...control}
                   type="text"
                   required
-                  id="billing-new-patient"
-                  placeholder="e.g. 30ad6d29-79b0-4028-93c4-614df48ec3ea"
+                  placeholder="e.g. AYUR-PT-00001"
                   className={styles.formInput}
                   value={newPatientId}
                   onChange={(e) => setNewPatientId(e.target.value)}
-                />
-                <span className={styles.formHelp}>The invoice will be opened in draft status. Add treatment line items before issuing.</span>
-              </div>
+                />}
+              </Field>
               <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem", marginTop: "1rem" }}>
                 <button type="button" className={styles.secondaryBtn} onClick={() => setIsNewInvoiceOpen(false)}>Cancel</button>
                 <button type="submit" className={styles.primaryBtn} disabled={submittingInvoice}>
@@ -1016,14 +1042,12 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
+        </StaffDialog>
       )}
 
       {/* MODAL 2: Invoice Detail — Line Items + Receipt History */}
       {selectedInvoice && (
-        <div className={styles.modalOverlay} onClick={closeInvoiceDetail}>
-          <div role="dialog" aria-modal="true" aria-labelledby="billing-invoice-heading" className={styles.modalCard} style={{ maxWidth: "820px" }} onClick={(e) => e.stopPropagation()}>
+        <StaffDialog labelledBy="billing-invoice-heading" className={styles.modalCard} style={{ maxWidth: "820px" }} onDismiss={closeInvoiceDetail}>
             <div className={styles.modalHeader}>
               <div>
                 <h2 id="billing-invoice-heading" className={styles.modalTitle}>Invoice {selectedInvoice.id}</h2>
@@ -1061,7 +1085,7 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
             {/* Line Items */}
             <div style={{ marginBottom: "1.5rem" }}>
               <h3 style={{ fontSize: "1rem", fontWeight: 700, marginBottom: "0.75rem" }}>Treatment Line Items</h3>
-              <div className={styles.tableWrap}>
+              <div className={`${styles.tableWrap} keyboard-scroll`} role="region" aria-label="Treatment line items" tabIndex={0}>
                 <table className={styles.table}>
                   <thead>
                     <tr>
@@ -1131,7 +1155,7 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
             {!loadingDetail && selectedInvoice.status === "issued" && currentDetailBalance && (
               <div style={{ marginBottom: "1.5rem" }}>
                 <h3 style={{ fontSize: "1rem", fontWeight: 700, marginBottom: "0.75rem" }}>Payment Receipt History</h3>
-                <div className={styles.tableWrap}>
+                <div className={`${styles.tableWrap} keyboard-scroll`} role="region" aria-label="Payment receipt history" tabIndex={0}>
                   <table className={styles.table}>
                     <thead>
                       <tr>
@@ -1185,14 +1209,12 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
                 )}
               </div>
             </div>
-          </div>
-        </div>
+        </StaffDialog>
       )}
 
       {/* MODAL 3: Post Payment Receipt */}
       {isReceiptModalOpen && receiptInvoice && (
-        <div className={styles.modalOverlay} onClick={() => { if (!submittingReceipt) setIsReceiptModalOpen(false); }}>
-          <div role="dialog" aria-modal="true" aria-labelledby="billing-receipt-heading" className={styles.modalCard} onClick={(e) => e.stopPropagation()}>
+        <StaffDialog labelledBy="billing-receipt-heading" className={styles.modalCard} onDismiss={() => { if (!submittingReceipt) setIsReceiptModalOpen(false); }}>
             <div className={styles.modalHeader}>
               <h2 id="billing-receipt-heading" className={styles.modalTitle}>Post Payment Receipt</h2>
               <button aria-label="Close receipt form" className={styles.closeBtn} disabled={submittingReceipt} onClick={() => setIsReceiptModalOpen(false)}>×</button>
@@ -1203,7 +1225,7 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
                 <div style={{ marginTop: "0.25rem" }}>Outstanding Balance: <strong className={styles.moneyDisplay}>{currentBalForModal ? formatLKR(currentBalForModal.outstanding) : "Unavailable"}</strong></div>
               </div>
 
-              {receiptError && <p role="alert">{receiptError}</p>}
+              {receiptError && <p id="billing-receipt-error" role="alert">{receiptError}</p>}
               {retryReceipt && <p>Retrying will check the result of the same payment.</p>}
 
               <div className={styles.formGroup}>
@@ -1216,12 +1238,16 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
 
               <div className={styles.formGroup}>
                 <label className={styles.formLabel} htmlFor="billing-amount">Amount (LKR)</label>
-                <input id="billing-amount" type="text" inputMode="decimal" required readOnly={submittingReceipt || retryReceipt} className={styles.formInput} value={receiptAmountRupees} onChange={(e) => setReceiptAmountRupees(e.target.value)} />
+                <input id="billing-amount" type="text" inputMode="decimal" required readOnly={submittingReceipt || retryReceipt} className={styles.formInput} value={receiptAmountRupees}
+                  aria-invalid={receiptErrorField === "amount" || undefined} aria-describedby={receiptErrorField === "amount" ? "billing-receipt-error" : undefined}
+                  onChange={e => { setReceiptAmountRupees(e.target.value); clearReceiptFieldError("amount"); }} />
               </div>
 
               <div className={styles.formGroup}>
                 <label className={styles.formLabel} htmlFor="billing-reference">Payment reference</label>
-                <input id="billing-reference" required={receiptMethod === "direct_deposit"} readOnly={submittingReceipt || retryReceipt} type="text" placeholder="Deposit slip or counter reference" className={styles.formInput} value={receiptLabel} onChange={(e) => setReceiptLabel(e.target.value)} />
+                <input id="billing-reference" required={receiptMethod === "direct_deposit"} readOnly={submittingReceipt || retryReceipt} type="text" placeholder="Deposit slip or counter reference" className={styles.formInput} value={receiptLabel}
+                  aria-invalid={receiptErrorField === "reference" || undefined} aria-describedby={receiptErrorField === "reference" ? "billing-receipt-error" : undefined}
+                  onChange={e => { setReceiptLabel(e.target.value); clearReceiptFieldError("reference"); }} />
               </div>
 
               <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.75rem", marginTop: "1rem" }}>
@@ -1231,8 +1257,7 @@ export function BillingWorkspace({ preview = false }: { preview?: boolean }) {
                 </button>
               </div>
             </form>
-          </div>
-        </div>
+        </StaffDialog>
       )}
     </div>
   );

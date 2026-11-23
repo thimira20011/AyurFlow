@@ -2,6 +2,12 @@
 
 Member A maintains shared CI; each module owner writes its behavior tests and its reviewer checks the evidence. Passing CI is not AT01–AT17 acceptance or clinic approval.
 
+## Go security patch — 12 November 2026
+
+TASK-SET-05 shared toolchain maintenance and TASK-QA-04 security support. Owner A, reviewer F or named team replacement. SRS NFR-04, supporting AT17. The merged `dev` security scan reported reachable standard-library advisory `GO-2026-6859` in `net/http` on Go 1.27.3, with Go 1.27.4 identified as the fixed version. The module minimum, backend Docker build, all four CI Go setup steps and current setup instructions now use 1.27.4. The existing security job verifies reachable vulnerabilities, while backend, PostgreSQL, browser and clean-start jobs verify the patched build. Review the branch's actual CI results before merging. Existing historical execution records retain their original toolchain versions. Hosted services receive the patch when rebuilt and redeployed after merge.
+
+Source evidence is [the failed merged security workflow](https://github.com/thimira20011/AyurFlow/actions/runs/42981957012). This patch uses the fixed version reported by that scan.
+
 ## Required checks
 
 | Job | Checks |

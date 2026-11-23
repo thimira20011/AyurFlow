@@ -52,15 +52,25 @@ node scripts/backups/restore.mjs backups/downloaded-backup backups/restore-evide
 
 The tool checks the exact target name, rejects the original source and any existing user objects, verifies ciphertext size/checksum and finishes authenticated decryption before import. It uses an operator-local temporary directory for the decrypted archive and deletes it afterward. PostgreSQL restores in one transaction with no source role ownership/ACLs. A failure rolls the import back. The tool never passes database passwords on the command line. Use only archives produced by the trusted backup workflow, because restoring SQL executes its definitions.
 
-The evidence file records UTC verification time, backup age, measured recovery duration and counts for `patients`, `stock_batches`, `invoices` and `audit_events`, matching the current inventory contract. Missing categories are reported as `null`; they do not pass four-category acceptance. Inspect specific synthetic records and their relationships after the restore, then delete the disposable recovery database through your normal database administration process. A controlled restart and an isolated recovery prove different behaviors.
+The evidence file records UTC verification time, backup age, measured recovery duration and counts for `patients`, `stock_batches`, `invoices` and `audit_events`, matching the current inventory contract. Missing categories are reported as `null`; `allCategoriesPresent` records table presence, while `allCategoriesPopulated` additionally requires at least one record in each. Neither flag alone proves specific records or relationships survived.
+
+Before backup, save known synthetic `patientId`, `batchId`, `invoiceId`, `batchGrams` (positive, three decimal places) and `invoiceTotalMinor` (positive safe integer) in a private JSON expectation file. The batch must be untouched and the invoice issued. After restore:
+
+```powershell
+node scripts/backups/verify-records.mjs backups/expected-records.json backups/restore-evidence.json backups/record-evidence.json
+```
+
+Use the same `RESTORE_DATABASE_URL`/confirmation environment. The read-only verifier requires the restore target fingerprint to match, all four categories to be populated, the exact batch quantity/item, issued invoice patient/total, and patient/batch/invoice audit actions linked to their original staff actors. Invalid IDs/quantities, mismatches and a missing audit link exit nonzero. Evidence contains booleans and a target fingerprint, with no record contents or credentials. Existing evidence files are preserved rather than overwritten. Inspect the result, then remove only the disposable database you created. A controlled restart and an isolated recovery prove different behaviors.
 
 ## Verification and acceptance
 
 Run `node --test scripts/backups/backup.test.mjs`. Set `BACKUP_TEST_DATABASE_URL` to a disposable PostgreSQL maintenance database with database-creation permission for the real integration case. The test creates and removes only random `ayurflow_restore_` databases. CI requires the integration configuration and exercises all four synthetic record categories, Unicode, wrong key, tampered archive, non-empty target, source-target collision and failed export cleanup.
 
-Full AT16 remains open until the actual four module record categories, paper outage/audited re-entry procedure, key custody copy, failure notification receipt and named reviewer are verified. The current application lacks the inventory batch table. Real clinic data still requires DEC05 authorization and reviewed retention/operations decisions.
+Full AT16 remains open until the actual four module record categories, paper outage/audited re-entry procedure, key custody copy, failure notification receipt and named reviewer are verified. The merged application now includes the batch table; ensure migrations and runtime/backup grants are deployed before creating recovery examples. Real clinic data still requires DEC05 authorization and reviewed retention/operations decisions.
 
 ## Execution record — 5 November 2026
+
+**Current follow-up:** the [15 November four-category execution record](../../docs/evidence/member-a-ops-02-recovery-2026-11-15.md) supersedes the missing batch/invoice limitation in this historical record. It records the deployed migration repair, actual off-host recovery, six specific record/audit checks and remaining acceptance gates.
 
 Codex automation tested this slice on Windows with Node 22.23.2, PostgreSQL client 18.6 and age 1.3.2, against the synthetic Neon branch `production` in `small-heart-76292130`. Source baseline was merged PR #62 (`cca6f7e`) plus this branch's backup changes. Owner A, reviewer F pending. The current inventory contract names its future table `stock_batches`.
 

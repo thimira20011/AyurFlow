@@ -113,9 +113,9 @@
 .tabsRow {
   border-bottom: 1px solid var(--inv-border);
   display: flex;
+  flex-wrap: wrap;
   gap: 0.4rem;
   margin-bottom: 1.5rem;
-  overflow-x: auto;
 }
 
 .tabButton {
@@ -128,7 +128,7 @@
   font-weight: 600;
   min-height: 44px;
   padding: 0.65rem 1.1rem;
-  white-space: nowrap;
+  text-align: start;
 }
 
 .tabButton:hover {
@@ -152,7 +152,7 @@
   align-items: start;
   display: grid;
   gap: 1.25rem;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .panel {
@@ -161,6 +161,8 @@
   border-radius: 10px;
   padding: 1.35rem;
 }
+
+.fullWidth { grid-column: 1 / -1; min-width: 0; }
 
 .panelPrepared {
   background: #fffdf7;
@@ -275,6 +277,8 @@
 }
 
 .tableWrap {
+  min-width: 0;
+  max-width: 100%;
   overflow-x: auto;
 }
 
@@ -374,6 +378,6 @@
 @media (max-width: 1024px) {
   .splitGrid,
   .equalGrid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 }

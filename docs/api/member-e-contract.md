@@ -31,7 +31,7 @@
 ### 2.1 Invoices & Line Items (TASK-BILL-02)
 
 #### `POST /api/v1/invoices`
-Opens a new draft invoice for a registered patient.
+Opens a new draft invoice for a registered patient. The patientId field accepts a UUID or an exact registry code. Missing patients return HTTP 404.
 - **Access:** `billing`, `receptionist`
 - **Request Body:**
   ```json
@@ -51,7 +51,7 @@ Opens a new draft invoice for a registered patient.
   ```
 
 #### `GET /api/v1/invoices?patientId={uuid}&limit=25&after={uuid}`
-Lists invoices for a specific patient, ordered by `createdAt DESC, id DESC`.
+Lists invoices for a specific patient, ordered by `createdAt DESC, id DESC`. The `patientId` query accepts a UUID or an exact registry code.
 - **Access:** `billing`, `receptionist`
 - **Response (`200 OK`):**
   ```json
@@ -142,7 +142,7 @@ Voids a draft invoice (only permitted if no receipts have been posted).
 ### 2.2 Receipts & Balances (TASK-BILL-03 & TASK-BILL-04)
 
 #### `POST /api/v1/invoices/{id}/receipts`
-Posts a payment receipt against an issued invoice with retry safety.
+Posts a payment receipt against an issued invoice with retry safety. New direct deposits require a nonblank payment reference.
 - **Access:** `billing`
 - **Request Body:**
   ```json
@@ -185,7 +185,7 @@ Returns the derived balance for an issued invoice (`total - sum(receipts)`).
 ### 2.3 Reports (TASK-BILL-06)
 
 #### `GET /api/v1/reports/billing/outstanding`
-Returns all issued invoices that still have an unpaid balance, ordered by oldest `issuedAt` first.
+Returns issued invoices with a positive unpaid balance, ordered by oldest `issuedAt` first. A report-reader account can load the report without opening individual invoice or receipt details.
 - **Access:** `billing`, `report_reader`
 - **Response (`200 OK`):**
   ```json

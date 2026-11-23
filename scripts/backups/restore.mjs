@@ -40,7 +40,8 @@ try {
   }
   const evidence = { verifiedAt: new Date().toISOString(), backupAgeSeconds: Math.max(0, (Date.now() - Date.parse(manifest.startedAt)) / 1000),
     recoveryDurationMs: Date.now() - started, target: fingerprint(target), categories,
-    allCategoriesPresent: Object.values(categories).every(value => value !== null) };
+    allCategoriesPresent: Object.values(categories).every(value => value !== null),
+    allCategoriesPopulated: Object.values(categories).every(value => Number.isInteger(value) && value > 0) };
   await writeFile(process.argv[3], JSON.stringify(evidence, null, 2) + "\n", { flag: "wx", mode: 0o600 });
   console.log(`Isolated restore complete (${evidence.recoveryDurationMs} ms). Four-category coverage: ${evidence.allCategoriesPresent}.`);
 } catch (error) {

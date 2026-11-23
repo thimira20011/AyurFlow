@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import type { CSSProperties } from "react";
 import { MainLayout } from "@/components/main-layout";
+import { SkipLink } from "@/components/skip-link";
 import { StaffSessionProvider } from "@/features/administration/session";
 import "./globals.css";
 
@@ -16,9 +17,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="en" style={{ "--font-inter": "Arial", "--font-serif": "Georgia" } as CSSProperties}>
       <body>
-        <a href="#main" className="sr-only focus:not-sr-only focus:absolute focus:z-50 focus:bg-white focus:p-3">
-          Skip to content
-        </a>
+        <SkipLink />
         <StaffSessionProvider>
           <MainLayout>{children}</MainLayout>
         </StaffSessionProvider>

@@ -8,8 +8,17 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { checksum, command, connection, query } from "./common.mjs";
+import { verificationSQL } from './verify-records.mjs';
 
 const root = fileURLToPath(new URL("../../", import.meta.url));
+
+test('record verification rejects SQL payloads and inexact quantities before querying', () => {
+  const valid = { patientId: '11111111-1111-4111-8111-111111111111', batchId: '22222222-2222-4222-8222-222222222222', invoiceId: '33333333-3333-4333-8333-333333333333', batchGrams: '100.125', invoiceTotalMinor: 12345 };
+  assert.match(verificationSQL(valid), /stock_batch.received/);
+  for (const field of ['patientId', 'batchId', 'invoiceId']) assert.throws(() => verificationSQL({ ...valid, [field]: "x'; DROP TABLE patients;--" }));
+  for (const batchGrams of ['0.000', '1e3', '1.0001', "1.000; SELECT 1", 100]) assert.throws(() => verificationSQL({ ...valid, batchGrams }));
+  for (const invoiceTotalMinor of [0, -1, 1.5, Number.MAX_SAFE_INTEGER + 1]) assert.throws(() => verificationSQL({ ...valid, invoiceTotalMinor }));
+});
 
 test("direct, verified database connections are required", () => {
   assert.throws(() => connection("https://example.com"));
@@ -54,7 +63,7 @@ async function runScript(name, args, env) {
   return { code, output };
 }
 
-test("encrypted PostgreSQL backup restores records and rejects unsafe recovery", { timeout: 120_000 }, async t => {
+test("encrypted PostgreSQL backup restores records and rejects unsafe recovery", { timeout: 180_000 }, async t => {
   const database = process.env.BACKUP_TEST_DATABASE_URL;
   if (!database) {
     if (process.env.CI) assert.fail("BACKUP_TEST_DATABASE_URL is required in CI");
@@ -118,8 +127,44 @@ test("encrypted PostgreSQL backup restores records and rejects unsafe recovery",
   }
   const record = JSON.parse(await readFile(evidence, "utf8"));
   assert.equal(record.allCategoriesPresent, true);
+  assert.equal(record.allCategoriesPopulated, true);
   assert.ok(record.recoveryDurationMs > 0);
   assert.ok(record.backupAgeSeconds >= 0);
+  // A separate relational fixture checks the proof query, beyond table counts.
+  const expected = { patientId: '11111111-1111-4111-8111-111111111111', batchId: '22222222-2222-4222-8222-222222222222', invoiceId: '33333333-3333-4333-8333-333333333333', batchGrams: '100.125', invoiceTotalMinor: 12345 };
+  const actor = '44444444-4444-4444-8444-444444444444';
+  await query(target.href, `
+    ALTER TABLE patients RENAME TO original_patients;
+    ALTER TABLE stock_batches RENAME TO original_batches;
+    ALTER TABLE invoices RENAME TO original_invoices;
+    ALTER TABLE audit_events RENAME TO original_audits;
+    CREATE TABLE staff_accounts(id uuid PRIMARY KEY);
+    CREATE TABLE patients(id uuid PRIMARY KEY, created_by uuid REFERENCES staff_accounts);
+    CREATE TABLE botanical_items(id uuid PRIMARY KEY);
+    CREATE TABLE stock_batches(id uuid PRIMARY KEY,item_id uuid REFERENCES botanical_items,received_grams numeric,remaining_grams numeric,received_by uuid REFERENCES staff_accounts);
+    CREATE TABLE invoices(id uuid PRIMARY KEY,patient_id uuid REFERENCES patients,status text,total_minor_units bigint,issued_by uuid REFERENCES staff_accounts);
+    CREATE TABLE audit_events(actor_id uuid REFERENCES staff_accounts,object_id text,action text);
+    INSERT INTO staff_accounts VALUES ('${actor}');
+    INSERT INTO patients VALUES ('${expected.patientId}','${actor}');
+    INSERT INTO botanical_items VALUES ('${actor}');
+    INSERT INTO stock_batches VALUES ('${expected.batchId}','${actor}',100.125,100.125,'${actor}');
+    INSERT INTO invoices VALUES ('${expected.invoiceId}','${expected.patientId}','issued',12345,'${actor}');
+    INSERT INTO audit_events VALUES ('${actor}','${expected.patientId}','patient.created'),('${actor}','${expected.batchId}','stock_batch.received'),('${actor}','${expected.invoiceId}','invoice.issued');`);
+  const expectedFile = path.join(directory, 'expected.json');
+  await writeFile(expectedFile, JSON.stringify(expected));
+  const proof = path.join(directory, 'records.json');
+  assert.equal((await runScript('verify-records.mjs', [expectedFile, evidence, proof], restoreEnv)).code, 0);
+  assert.equal(JSON.parse(await readFile(proof, 'utf8')).passed, true);
+  await query(target.href, "DELETE FROM audit_events WHERE action='invoice.issued'");
+  const rejected = path.join(directory, 'missing-audit.json');
+  assert.notEqual((await runScript('verify-records.mjs', [expectedFile, evidence, rejected], restoreEnv)).code, 0);
+  assert.equal(JSON.parse(await readFile(rejected, 'utf8')).checks.invoiceAudit, false);
+  const wrongTarget = JSON.parse(await readFile(evidence, 'utf8'));
+  wrongTarget.target = 'wrong';
+  const wrongEvidence = path.join(directory, 'wrong-target.json');
+  await writeFile(wrongEvidence, JSON.stringify(wrongTarget));
+  assert.notEqual((await runScript('verify-records.mjs', [expectedFile, wrongEvidence, path.join(directory, 'no-proof.json')], restoreEnv)).code, 0);
+  assert.equal(await query(target.href, 'SELECT count(*) FROM invoices'), '1');
   const failed = path.join(directory, "failed");
   const missing = new URL(source); missing.pathname = `/missing_${suffix}`;
   assert.notEqual((await runScript("backup.mjs", [failed], { BACKUP_DATABASE_URL: missing.href, BACKUP_RECIPIENT: recipient.trim() })).code, 0);

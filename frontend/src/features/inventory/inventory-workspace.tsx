@@ -684,6 +684,7 @@ export default function InventoryWorkspace({ preview = false }: { preview?: bool
         <button
           type="button"
           className={`${styles.tabButton} ${activeTab === "batches" ? styles.tabButtonActive : ""}`}
+          aria-pressed={activeTab === "batches"}
           onClick={() => setActiveTab("batches")}
         >
           01 · Items &amp; Stock Batches (AT08)
@@ -691,6 +692,7 @@ export default function InventoryWorkspace({ preview = false }: { preview?: bool
         <button
           type="button"
           className={`${styles.tabButton} ${activeTab === "recipes" ? styles.tabButtonActive : ""}`}
+          aria-pressed={activeTab === "recipes"}
           onClick={() => setActiveTab("recipes")}
         >
           02 · Flat Recipes &amp; Snapshot (AT09)
@@ -698,6 +700,7 @@ export default function InventoryWorkspace({ preview = false }: { preview?: bool
         <button
           type="button"
           className={`${styles.tabButton} ${activeTab === "consumption" ? styles.tabButtonActive : ""}`}
+          aria-pressed={activeTab === "consumption"}
           onClick={() => setActiveTab("consumption")}
         >
           03 · Prepared vs. Consumed (AT10)
@@ -705,6 +708,7 @@ export default function InventoryWorkspace({ preview = false }: { preview?: bool
         <button
           type="button"
           className={`${styles.tabButton} ${activeTab === "traceability" ? styles.tabButtonActive : ""}`}
+          aria-pressed={activeTab === "traceability"}
           onClick={() => setActiveTab("traceability")}
         >
           04 · Bidirectional Traceability &amp; Reports (AT11)
@@ -943,7 +947,7 @@ export default function InventoryWorkspace({ preview = false }: { preview?: bool
             {loading ? (
               <p className={styles.hint}>Loading botanical items and stock batches…</p>
             ) : (
-              <div className={styles.tableWrap}>
+              <div className={`${styles.tableWrap} keyboard-scroll`} role="region" aria-label="Stock batch results" tabIndex={0}>
                 <table className={styles.table}>
                   <thead>
                     <tr>

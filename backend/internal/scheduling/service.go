@@ -374,6 +374,10 @@ func (s *Service) ListSessions(ctx context.Context, actor string, start, end tim
 			if err != nil {
 				return err
 			}
+			// Reception needs booking details without clinical delivery observations.
+			if role == "receptionist" {
+				item.Observations = nil
+			}
 			result = append(result, item)
 		}
 		return rows.Err()
