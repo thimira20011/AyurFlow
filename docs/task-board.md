@@ -82,7 +82,7 @@ Status values: **Pending** = not started; **In progress** = work underway but co
 | TASK-SCH-01 | Rooms, availability, sessions and allocation schema | C | B | Pending | — |
 | TASK-SCH-02 | Availability changes with conflict protection | C | B | Pending | — |
 | TASK-SCH-03 | Booking and atomic rescheduling | C | B | Pending | — |
-| TASK-SCH-04 | Start, observations, completion and cancellation | C with B | B | Pending | — |
+| TASK-SCH-04 | Start, observations, completion and cancellation | C with B | B | In progress | [Controlled start/hold/cancel and rollback cases](evidence/member-c-session-clearance-2026-11-24.md) on `codex/member-c-session-clearance-races`, using real scheduling/clinical services and the production cancellation adapter. Execution attached in PR; B review and full AT07 remain open. |
 | TASK-SCH-05 | Booking/availability/therapist screens | C | B | Pending | — |
 | TASK-SCH-06 | AT06–07 overlap and clearance verification | C | B | In progress | [Independent resource booking cases](evidence/member-c-booking-resources-2026-11-12.md) on `codex/member-c-booking-race-tests` cover room-only/therapist-only races, separate-resource concurrency, adjacent boundaries and booking/audit consistency. CI results, remaining integrated AT06–07 cases and B review required |
 
