@@ -145,19 +145,21 @@ export default function InventoryLiveWorkflows({ tab, items, batches, refreshBat
           <div className={styles.fieldGroup}><label className={styles.label} htmlFor="prep-session">Session ID</label><input id="prep-session" className={styles.input} value={sessionID} onChange={event => setSessionID(event.target.value)} required /></div>
           <div className={styles.fieldGroup}><label className={styles.label} htmlFor="prep-recipe">Recipe</label><select id="prep-recipe" className={styles.select} value={recipeID} onChange={event => setRecipeID(event.target.value)} required><option value="">Choose recipe</option>{recipes.map(recipe => <option key={recipe.id} value={recipe.id}>{recipe.code} · {recipe.displayName}</option>)}</select></div>
           <div className={styles.fieldGroup}><label className={styles.label} htmlFor="prep-yield">Target yield · grams</label><input id="prep-yield" className={styles.input} inputMode="decimal" value={yieldGrams} onChange={event => setYieldGrams(event.target.value)} required /></div>
-          {selectedRecipe && scaledPreview.length > 0 && <div className={styles.tableWrap} aria-label="Scaled ingredient preview">
+          {selectedRecipe && scaledPreview.length > 0 && <>
             <p className={styles.hint}>Scaled preview ({selectedRecipe.baseYieldGrams} g base → {yieldGrams.trim()} g target · Round Half Up at 0.001 g):</p>
-            <table className={styles.table}>
-              <thead><tr><th>Ingredient</th><th>Base</th><th>Scaled required</th></tr></thead>
-              <tbody>
-                {scaledPreview.map(row => <tr key={row.itemId}>
-                  <td>{row.itemCode} · {row.itemDisplayName}</td>
-                  <td>{row.quantityGrams} g</td>
-                  <td>{row.scaledGrams ? `${row.scaledGrams} g` : "Invalid yield"}</td>
-                </tr>)}
-              </tbody>
-            </table>
-          </div>}
+            <TableRegion label="Scaled ingredient preview">
+              <table className={styles.table}>
+                <thead><tr><th scope="col">Ingredient</th><th scope="col">Base</th><th scope="col">Scaled required</th></tr></thead>
+                <tbody>
+                  {scaledPreview.map(row => <tr key={row.itemId}>
+                    <td>{row.itemCode} · {row.itemDisplayName}</td>
+                    <td>{row.quantityGrams} g</td>
+                    <td>{row.scaledGrams ? `${row.scaledGrams} g` : "Invalid yield"}</td>
+                  </tr>)}
+                </tbody>
+              </table>
+            </TableRegion>
+          </>}
           <button className={styles.primaryBtn} disabled={busy}>Save immutable snapshot</button>
         </form>
       </section>
