@@ -1,0 +1,39 @@
+# Member A acceptance review — 22 November 2026
+
+Reviewed `dev` at `288abb403ec5af6a2efdfabb01ca8f172d6223ef` after PRs #91–93 merged. All eight jobs across both workflows passed. [Project checks](https://github.com/thimira20011/AyurFlow/actions/runs/44885864820) · [Clean startup and persistence](https://github.com/thimira20011/AyurFlow/actions/runs/44885864847)
+
+| Task | Verified or recorded | Remaining for acceptance |
+| --- | --- | --- |
+| SET-01, SET-04–06 | Task board, shared contract draft, CI setup and module contract drafts exist. Recorded THIMIRA as Member A and lead developer based on the user's statements. | Confirm the remaining named owners and reviewers, record team startup demonstrations, and get module-owner review of the shared API, security and migration contracts. |
+| AUTH-01–05 | Password seed, sessions, role and record checks, account administration, and transactional audit have merged with automated coverage. | F review and final DEC07 policy remain open. Full AT01 and AT13 evidence includes AUTH-06 and QA-04. |
+| AUTH-06 | Isolated browser tests cover absolute expiry despite activity. Render checks and read-only database inspection cover idle expiry, revocation, throttling and the expected staff audit metadata. | One-hour absolute expiry on Render, hosting and proxy logs, deployed revisions, current deployed browser and module checks, final DEC07 and reviewer acceptance. [Evidence](member-a-auth-06-deployed-2026-11-13.md) |
+| QA-01 and QA-03 | PR #92 merged the linked synthetic fixture. The three fixture assertions pass locally. The real API journey below checks the cross-module handoff. | F coordinates the staff walkthrough and the wider requirements checklist. Member A reviews the result. |
+| QA-02 and QA-04 | Merged report access and audit rollback regressions. The invoice reference and connection-pool fixes are merged. | D/E/F review and report UI/contract decisions, remaining AT13 scenarios, and owner coordination for historical invoice constraint validation. [QA-02](../audits/qa-02-report-access.md) · [QA-04](../audits/qa-04-permissions.md) |
+| QA-05 and QA-06 | Automated viewport and keyboard checks run in CI. | F's declared pilot workload, including five users for ten minutes and the AT14 dataset and response targets. Clinic UAT, triage and acceptance need the designated participants. |
+| OPS-01 | Repeatable pilot configuration and synthetic deployments exist. Automated release checks pass. The public backend passed readiness and anonymous session checks on 22 November. | The public frontend returned HTTP 429 for readiness and session checks. Recheck hosted frontend access. Independent deployment review and final pilot decisions remain open. [Deployment guide](../../deploy/README.md) |
+| OPS-02 | Actual off-host recovery of all four record categories, audit links and private helper sync verified. | Budget confirmation, independent reviewer and staff walkthrough. [Evidence](member-a-ops-02-recovery-2026-11-15.md) |
+| OPS-03 and OPS-04 | Operations guides exist and the isolated Compose startup, migration, seed, restart and persistence check passes. | A named colleague must follow the guide. F reviews the guide, OpenAPI and AT17 record. [Clean-start setup](../../deploy/verification/README.md) |
+| OPS-05 and OPS-06 | Existing synthetic host and key holder documented. | Team and clinic decisions, support owner, named handover recipient, training and release acceptance. DEC05 remains the real-data gate. |
+
+## QA-03 automated journey
+
+F owns TASK-QA-03 and Member A reviews. B, C, D and E own their module behavior. This exercise supports PAT/CON/CLN, SCH, PRE/INV, BIL and REP requirements across AT02–AT13. The existing CI harness starts a new PostgreSQL database, compiles Go, builds Next.js and seeds one synthetic account per role. The test uses the linked fixture from PR #92, obtains session and CSRF credentials through the normal API, and links records using IDs returned by the services. The booking fixture dates are shifted together to the next Colombo clinic day. Batch expiries are set one year after execution so stock remains eligible.
+
+Run `npm run test:fullstack -- patient-to-receipt.spec.ts` from `frontend` after setting up the [disposable fullstack harness](../../frontend/tests/fullstack/README.md). The new test runs in the existing `auth-browser` job. It verifies the signed consultation and approved plan, the two availability windows and completed delivery, the undeducted preparation snapshot, exact one-time stock use and bidirectional traceability, and the committed invoice, receipt retry and outstanding report. It includes administrator denial for clinical notes and report-reader denial for invoice detail. F's staff walkthrough and formal module or clinic acceptance are tracked separately.
+
+Codex automation ran the test on `ac5fbc37a242a0622d0c6d9135185694411e912b` through GitHub Actions at 15:48 Asia/Colombo on 22 November. The environment used Ubuntu, Go 1.27.4, Node 22.23.2, Playwright 1.64.1 and disposable PostgreSQL 17.11. All 24 fullstack cases passed. The linked QA-03 scenario took 1.1 seconds inside that suite. [Fullstack execution](https://github.com/thimira20011/AyurFlow/actions/runs/45011527856/job/137174697128)
+
+| Checkpoint | Expected and observed |
+| --- | --- |
+| Patient and clinical plan | Reception registered one synthetic patient. The assigned clinician signed the consultation and approved the Preparatory stage. The administrator received 404 on consultation detail. |
+| Booking and delivery | Both availability windows covered the booking. The assigned therapist moved the linked session from booked to in progress to completed. |
+| Stock and traceability | Saving the snapshot left stock unchanged. Confirming twice with the same operation ID left the three batch balances at 970.000 g, 480.000 g and 362.500 g. Both trace directions linked the same patient, session, preparation and batches. |
+| Invoice and receipt | The invoice linked the same patient. The repeated deposit returned the original receipt. Total LKR 10,000.25, paid LKR 4,000.10 and outstanding LKR 6,000.15 matched the report. The report reader received 403 on invoice detail. |
+
+The first CI attempt could not load the ES module fixture. The test now uses a dynamic import. The production frontend container excludes test files since CI runs them from the complete checkout and the container build context contains only `frontend`. The clean-start workflow verifies that build separately.
+
+The 22 November daily backup and freshness checks passed in the private backup repository. [Encrypted daily backup](https://github.com/thimira20011/AyurFlow-backups/actions/runs/44966348834) · [Freshness check](https://github.com/thimira20011/AyurFlow-backups/actions/runs/44971139282)
+
+## Hosted HTTPS spot check
+
+On 22 November, Codex checked the two public synthetic URLs from the Windows workspace using certificate-verified HTTPS without credentials. The backend returned the expected HTTP 200 on `/api/v1/ready` and 401 on `/api/v1/auth/session`. The frontend returned 429 for both, and a single readiness recheck also returned 429. The deployed revisions and reason for the 429 were not established. Frontend readiness and session behavior through the hosted proxy remain unverified by this run.
