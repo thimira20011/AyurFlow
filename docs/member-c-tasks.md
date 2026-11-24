@@ -18,6 +18,10 @@ This is an execution checklist, not an acceptance claim. Unchecked items require
 - [x] Draft C's source-verified scheduling API/schema contract on `codex/member-c-scheduling-contract`; see [contract and review handoffs](api/member-c-contract.md). B/A/D/F review and the shared SET-06 acceptance remain open.
 - [x] Implement independent room/therapist overlap, separate-resource and adjacent-boundary PostgreSQL cases on `codex/member-c-booking-race-tests`; [test setup and expected outcomes](evidence/member-c-booking-resources-2026-11-12.md). CI execution and B acceptance must be recorded before parent task closure.
 
+## Progress — 23 November 2026
+
+- [x] Implement controlled room/therapist availability-versus-booking cases in both lock orderings on `codex/member-c-availability-booking-races`; [setup and expected outcomes](evidence/member-c-availability-booking-2026-11-23.md). This checks off authored verification work only; CI results and B review are required before parent SCH-02/SCH-06 closure.
+
 ## Progress — 24 November 2026
 
 - [x] Author atomic reschedule regression coverage on `codex/member-c-reschedule-integrity`: successful allocation changes, independent room/therapist conflicts, unavailable slots and controlled same-version concurrency. See [setup and results](evidence/member-c-reschedule-integrity-2026-11-24.md). CI execution and B review are recorded separately; SCH-03/SCH-06 and full AT06 remain open.

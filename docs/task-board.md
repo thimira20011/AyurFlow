@@ -80,7 +80,7 @@ Status values: **Pending** = not started; **In progress** = work underway but co
 | Task | Deliverable | Owner slot | Peer reviewer | Status | Evidence |
 | --- | --- | --- | --- | --- | --- |
 | TASK-SCH-01 | Rooms, availability, sessions and allocation schema | C | B | Pending | — |
-| TASK-SCH-02 | Availability changes with conflict protection | C | B | Pending | — |
+| TASK-SCH-02 | Availability changes with conflict protection | C | B | In progress | [Controlled availability-versus-booking cases](evidence/member-c-availability-booking-2026-11-23.md) on `codex/member-c-availability-booking-races` exercise room/therapist edits in both lock orderings, retained coverage and mutation audit counts. Existing implementation is under verification; integrated AT06 and B review remain open |
 | TASK-SCH-03 | Booking and atomic rescheduling | C | B | In progress | [Atomic reschedule verification](evidence/member-c-reschedule-integrity-2026-11-24.md) on `codex/member-c-reschedule-integrity`: independent resource conflicts, unavailable slots and competing same-version edits; B review and full AT06 remain open. |
 | TASK-SCH-04 | Start, observations, completion and cancellation | C with B | B | Pending | — |
 | TASK-SCH-05 | Booking/availability/therapist screens | C | B | Pending | — |
