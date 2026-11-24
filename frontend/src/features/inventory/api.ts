@@ -103,7 +103,15 @@ export type RecipeInput = { code: string; displayName: string; baseYieldGrams: s
 export const listRecipes = () => apiGet<{ items: Recipe[] }>("/recipes");
 export const createRecipe = (input: RecipeInput) => apiMutation<Recipe>("/recipes", input);
 export const updateRecipe = (id: string, input: RecipeInput) => apiMutation<Recipe>(`/recipes/${encodeURIComponent(id)}`, input, "PATCH");
-export const listPreparations = (patientId: string) => apiGet<{ items: Preparation[] }>(`/preparations?patientId=${encodeURIComponent(patientId)}`);
+export function listPreparations(
+  patientId: string,
+  options?: { sessionId?: string; status?: "prepared" | "consumed" },
+) {
+  const params = new URLSearchParams({ patientId });
+  if (options?.sessionId) params.set("sessionId", options.sessionId);
+  if (options?.status) params.set("status", options.status);
+  return apiGet<{ items: Preparation[] }>(`/preparations?${params.toString()}`);
+}
 export const savePreparation = (input: { patientId: string; sessionId: string; recipeId: string; targetYieldGrams: string }) => apiMutation<Preparation>("/preparations", input);
 export const confirmConsumption = (id: string, input: { operationId: string; allocations: { batchId: string; quantityGrams: string }[] }) =>
   apiMutation<Preparation>(`/preparations/${encodeURIComponent(id)}/confirm-consumption`, input);

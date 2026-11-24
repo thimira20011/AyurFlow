@@ -12,6 +12,7 @@ import (
 	"ayurflow/backend/internal/scheduling"
 	"ayurflow/backend/internal/testutil"
 
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -408,5 +409,235 @@ func TestTaskINV02FlatRecipesAndScaling(t *testing.T) {
 	}
 	if createdCount != 1 || updatedCount != 1 {
 		t.Fatalf("audit counts created=%d updated=%d, want 1 and 1", createdCount, updatedCount)
+	}
+}
+
+func TestTaskINV03ImmutablePreparationSnapshots(t *testing.T) {
+	pool := testutil.Postgres(t)
+	svc := inventory.NewService(pool)
+
+	dispensary := seedStaff(t, pool, "synthetic-inv03-dispensary", "dispensary")
+	reception := seedStaff(t, pool, "synthetic-inv03-reception", "receptionist")
+	therapist := seedStaff(t, pool, "synthetic-inv03-therapist", "therapist")
+	clinician := seedStaff(t, pool, "synthetic-inv03-clinician", "clinician")
+	reader := seedStaff(t, pool, "synthetic-inv03-reader", "report_reader")
+	admin := seedStaff(t, pool, "synthetic-inv03-admin", "administrator")
+
+	patient, session := syntheticSession(t, pool, reception, therapist)
+
+	// Create a second patient to verify cross-patient session mismatch rejection.
+	var otherPatient string
+	if err := pool.QueryRow(t.Context(), `INSERT INTO patients(display_name,created_by,updated_by)
+		VALUES ('Synthetic second patient',$1,$1) RETURNING id::text`, reception).Scan(&otherPatient); err != nil {
+		t.Fatalf("insert second patient: %v", err)
+	}
+
+	itemA, err := svc.CreateItem(t.Context(), dispensary, inventory.CreateItemRequest{
+		Code:        "INV03-ASHWA",
+		DisplayName: "Synthetic Ashwagandha Root",
+	})
+	if err != nil {
+		t.Fatalf("create itemA: %v", err)
+	}
+	itemB, err := svc.CreateItem(t.Context(), dispensary, inventory.CreateItemRequest{
+		Code:        "INV03-GUDU",
+		DisplayName: "Synthetic Guduchi Stem",
+	})
+	if err != nil {
+		t.Fatalf("create itemB: %v", err)
+	}
+
+	expiry := time.Now().UTC().AddDate(1, 0, 0).Format("2006-01-02")
+	batchA, err := svc.ReceiveBatch(t.Context(), dispensary, inventory.ReceiveBatchRequest{
+		ItemID:         itemA.ID,
+		BatchReference: "INV03-LOT-A",
+		ReceivedGrams:  "100.000",
+		ExpiresAt:      &expiry,
+	})
+	if err != nil {
+		t.Fatalf("receive batchA: %v", err)
+	}
+
+	recipe, err := svc.CreateRecipe(t.Context(), dispensary, inventory.RecipeRequest{
+		Code:           "INV03-RECIPE",
+		DisplayName:    "Synthetic Decoction Mix",
+		BaseYieldGrams: "100.000",
+		Ingredients: []inventory.RecipeIngredientInput{
+			{ItemID: itemA.ID, QuantityGrams: "20.000"},
+			{ItemID: itemB.ID, QuantityGrams: "15.000"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("create recipe: %v", err)
+	}
+
+	// Non-dispensary roles cannot save, list, or read preparations.
+	for _, actor := range []string{reception, therapist, clinician, reader, admin} {
+		if _, err := svc.SavePreparation(t.Context(), actor, inventory.SavePreparationRequest{
+			PatientID:        patient,
+			SessionID:        session,
+			RecipeID:         recipe.ID,
+			TargetYieldGrams: "250.000",
+		}); !errors.Is(err, inventory.ErrForbidden) {
+			t.Fatalf("actor %s SavePreparation err = %v, want ErrForbidden", actor, err)
+		}
+	}
+
+	// Cross-patient session mismatch must be rejected with ErrNotFound.
+	if _, err := svc.SavePreparation(t.Context(), dispensary, inventory.SavePreparationRequest{
+		PatientID:        otherPatient,
+		SessionID:        session,
+		RecipeID:         recipe.ID,
+		TargetYieldGrams: "250.000",
+	}); !errors.Is(err, inventory.ErrNotFound) {
+		t.Fatalf("cross-patient session err = %v, want ErrNotFound", err)
+	}
+
+	// Save two immutable snapshots against the same session (PRE-02, PRE-03, AT09).
+	prep1, err := svc.SavePreparation(t.Context(), dispensary, inventory.SavePreparationRequest{
+		PatientID:        patient,
+		SessionID:        session,
+		RecipeID:         recipe.ID,
+		TargetYieldGrams: "250.000",
+	})
+	if err != nil {
+		t.Fatalf("save prep1: %v", err)
+	}
+	if prep1.Status != "prepared" || prep1.RecipeVersion != 1 || prep1.ConsumedBy != nil || prep1.ConsumedAt != nil || prep1.OperationID != nil {
+		t.Fatalf("unexpected prep1 header: %+v", prep1)
+	}
+	if len(prep1.Snapshot) != 2 || len(prep1.Consumptions) != 0 {
+		t.Fatalf("unexpected prep1 items/consumptions: %+v", prep1)
+	}
+
+	prep2, err := svc.SavePreparation(t.Context(), dispensary, inventory.SavePreparationRequest{
+		PatientID:        patient,
+		SessionID:        session,
+		RecipeID:         recipe.ID,
+		TargetYieldGrams: "500.000",
+	})
+	if err != nil {
+		t.Fatalf("save prep2: %v", err)
+	}
+	if len(prep2.Snapshot) != 2 || prep2.Snapshot[0].RequiredGrams != "100.000" || prep2.Snapshot[1].RequiredGrams != "75.000" {
+		t.Fatalf("unexpected prep2 scaling: %+v", prep2.Snapshot)
+	}
+
+	// PRE-03: Saving preparations never reserves or deducts stock or creates traceability rows.
+	var remaining string
+	if err := pool.QueryRow(t.Context(), `SELECT remaining_grams::text FROM stock_batches WHERE id=$1`, batchA.ID).Scan(&remaining); err != nil || remaining != "100.000" {
+		t.Fatalf("stock changed after saving preparations: remaining=%q err=%v", remaining, err)
+	}
+	var consumptionRows int
+	if err := pool.QueryRow(t.Context(), `SELECT count(*) FROM batch_consumptions WHERE preparation_id IN ($1,$2)`, prep1.ID, prep2.ID).Scan(&consumptionRows); err != nil || consumptionRows != 0 {
+		t.Fatalf("unexpected consumption rows after save: %d err=%v", consumptionRows, err)
+	}
+	if trace, err := svc.TraceBatch(t.Context(), dispensary, batchA.ID); err != nil || len(trace) != 0 {
+		t.Fatalf("unconsumed preparation leaked into batch trace: %+v err=%v", trace, err)
+	}
+	if trace, err := svc.TracePatient(t.Context(), dispensary, patient); err != nil || len(trace) != 0 {
+		t.Fatalf("unconsumed preparation leaked into patient trace: %+v err=%v", trace, err)
+	}
+
+	// Verify preparation.created audit event exists.
+	var prepAuditCount int
+	if err := pool.QueryRow(t.Context(), `SELECT count(*) FROM audit_events WHERE object_type='preparation' AND object_id=$1 AND action='preparation.created' AND actor_id=$2`, prep1.ID, dispensary).Scan(&prepAuditCount); err != nil || prepAuditCount != 1 {
+		t.Fatalf("preparation.created audit count = %d err=%v, want 1", prepAuditCount, err)
+	}
+
+	// Filtered listing by patientId, sessionId, and status.
+	preparedList, err := svc.ListPreparationsFiltered(t.Context(), dispensary, inventory.ListPreparationsFilter{
+		PatientID: patient,
+		SessionID: session,
+		Status:    "prepared",
+	})
+	if err != nil || len(preparedList) != 2 {
+		t.Fatalf("ListPreparationsFiltered(prepared) = %d err=%v, want 2", len(preparedList), err)
+	}
+	consumedList, err := svc.ListPreparationsFiltered(t.Context(), dispensary, inventory.ListPreparationsFilter{
+		PatientID: patient,
+		SessionID: session,
+		Status:    "consumed",
+	})
+	if err != nil || len(consumedList) != 0 {
+		t.Fatalf("ListPreparationsFiltered(consumed) = %d err=%v, want 0", len(consumedList), err)
+	}
+	if _, err := svc.ListPreparationsFiltered(t.Context(), dispensary, inventory.ListPreparationsFilter{
+		PatientID: patient,
+		Status:    "invalid",
+	}); !errors.Is(err, inventory.ErrValidation) {
+		t.Fatalf("invalid status filter err = %v, want ErrValidation", err)
+	}
+
+	// Update recipe AND deactivate itemB; prep1 snapshot must retain original v1 quantities and metadata.
+	if _, err := svc.UpdateRecipe(t.Context(), dispensary, recipe.ID, inventory.RecipeRequest{
+		Code:           recipe.Code,
+		DisplayName:    "Revised Single-Herb Mix",
+		BaseYieldGrams: "200.000",
+		Version:        1,
+		Ingredients:    []inventory.RecipeIngredientInput{{ItemID: itemA.ID, QuantityGrams: "90.000"}},
+	}); err != nil {
+		t.Fatalf("update recipe: %v", err)
+	}
+	if _, err := svc.DeactivateItem(t.Context(), dispensary, itemB.ID, inventory.DeactivateItemRequest{
+		Reason: "Discontinued after preparation snapshot",
+	}); err != nil {
+		t.Fatalf("deactivate itemB: %v", err)
+	}
+	reloaded, err := svc.GetPreparation(t.Context(), dispensary, prep1.ID)
+	if err != nil {
+		t.Fatalf("reload prep1: %v", err)
+	}
+	if reloaded.RecipeVersion != 1 || reloaded.TargetYieldGrams != "250.000" || len(reloaded.Snapshot) != 2 ||
+		reloaded.Snapshot[0].ItemCode != "INV03-ASHWA" || reloaded.Snapshot[0].BaseQuantityGrams != "20.000" || reloaded.Snapshot[0].RequiredGrams != "50.000" ||
+		reloaded.Snapshot[1].ItemCode != "INV03-GUDU" || reloaded.Snapshot[1].BaseQuantityGrams != "15.000" || reloaded.Snapshot[1].RequiredGrams != "37.500" {
+		t.Fatalf("prep1 snapshot mutated after recipe update & item deactivation: %+v", reloaded)
+	}
+
+	// Database-level append-only trigger checks (protect_preparation_history).
+	for _, tc := range []struct {
+		name string
+		sql  string
+		arg  string
+	}{
+		{"update snapshot item", `UPDATE preparation_snapshot_items SET required_grams=1.000 WHERE preparation_id=$1`, prep1.ID},
+		{"delete snapshot item", `DELETE FROM preparation_snapshot_items WHERE preparation_id=$1`, prep1.ID},
+		{"delete preparation", `DELETE FROM preparations WHERE id=$1`, prep1.ID},
+		{"mutate preparation target yield", `UPDATE preparations SET target_yield_grams=1.000 WHERE id=$1`, prep1.ID},
+	} {
+		_, err := pool.Exec(t.Context(), tc.sql, tc.arg)
+		var pgErr *pgconn.PgError
+		if !errors.As(err, &pgErr) || pgErr.Code != "P0001" {
+			t.Fatalf("%s expected trigger error P0001, got %v", tc.name, err)
+		}
+	}
+
+	// Care plan on hold and cancelled session must reject new preparation snapshots with ErrConflict.
+	if _, err := pool.Exec(t.Context(), `UPDATE care_plans SET status='held' WHERE patient_id=$1`, patient); err != nil {
+		t.Fatalf("put plan on hold: %v", err)
+	}
+	if _, err := svc.SavePreparation(t.Context(), dispensary, inventory.SavePreparationRequest{
+		PatientID:        patient,
+		SessionID:        session,
+		RecipeID:         recipe.ID,
+		TargetYieldGrams: "100.000",
+	}); !errors.Is(err, inventory.ErrConflict) {
+		t.Fatalf("on-hold plan SavePreparation err = %v, want ErrConflict", err)
+	}
+	if _, err := pool.Exec(t.Context(), `UPDATE care_plans SET status='active' WHERE patient_id=$1`, patient); err != nil {
+		t.Fatalf("restore plan active: %v", err)
+	}
+	if _, err := pool.Exec(t.Context(), `UPDATE therapy_sessions
+		SET status='cancelled', started_at=NULL, completed_at=NULL, cancelled_at=clock_timestamp(), cancellation_reason='Synthetic cancelled session'
+		WHERE id=$1`, session); err != nil {
+		t.Fatalf("cancel session: %v", err)
+	}
+	if _, err := svc.SavePreparation(t.Context(), dispensary, inventory.SavePreparationRequest{
+		PatientID:        patient,
+		SessionID:        session,
+		RecipeID:         recipe.ID,
+		TargetYieldGrams: "100.000",
+	}); !errors.Is(err, inventory.ErrConflict) {
+		t.Fatalf("cancelled session SavePreparation err = %v, want ErrConflict", err)
 	}
 }

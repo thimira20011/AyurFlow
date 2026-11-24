@@ -162,6 +162,26 @@ export default function InventoryLiveWorkflows({ tab, items, batches, refreshBat
           </>}
           <button className={styles.primaryBtn} disabled={busy}>Save immutable snapshot</button>
         </form>
+        {selectedPreparation && <div className={styles.fieldGroup} aria-label="Saved preparation snapshot summary">
+          <p className={styles.hint}>
+            Saved snapshot <strong>{selectedPreparation.id}</strong> ·{" "}
+            <strong>{selectedPreparation.status === "prepared" ? "Prepared · No Stock Deducted" : "Consumed · Stock Deducted"}</strong>{" "}
+            · Recipe v{selectedPreparation.recipeVersion} · Target {selectedPreparation.targetYieldGrams} g ·{" "}
+            {new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Colombo", dateStyle: "medium", timeStyle: "short" }).format(new Date(selectedPreparation.preparedAt))}
+          </p>
+          <TableRegion label="Saved preparation snapshot">
+            <table className={styles.table}>
+              <thead><tr><th scope="col">Ingredient</th><th scope="col">Base</th><th scope="col">Snapshot required</th></tr></thead>
+              <tbody>
+                {selectedPreparation.snapshot.map(item => <tr key={item.itemId}>
+                  <td>{item.itemCode} · {item.itemDisplayName}</td>
+                  <td>{item.baseQuantityGrams} g</td>
+                  <td>{item.requiredGrams} g</td>
+                </tr>)}
+              </tbody>
+            </table>
+          </TableRegion>
+        </div>}
       </section>
     </>}
     {tab === "consumption" && <>
