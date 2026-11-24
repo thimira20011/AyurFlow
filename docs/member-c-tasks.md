@@ -18,6 +18,10 @@ This is an execution checklist, not an acceptance claim. Unchecked items require
 - [x] Draft C's source-verified scheduling API/schema contract on `codex/member-c-scheduling-contract`; see [contract and review handoffs](api/member-c-contract.md). B/A/D/F review and the shared SET-06 acceptance remain open.
 - [x] Implement independent room/therapist overlap, separate-resource and adjacent-boundary PostgreSQL cases on `codex/member-c-booking-race-tests`; [test setup and expected outcomes](evidence/member-c-booking-resources-2026-11-12.md). CI execution and B acceptance must be recorded before parent task closure.
 
+## Progress — 24 November 2026
+
+- [x] Author atomic reschedule regression coverage on `codex/member-c-reschedule-integrity`: successful allocation changes, independent room/therapist conflicts, unavailable slots and controlled same-version concurrency. See [setup and results](evidence/member-c-reschedule-integrity-2026-11-24.md). CI execution and B review are recorded separately; SCH-03/SCH-06 and full AT06 remain open.
+
 ## Read first and understand the starting point
 
 Read [implementation plan](implementation-plan.md), [decisions](decisions.md), [team plan](team-plan.md), [task board](task-board.md), [testing](testing.md), [backend scheduling README](../backend/internal/scheduling/README.md) and [frontend scheduling README](../frontend/src/features/scheduling/README.md). Read the applicable nested AGENTS.md before implementation.
