@@ -200,4 +200,3 @@ func TestConcurrentRescheduleVersionIntegration(t *testing.T) {
 		t.Fatal("winner allocation, version, immutable links or audit count incorrect")
 	}
 }
-
