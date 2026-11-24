@@ -2,7 +2,7 @@
 
 Task: TASK-SCH-04 and TASK-SCH-06 contribution. Owner C with B; reviewer B pending. SRS scheduling SCH-01–06 and clinical CLN-01–06; AT07 support and C contribution to AT04/05. Exact individual SRS mapping requires the original baseline. Dependencies: migration 000015, clinical current-stage clearance and real scheduling cancellation adapter, role/record checks and transactional audits. DEC02/08 and formal acceptance remain open.
 
-Branch `codex/member-c-session-clearance-races`, based on `dev` `075018f452be0c75c0444f0238cc0355bef8d985`. Open PRs #95 and #99 are independent, not dependencies. No production logic, migration, endpoint or UI changes. This verifies documented development behavior rather than deciding additional clinical policy.
+Branch `codex/member-c-session-clearance-races`, based on `dev` `075018f452be0c75c0444f0238cc0355bef8d985`. Earlier PRs #95 and #99 are separate verification slices; this test code does not depend on them. Before review, the branch integrated updated `dev` `d0980591cc977f7c441af2cf335165f699745dce` to preserve the latest team checklist/evidence changes. No production logic, migration, endpoint or UI changes. This verifies documented development behavior rather than deciding additional clinical policy.
 
 ## Setup and reproduction
 
