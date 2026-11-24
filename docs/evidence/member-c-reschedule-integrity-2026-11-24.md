@@ -31,8 +31,8 @@ Existing `TestQA04SchedulingAuditFailureRollsBack/reschedule` forces an actual a
 
 - [x] Author the four focused PostgreSQL cases and review source against existing service semantics.
 - [x] Run gofmt and local diff whitespace validation.
-- [ ] Record remote PostgreSQL and all required CI results on the implementation commit.
+- [x] Execute the new cases and existing reschedule audit-failure regression in CI on `1696e9f8398ff2bb0975c01014839fae4ff1a64c`; both PostgreSQL integration jobs passed race detection and the no-skips gate. Full required checks on the final documentation commit are tracked in PR #99.
 - [ ] B reviews behavior, evidence and remaining AT06 coverage.
 
-Actual runtime outcomes are pending CI; this record does not yet claim execution success. These tests cover service/database behavior; they do not establish browser usability, direct HTTP/CSRF behavior, reschedule-versus-availability races, all booking/clinical transitions, full AT06/07, clinic approval or pilot readiness. Parent SCH-03/SCH-06 remain In progress.
+Actual outcomes matched expectations in [integration job 138521905370](https://github.com/thimira20011/AyurFlow/actions/runs/45415848578/job/138521905370) on implementation `1696e9f8398ff2bb0975c01014839fae4ff1a64c`: room-only 0.90 s, therapist-only 1.12 s, unavailable target 0.64 s, same-version concurrency 0.99 s, and existing audit-failure reschedule 0.01 s, all passed. The job ran the full suite with `-race -tags=integration -shuffle=on -count=1 -timeout=5m` and passed the no-skipped-tests gate. Runner: GitHub-hosted Ubuntu with the workflow-pinned Go toolchain and real PostgreSQL service. [PR #99](https://github.com/thimira20011/AyurFlow/pull/99) records final-head CI status. These tests cover service/database behavior; they do not establish browser usability, direct HTTP/CSRF behavior, reschedule-versus-availability races, all booking/clinical transitions, full AT06/07, clinic approval or pilot readiness. Parent SCH-03/SCH-06 remain In progress.
 
