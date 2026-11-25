@@ -3,6 +3,7 @@ import { test } from "node:test";
 import {
   formatMilligramsToGrams,
   parseGramsToMilligrams,
+  reconcileAllocations,
   scaleIngredientGrams,
 } from "../src/features/inventory/scaling.ts";
 
@@ -28,4 +29,37 @@ test("scaleIngredientGrams matches SRS PRE-02 / DEC03 Round Half Up fixtures", (
   assert.equal(scaleIngredientGrams("1.000", "1.000", "2000.000"), "0.001");
   // Sub-milligram result rounding to 0.000g returns null
   assert.equal(scaleIngredientGrams("0.001", "0.001", "10.000"), null);
+});
+
+test("reconcileAllocations checks manual split-batch totals against snapshot requirements", () => {
+  const snapshot = [
+    { itemId: "item-ashwa", itemDisplayName: "Ashwagandha", requiredGrams: "50.000" },
+    { itemId: "item-gudu", itemDisplayName: "Guduchi", requiredGrams: "37.500" },
+  ];
+  const batches = [
+    { id: "batch-a1", itemId: "item-ashwa" },
+    { id: "batch-a2", itemId: "item-ashwa" },
+    { id: "batch-g1", itemId: "item-gudu" },
+  ];
+
+  // D-CON-01 split allocation: 30 + 20 = 50g Ashwagandha, 37.5g Guduchi -> matched
+  const matched = reconcileAllocations(snapshot, [
+    { batchId: "batch-a1", quantityGrams: "30.000" },
+    { batchId: "batch-a2", quantityGrams: "20.000" },
+    { batchId: "batch-g1", quantityGrams: "37.500" },
+  ], batches);
+  assert.deepEqual(matched.map((r) => [r.allocatedGrams, r.status, r.deltaGrams]), [
+    ["50.000", "matched", "0.000"],
+    ["37.500", "matched", "0.000"],
+  ]);
+
+  // Under and over allocation detection
+  const mismatched = reconcileAllocations(snapshot, [
+    { batchId: "batch-a1", quantityGrams: "30.000" },
+    { batchId: "batch-g1", quantityGrams: "40.000" },
+  ], batches);
+  assert.deepEqual(mismatched.map((r) => [r.allocatedGrams, r.status, r.deltaGrams]), [
+    ["30.000", "under", "20.000"],
+    ["40.000", "over", "2.500"],
+  ]);
 });

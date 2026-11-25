@@ -35,7 +35,15 @@ Owner: Member D (`K. I. R. Perera`). Reviewer: Member E. SRS: `INV-01`–`04`, `
 - Frontend (`inventory-live-workflows.tsx`, `api.ts`): immediately renders the newly saved immutable snapshot summary with explicit `Prepared · No Stock Deducted` status, `Asia/Colombo` timestamp, recipe version, and `<TableRegion>` ingredient table; adds `sessionId`/`status` filters to `listPreparations`.
 - Automated verification: HTTP tests (`TestPreparationSnapshotHTTPRoutes`) and real PostgreSQL integration tests (`TestTaskINV03ImmutablePreparationSnapshots` covering zero stock deduction, snapshot preservation after recipe updates and botanical item deactivation, database trigger `P0001` enforcement, plan/session guards, filtered listing, RBAC denial, and `preparation.created` audit verification).
 
+## Implemented in `TASK-INV-04`
+
+- Manual batch allocation & atomic actual consumption (`consumption.go`, `internal/transport/http/preparations.go`):
+  - `CanonicalizeConsumptionAllocations`: validates manual batch selections (rejecting empty lists, duplicate `batchId`, invalid UUIDs, or invalid gram values), sorts selected batches strictly by `batch_id ASC` for deadlock-free lock ordering (`PRE-04`, `NFR-02`), and computes a canonical order-independent SHA-256 payload fingerprint (`PRE-05`).
+  - `ConfirmConsumption` (`dispensary`): acquires `pg_advisory_xact_lock(operationId)`, locks `preparations FOR UPDATE` and `therapy_sessions FOR SHARE`, locks all selected `stock_batches` `FOR UPDATE` in ascending `batch_id ASC` order, rechecks `Asia/Colombo` eligibility (`eligible` only — rejecting `blocked`, `expired`, `unknown_expiry`, and insufficient stock with `ErrConflict`) and exact per-ingredient snapshot reconciliation (`ErrValidation`), atomically deducts `remaining_grams`, inserts `batch_consumptions`, transitions `status = 'consumed'`, inserts `consumption_operations`, and writes `preparation.consumed` in `audit_events` within the same transaction.
+- Frontend (`scaling.ts`, `inventory-live-workflows.tsx`): adds pure `BigInt` `reconcileAllocations` helper (zero floating-point drift, zero FEFO/auto-selection), live per-ingredient allocated vs required reconciliation table, remove-batch button, and post-confirmation recorded batch consumptions `<TableRegion>`.
+- Automated verification: unit tests (`TestCanonicalizeConsumptionAllocations`, `frontend/tests/inventory-scaling.test.mjs`), HTTP route tests (`TestConfirmConsumptionHTTPRoutes`), and real PostgreSQL integration tests (`TestTaskINV04ManualAllocationAndAtomicConsumption` covering `D-CON-01` 3-batch split commit, `D-CON-03` full rollback across 7 failure modes, `D-CON-05` reverse-order multi-batch deadlock/race safety, `D-CON-06` referenced batch & consumed-history immutability, and RBAC denial).
+
 ## Additional implemented slices awaiting D/E review
 
-- `ConfirmConsumption`, `TraceBatch`, and `TracePatient` in `consumption.go` cover `TASK-INV-04`–`TASK-INV-06` and remain under D/E slice review.
+- `ConfirmConsumption` retry/idempotency edge cases (`TASK-INV-05`) and `TraceBatch` / `TracePatient` / stock reports (`TASK-INV-06`) remain under D/E slice review.
 - Formal `AT08`–`AT11` acceptance evidence, Member E peer review, and DEC03 clinic review remain open. No production data is used in any tests.
