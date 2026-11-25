@@ -254,10 +254,13 @@ func TestInventoryHTTPRoutes(t *testing.T) {
 }
 
 type mockPreparationService struct {
-	createRecipeFunc func(ctx context.Context, actor string, req inventory.RecipeRequest) (inventory.Recipe, error)
-	updateRecipeFunc func(ctx context.Context, actor, id string, req inventory.RecipeRequest) (inventory.Recipe, error)
-	listRecipesFunc  func(ctx context.Context, actor string) ([]inventory.Recipe, error)
-	getRecipeFunc    func(ctx context.Context, actor, id string) (inventory.Recipe, error)
+	createRecipeFunc             func(ctx context.Context, actor string, req inventory.RecipeRequest) (inventory.Recipe, error)
+	updateRecipeFunc             func(ctx context.Context, actor, id string, req inventory.RecipeRequest) (inventory.Recipe, error)
+	listRecipesFunc              func(ctx context.Context, actor string) ([]inventory.Recipe, error)
+	getRecipeFunc                func(ctx context.Context, actor, id string) (inventory.Recipe, error)
+	savePreparationFunc          func(ctx context.Context, actor string, req inventory.SavePreparationRequest) (inventory.Preparation, error)
+	listPreparationsFilteredFunc func(ctx context.Context, actor string, filter inventory.ListPreparationsFilter) ([]inventory.Preparation, error)
+	getPreparationFunc           func(ctx context.Context, actor, id string) (inventory.Preparation, error)
 }
 
 func (m *mockPreparationService) CreateRecipe(ctx context.Context, actor string, req inventory.RecipeRequest) (inventory.Recipe, error) {
@@ -288,15 +291,28 @@ func (m *mockPreparationService) GetRecipe(ctx context.Context, actor, id string
 	return inventory.Recipe{}, nil
 }
 
-func (m *mockPreparationService) SavePreparation(context.Context, string, inventory.SavePreparationRequest) (inventory.Preparation, error) {
+func (m *mockPreparationService) SavePreparation(ctx context.Context, actor string, req inventory.SavePreparationRequest) (inventory.Preparation, error) {
+	if m.savePreparationFunc != nil {
+		return m.savePreparationFunc(ctx, actor, req)
+	}
 	return inventory.Preparation{}, nil
 }
 
-func (m *mockPreparationService) ListPreparations(context.Context, string, string) ([]inventory.Preparation, error) {
+func (m *mockPreparationService) ListPreparations(ctx context.Context, actor, patientID string) ([]inventory.Preparation, error) {
+	return m.ListPreparationsFiltered(ctx, actor, inventory.ListPreparationsFilter{PatientID: patientID})
+}
+
+func (m *mockPreparationService) ListPreparationsFiltered(ctx context.Context, actor string, filter inventory.ListPreparationsFilter) ([]inventory.Preparation, error) {
+	if m.listPreparationsFilteredFunc != nil {
+		return m.listPreparationsFilteredFunc(ctx, actor, filter)
+	}
 	return []inventory.Preparation{}, nil
 }
 
-func (m *mockPreparationService) GetPreparation(context.Context, string, string) (inventory.Preparation, error) {
+func (m *mockPreparationService) GetPreparation(ctx context.Context, actor, id string) (inventory.Preparation, error) {
+	if m.getPreparationFunc != nil {
+		return m.getPreparationFunc(ctx, actor, id)
+	}
 	return inventory.Preparation{}, nil
 }
 
@@ -503,6 +519,172 @@ func TestRecipeHTTPRoutes(t *testing.T) {
 		router.ServeHTTP(getRec, getReq)
 		if getRec.Code != http.StatusOK {
 			t.Fatalf("GET /recipes/:id status = %d, want 200 (%s)", getRec.Code, getRec.Body.String())
+		}
+	})
+}
+
+func TestPreparationSnapshotHTTPRoutes(t *testing.T) {
+	prepID := "99123910-1293-4819-9182-192837465111"
+	patientID := "30ad6d29-79b0-4028-93c4-614df48ec3ea"
+	sessionID := "88123910-1293-4819-9182-192837465001"
+	recipeID := "55123910-1293-4819-9182-192837465099"
+	itemA := "10938471-2938-4819-9182-736451928374"
+
+	sample := inventory.Preparation{
+		ID:               prepID,
+		PatientID:        patientID,
+		SessionID:        sessionID,
+		RecipeID:         recipeID,
+		RecipeVersion:    1,
+		TargetYieldGrams: "250.000",
+		Status:           "prepared",
+		PreparedBy:       "d02c1c97-7588-4455-a045-127158e311f6",
+		PreparedAt:       time.Date(2026, 10, 31, 8, 40, 0, 0, time.UTC),
+		Snapshot: []inventory.SnapshotItem{
+			{ItemID: itemA, ItemCode: "BOT-ASHWA-001", ItemDisplayName: "Ashwagandha Root", BaseQuantityGrams: "20.000", RequiredGrams: "50.000"},
+		},
+		Consumptions: []inventory.Consumption{},
+	}
+
+	var capturedFilter inventory.ListPreparationsFilter
+	mockSvc := &mockPreparationService{
+		savePreparationFunc: func(ctx context.Context, actor string, req inventory.SavePreparationRequest) (inventory.Preparation, error) {
+			if req.TargetYieldGrams == "0.000" {
+				return inventory.Preparation{}, inventory.ErrValidation
+			}
+			if req.SessionID == "cancelled-session" {
+				return inventory.Preparation{}, inventory.ErrConflict
+			}
+			return sample, nil
+		},
+		listPreparationsFilteredFunc: func(ctx context.Context, actor string, filter inventory.ListPreparationsFilter) ([]inventory.Preparation, error) {
+			capturedFilter = filter
+			if filter.Status != "" && filter.Status != "prepared" && filter.Status != "consumed" {
+				return nil, inventory.ErrValidation
+			}
+			return []inventory.Preparation{sample}, nil
+		},
+		getPreparationFunc: func(ctx context.Context, actor, id string) (inventory.Preparation, error) {
+			if id != prepID {
+				return inventory.Preparation{}, inventory.ErrNotFound
+			}
+			return sample, nil
+		},
+	}
+
+	gin.SetMode(gin.TestMode)
+	router := NewRouter(nil, AuthRoutes{
+		Service:       mockSessionAuth{},
+		AllowedOrigin: "https://clinic.example",
+		Preparations:  mockSvc,
+	})
+
+	t.Run("POST /api/v1/preparations requires CSRF and returns 201 Created snapshot", func(t *testing.T) {
+		body, _ := json.Marshal(map[string]any{
+			"patientId":        patientID,
+			"sessionId":        sessionID,
+			"recipeId":         recipeID,
+			"targetYieldGrams": "250.000",
+		})
+		noCSRF := httptest.NewRequest(http.MethodPost, "/api/v1/preparations", bytes.NewReader(body))
+		noCSRF.Header.Set("Content-Type", "application/json")
+		noCSRF.Header.Set("Origin", "https://clinic.example")
+		noCSRF.AddCookie(&http.Cookie{Name: sessionCookie, Value: "valid-session"})
+		noCSRFRec := httptest.NewRecorder()
+		router.ServeHTTP(noCSRFRec, noCSRF)
+		if noCSRFRec.Code != http.StatusForbidden {
+			t.Fatalf("without CSRF status = %d, want 403", noCSRFRec.Code)
+		}
+
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/preparations", bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Origin", "https://clinic.example")
+		req.Header.Set("X-CSRF-Token", "valid-csrf-token")
+		req.AddCookie(&http.Cookie{Name: sessionCookie, Value: "valid-session"})
+		rec := httptest.NewRecorder()
+		router.ServeHTTP(rec, req)
+		if rec.Code != http.StatusCreated {
+			t.Fatalf("status = %d, want 201 (%s)", rec.Code, rec.Body.String())
+		}
+		var got inventory.Preparation
+		if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+			t.Fatalf("decode response: %v", err)
+		}
+		if got.Status != "prepared" || got.ConsumedBy != nil || got.OperationID != nil || len(got.Snapshot) != 1 || len(got.Consumptions) != 0 {
+			t.Fatalf("unexpected saved preparation payload: %+v", got)
+		}
+	})
+
+	t.Run("POST /api/v1/preparations returns 422 on invalid yield and 409 on conflict", func(t *testing.T) {
+		invalidBody, _ := json.Marshal(map[string]any{
+			"patientId":        patientID,
+			"sessionId":        sessionID,
+			"recipeId":         recipeID,
+			"targetYieldGrams": "0.000",
+		})
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/preparations", bytes.NewReader(invalidBody))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Origin", "https://clinic.example")
+		req.Header.Set("X-CSRF-Token", "valid-csrf-token")
+		req.AddCookie(&http.Cookie{Name: sessionCookie, Value: "valid-session"})
+		rec := httptest.NewRecorder()
+		router.ServeHTTP(rec, req)
+		if rec.Code != http.StatusUnprocessableEntity {
+			t.Fatalf("invalid yield status = %d, want 422", rec.Code)
+		}
+
+		conflictBody, _ := json.Marshal(map[string]any{
+			"patientId":        patientID,
+			"sessionId":        "cancelled-session",
+			"recipeId":         recipeID,
+			"targetYieldGrams": "250.000",
+		})
+		conflictReq := httptest.NewRequest(http.MethodPost, "/api/v1/preparations", bytes.NewReader(conflictBody))
+		conflictReq.Header.Set("Content-Type", "application/json")
+		conflictReq.Header.Set("Origin", "https://clinic.example")
+		conflictReq.Header.Set("X-CSRF-Token", "valid-csrf-token")
+		conflictReq.AddCookie(&http.Cookie{Name: sessionCookie, Value: "valid-session"})
+		conflictRec := httptest.NewRecorder()
+		router.ServeHTTP(conflictRec, conflictReq)
+		if conflictRec.Code != http.StatusConflict {
+			t.Fatalf("cancelled session status = %d, want 409", conflictRec.Code)
+		}
+	})
+
+	t.Run("GET /api/v1/preparations forwards patientId/sessionId/status and GET /:id handles 200/404", func(t *testing.T) {
+		listReq := httptest.NewRequest(http.MethodGet, "/api/v1/preparations?patientId="+patientID+"&sessionId="+sessionID+"&status=prepared", nil)
+		listReq.AddCookie(&http.Cookie{Name: sessionCookie, Value: "valid-session"})
+		listRec := httptest.NewRecorder()
+		router.ServeHTTP(listRec, listReq)
+		if listRec.Code != http.StatusOK {
+			t.Fatalf("GET /preparations status = %d, want 200 (%s)", listRec.Code, listRec.Body.String())
+		}
+		if capturedFilter.PatientID != patientID || capturedFilter.SessionID != sessionID || capturedFilter.Status != "prepared" {
+			t.Fatalf("unexpected captured filter: %+v", capturedFilter)
+		}
+
+		badStatusReq := httptest.NewRequest(http.MethodGet, "/api/v1/preparations?patientId="+patientID+"&status=invalid", nil)
+		badStatusReq.AddCookie(&http.Cookie{Name: sessionCookie, Value: "valid-session"})
+		badStatusRec := httptest.NewRecorder()
+		router.ServeHTTP(badStatusRec, badStatusReq)
+		if badStatusRec.Code != http.StatusUnprocessableEntity {
+			t.Fatalf("bad status query code = %d, want 422", badStatusRec.Code)
+		}
+
+		getReq := httptest.NewRequest(http.MethodGet, "/api/v1/preparations/"+prepID, nil)
+		getReq.AddCookie(&http.Cookie{Name: sessionCookie, Value: "valid-session"})
+		getRec := httptest.NewRecorder()
+		router.ServeHTTP(getRec, getReq)
+		if getRec.Code != http.StatusOK {
+			t.Fatalf("GET /preparations/:id status = %d, want 200", getRec.Code)
+		}
+
+		missingReq := httptest.NewRequest(http.MethodGet, "/api/v1/preparations/00000000-0000-4000-8000-000000000000", nil)
+		missingReq.AddCookie(&http.Cookie{Name: sessionCookie, Value: "valid-session"})
+		missingRec := httptest.NewRecorder()
+		router.ServeHTTP(missingRec, missingReq)
+		if missingRec.Code != http.StatusNotFound {
+			t.Fatalf("missing preparation status = %d, want 404", missingRec.Code)
 		}
 	})
 }

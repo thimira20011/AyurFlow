@@ -26,7 +26,16 @@ Owner: Member D (`K. I. R. Perera`). Reviewer: Member E. SRS: `INV-01`–`04`, `
 - Frontend (`frontend/src/features/inventory/scaling.ts`, `inventory-live-workflows.tsx`): adds exact `BigInt` milligram scaling preview (`Round Half Up` at `0.001 g`) before saving immutable preparation snapshots and ingredient row removal.
 - Automated verification: unit tests (`TestScaleIngredientGrams`, `frontend/tests/inventory-scaling.test.mjs`), HTTP route tests (`TestRecipeHTTPRoutes`), and real PostgreSQL integration tests (`TestTaskINV02FlatRecipesAndScaling` covering `D-PRE-01`, `D-PRE-02`, `AT09`, role boundaries, deactivated item rejection, optimistic version conflict, snapshot preservation, and audit records).
 
+## Implemented in `TASK-INV-03`
+
+- Immutable preparation snapshots (`preparations.go`, `internal/transport/http/preparations.go`):
+  - `SavePreparation` (`dispensary`): locks `therapy_sessions`, `care_plans`, `plan_stages`, and active `recipes` `FOR SHARE`; enforces patient-session match, active plan, approved stage, and non-cancelled session; copies `recipe_version`, `item_code`, `item_display_name`, `base_quantity_grams`, and deterministic `required_grams` into `preparations` (`status='prepared'`) and `preparation_snapshot_items` with zero stock deduction or reservation (`PRE-02`, `PRE-03`); records `preparation.created` atomically in `audit_events`.
+  - `ListPreparationsFiltered` & `GetPreparation` (`dispensary`): retrieve saved preparation snapshots with optional `sessionId` and `status` (`prepared` / `consumed`) filtering (`GET /api/v1/preparations?patientId=&sessionId=&status=`, `GET /api/v1/preparations/:id`).
+  - Database append-only trigger (`protect_preparation_history` in `000016_preparations.up.sql`): blocks `UPDATE`/`DELETE` on `preparation_snapshot_items`, `DELETE` on `preparations`, and mutations to preparation identity/snapshot header fields.
+- Frontend (`inventory-live-workflows.tsx`, `api.ts`): immediately renders the newly saved immutable snapshot summary with explicit `Prepared · No Stock Deducted` status, `Asia/Colombo` timestamp, recipe version, and `<TableRegion>` ingredient table; adds `sessionId`/`status` filters to `listPreparations`.
+- Automated verification: HTTP tests (`TestPreparationSnapshotHTTPRoutes`) and real PostgreSQL integration tests (`TestTaskINV03ImmutablePreparationSnapshots` covering zero stock deduction, snapshot preservation after recipe updates and botanical item deactivation, database trigger `P0001` enforcement, plan/session guards, filtered listing, RBAC denial, and `preparation.created` audit verification).
+
 ## Additional implemented slices awaiting D/E review
 
-- `SavePreparation`, `ConfirmConsumption`, `TraceBatch`, and `TracePatient` in `preparations.go` and `consumption.go` cover `TASK-INV-03`–`TASK-INV-06` and remain under D/E slice review.
+- `ConfirmConsumption`, `TraceBatch`, and `TracePatient` in `consumption.go` cover `TASK-INV-04`–`TASK-INV-06` and remain under D/E slice review.
 - Formal `AT08`–`AT11` acceptance evidence, Member E peer review, and DEC03 clinic review remain open. No production data is used in any tests.

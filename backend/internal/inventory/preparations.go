@@ -482,17 +482,47 @@ func (s *Service) GetPreparation(ctx context.Context, actor, id string) (Prepara
 	return out, err
 }
 
+type ListPreparationsFilter struct {
+	PatientID string
+	SessionID string
+	Status    string
+}
+
 func (s *Service) ListPreparations(ctx context.Context, actor, patientID string) ([]Preparation, error) {
-	patientID, err := canonicalUUID(patientID, "patientId")
+	return s.ListPreparationsFiltered(ctx, actor, ListPreparationsFilter{PatientID: patientID})
+}
+
+func (s *Service) ListPreparationsFiltered(ctx context.Context, actor string, filter ListPreparationsFilter) ([]Preparation, error) {
+	patientID, err := canonicalUUID(filter.PatientID, "patientId")
 	if err != nil {
 		return nil, err
 	}
+	var sessionID *string
+	if strings.TrimSpace(filter.SessionID) != "" {
+		canonicalSession, err := canonicalUUID(filter.SessionID, "sessionId")
+		if err != nil {
+			return nil, err
+		}
+		sessionID = &canonicalSession
+	}
+	var status *string
+	if trimmedStatus := strings.TrimSpace(filter.Status); trimmedStatus != "" {
+		if trimmedStatus != "prepared" && trimmedStatus != "consumed" {
+			return nil, ErrValidation
+		}
+		status = &trimmedStatus
+	}
+
 	result := []Preparation{}
 	err = pgx.BeginFunc(ctx, s.pool, func(tx pgx.Tx) error {
 		if _, err := s.requireRole(ctx, tx, actor, "dispensary"); err != nil {
 			return err
 		}
-		rows, err := tx.Query(ctx, `SELECT id::text FROM preparations WHERE patient_id=$1 ORDER BY prepared_at DESC,id DESC LIMIT 100`, patientID)
+		rows, err := tx.Query(ctx, `SELECT id::text FROM preparations
+			WHERE patient_id=$1
+			  AND ($2::uuid IS NULL OR session_id=$2::uuid)
+			  AND ($3::text IS NULL OR status=$3::text)
+			ORDER BY prepared_at DESC,id DESC LIMIT 100`, patientID, sessionID, status)
 		if err != nil {
 			return err
 		}

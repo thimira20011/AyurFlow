@@ -16,6 +16,7 @@ type PreparationService interface {
 	GetRecipe(context.Context, string, string) (inventory.Recipe, error)
 	SavePreparation(context.Context, string, inventory.SavePreparationRequest) (inventory.Preparation, error)
 	ListPreparations(context.Context, string, string) ([]inventory.Preparation, error)
+	ListPreparationsFiltered(context.Context, string, inventory.ListPreparationsFilter) ([]inventory.Preparation, error)
 	GetPreparation(context.Context, string, string) (inventory.Preparation, error)
 	ConfirmConsumption(context.Context, string, string, inventory.ConfirmConsumptionRequest) (inventory.Preparation, bool, error)
 	TraceBatch(context.Context, string, string) ([]inventory.TraceRow, error)
@@ -79,7 +80,11 @@ func registerPreparations(group *gin.RouterGroup, service PreparationService) {
 		c.JSON(http.StatusCreated, item)
 	})
 	group.GET("/preparations", func(c *gin.Context) {
-		items, err := service.ListPreparations(c.Request.Context(), ActorID(c), c.Query("patientId"))
+		items, err := service.ListPreparationsFiltered(c.Request.Context(), ActorID(c), inventory.ListPreparationsFilter{
+			PatientID: c.Query("patientId"),
+			SessionID: c.Query("sessionId"),
+			Status:    c.Query("status"),
+		})
 		if err != nil {
 			inventoryError(c, err)
 			return
