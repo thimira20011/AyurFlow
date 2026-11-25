@@ -1,13 +1,14 @@
 "use client";
 
 import { useEffect, useState, type FormEvent } from "react";
-import { Notice, StateMessage } from "@/components/staff-feedback";
+import { Notice } from "@/components/staff-feedback";
 import { TableRegion } from "@/components/staff-table";
 import { APIRequestError } from "@/lib/api-client";
 import {
-  confirmConsumption, createRecipe, listPreparations, listRecipes, savePreparation, traceBatch, tracePatient,
-  updateRecipe, type BotanicalItem, type Preparation, type Recipe, type RecipeInput, type StockBatch, type TraceRow,
+  confirmConsumption, createRecipe, listPreparations, listRecipes, savePreparation,
+  updateRecipe, type BotanicalItem, type Preparation, type Recipe, type RecipeInput, type StockBatch,
 } from "./api";
+import InventoryTrace from "./inventory-trace";
 import { scaleIngredientGrams } from "./scaling";
 import styles from "./inventory-workspace.module.css";
 
@@ -38,9 +39,6 @@ export default function InventoryLiveWorkflows({ tab, items, batches, refreshBat
   const [selectedPreparation, setSelectedPreparation] = useState<Preparation | null>(null);
   const [allocations, setAllocations] = useState<{ batchId: string; quantityGrams: string }[]>([{ batchId: "", quantityGrams: "" }]);
   const [operationID, setOperationID] = useState("");
-  const [traceType, setTraceType] = useState<"batch" | "patient">("batch");
-  const [traceID, setTraceID] = useState("");
-  const [traceRows, setTraceRows] = useState<TraceRow[]>([]);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
   const [isError, setIsError] = useState(false);
@@ -108,12 +106,6 @@ export default function InventoryLiveWorkflows({ tab, items, batches, refreshBat
       setPreparations(previous => previous.map(item => item.id === confirmed.id ? confirmed : item));
       await refreshBatches();
     }, "Consumption confirmed. Stock and traceability were updated together.");
-  }
-
-  function submitTrace(event: FormEvent) {
-    event.preventDefault();
-    setTraceRows([]);
-    void run(async () => { const result = traceType === "batch" ? await traceBatch(traceID.trim()) : await tracePatient(traceID.trim()); setTraceRows(result.items ?? []); }, "Confirmed consumption history loaded.");
   }
 
   const selectedRecipe = recipes.find(recipe => recipe.id === recipeID) ?? null;
@@ -200,11 +192,6 @@ export default function InventoryLiveWorkflows({ tab, items, batches, refreshBat
         </form> : <p className={styles.hint}>Select a prepared record to confirm consumption.</p>}
       </section>
     </>}
-    {tab === "traceability" && <section className={`${styles.panel} ${styles.fullWidth}`} aria-labelledby="live-trace-title"><h2 id="live-trace-title" className={styles.panelTitle}>Confirmed batch traceability</h2><p className={styles.hint}>Only actual confirmed consumption appears here. Prepared snapshots are excluded.</p>
-      <form onSubmit={submitTrace}><div className={styles.fieldGroup}><label className={styles.label} htmlFor="trace-type">Trace direction</label><select id="trace-type" className={styles.select} value={traceType} onChange={event => { setTraceType(event.target.value as "batch" | "patient"); setTraceRows([]); }}><option value="batch">Batch → patients</option><option value="patient">Patient → batches</option></select></div>
-        <div className={styles.fieldGroup}><label className={styles.label} htmlFor="trace-record">{traceType === "batch" ? "Batch ID" : "Patient ID"}</label><input id="trace-record" className={styles.input} value={traceID} onChange={event => setTraceID(event.target.value)} required /></div><button className={styles.primaryBtn} disabled={busy}>Trace confirmed use</button></form>
-      <TableRegion label="Traceability results"><table className={styles.table}><thead><tr><th scope="col">Patient</th><th scope="col">Batch</th><th scope="col">Actual quantity</th><th scope="col">Session</th><th scope="col">Confirmed</th></tr></thead><tbody>{traceRows.map((row, index) => <tr key={`${row.preparationId}-${row.batchId}-${index}`}><td>{row.patientDisplayName}<div className={styles.hint}>{row.patientId}</div></td><td>{row.batchReference}</td><td>{row.quantityGrams} g</td><td>{row.sessionId}</td><td>{new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Colombo", dateStyle: "medium", timeStyle: "short" }).format(new Date(row.confirmedAt))}</td></tr>)}</tbody></table></TableRegion>
-      {traceRows.length === 0 && <StateMessage>No confirmed consumption is loaded.</StateMessage>}
-    </section>}
+    {tab === "traceability" && <InventoryTrace />}
   </div>;
 }

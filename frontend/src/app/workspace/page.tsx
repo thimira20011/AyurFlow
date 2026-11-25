@@ -12,7 +12,7 @@ const descriptions: Record<string, string> = {
   therapist: "Review assigned sessions and record treatment delivery.",
   dispensary: "Review botanical batches, recipes, preparations, and traceability.",
   billing: "Review invoices, receipts, and outstanding balances.",
-  report_reader: "Review outstanding invoices.",
+  report_reader: "Review outstanding invoices, stock, and confirmed batch use.",
   administrator: "Manage controlled staff access and clinician assignments.",
 };
 

@@ -66,10 +66,11 @@ export function deactivateBotanicalItem(itemId: string, reason: string): Promise
   return apiMutation<BotanicalItem>(`/inventory/items/${encodeURIComponent(itemId)}/deactivate`, { reason }, "POST");
 }
 
-export function listStockBatches(eligibleOnly = false, itemId = "", signal?: AbortSignal): Promise<StockBatchPage> {
+export function listStockBatches(eligibleOnly = false, itemId = "", signal?: AbortSignal, cursor?: string): Promise<StockBatchPage> {
   const params = new URLSearchParams({ limit: "100" });
   if (eligibleOnly) params.set("eligibleOnly", "true");
   if (itemId) params.set("itemId", itemId);
+  if (cursor) params.set("cursor", cursor);
   return apiGet<StockBatchPage>(`/inventory/batches?${params.toString()}`, signal);
 }
 
@@ -115,5 +116,5 @@ export function listPreparations(
 export const savePreparation = (input: { patientId: string; sessionId: string; recipeId: string; targetYieldGrams: string }) => apiMutation<Preparation>("/preparations", input);
 export const confirmConsumption = (id: string, input: { operationId: string; allocations: { batchId: string; quantityGrams: string }[] }) =>
   apiMutation<Preparation>(`/preparations/${encodeURIComponent(id)}/confirm-consumption`, input);
-export const traceBatch = (id: string) => apiGet<{ items: TraceRow[] }>(`/reports/inventory/traceability/batches/${encodeURIComponent(id)}`);
-export const tracePatient = (id: string) => apiGet<{ items: TraceRow[] }>(`/reports/inventory/traceability/patients/${encodeURIComponent(id)}`);
+export const traceBatch = (id: string, signal?: AbortSignal) => apiGet<{ items: TraceRow[] }>(`/reports/inventory/traceability/batches/${encodeURIComponent(id)}`, signal);
+export const tracePatient = (id: string, signal?: AbortSignal) => apiGet<{ items: TraceRow[] }>(`/reports/inventory/traceability/patients/${encodeURIComponent(id)}`, signal);

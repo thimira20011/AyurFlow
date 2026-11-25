@@ -46,7 +46,7 @@ Initial [CI run 44045591552](https://github.com/thimira20011/AyurFlow/actions/ru
 
 ## Handoffs and limits
 
-- D/F: report-reader navigation currently exposes billing reports. Inventory API report reads exist, but the shared `/inventory` area is dispensary-only and its workspace contains write controls. A dedicated reviewed read-only inventory report entry is a remaining UI handoff; do not widen the area guard to expose the existing mutation workspace.
+- The 26 November follow-up adds a dedicated read-only inventory report for `report_reader` and `dispensary`, with the existing stock totals, batch eligibility filter and cursor, and confirmed-use trace in both directions. The existing `/inventory` workspace remains restricted to dispensary. See the [report instructions](../../frontend/src/features/inventory/README.md#task-qa-02-read-only-inventory-report). D/F review and acceptance remain open.
 - D: trace results are capped at the newest 100 rows with no cursor. These checks prove exact record filtering at the tested size, not exhaustive large-history export. Confirm the accepted completeness/pagination contract before closing AT11.
 - E/F: the current outstanding report is global for its permitted roles and has no server-side patient/date filter or export contract. Do not present client-side filtering or an added URL parameter as a narrower backend permission boundary. A bounded/paginated report remains a shared contract/performance review item.
 - A/F/D/E: review the recorded fields, clinician assignment behavior and report-reader identity exposure. This implementation-level verification is not clinic approval or DEC05 real-data authorization.
