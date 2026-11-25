@@ -8,6 +8,7 @@ import {
   confirmConsumption, createRecipe, listPreparations, listRecipes, savePreparation, traceBatch, tracePatient,
   updateRecipe, type BotanicalItem, type Preparation, type Recipe, type RecipeInput, type StockBatch, type TraceRow,
 } from "./api";
+import { scaleIngredientGrams } from "./scaling";
 import styles from "./inventory-workspace.module.css";
 
 const emptyRecipe: RecipeInput = { code: "", displayName: "", baseYieldGrams: "", ingredients: [{ itemId: "", quantityGrams: "" }] };
@@ -115,6 +116,14 @@ export default function InventoryLiveWorkflows({ tab, items, batches, refreshBat
     void run(async () => { const result = traceType === "batch" ? await traceBatch(traceID.trim()) : await tracePatient(traceID.trim()); setTraceRows(result.items ?? []); }, "Confirmed consumption history loaded.");
   }
 
+  const selectedRecipe = recipes.find(recipe => recipe.id === recipeID) ?? null;
+  const scaledPreview = selectedRecipe && yieldGrams.trim()
+    ? selectedRecipe.ingredients.map(ingredient => ({
+      ...ingredient,
+      scaledGrams: scaleIngredientGrams(ingredient.quantityGrams, yieldGrams, selectedRecipe.baseYieldGrams),
+    }))
+    : [];
+
   return <div className={styles.splitGrid}>
     {notice && <div className={styles.fullWidth}><Notice tone={isError ? "error" : "success"}>{notice}</Notice></div>}
     {tab === "recipes" && <>
@@ -126,7 +135,7 @@ export default function InventoryLiveWorkflows({ tab, items, batches, refreshBat
           <div className={styles.fieldGroup}><label className={styles.label} htmlFor="recipe-code-live">Recipe code</label><input id="recipe-code-live" className={styles.input} value={recipeForm.code} disabled={Boolean(editingRecipe)} onChange={event => setRecipeForm({ ...recipeForm, code: event.target.value })} required /></div>
           <div className={styles.fieldGroup}><label className={styles.label} htmlFor="recipe-name-live">Display name</label><input id="recipe-name-live" className={styles.input} value={recipeForm.displayName} onChange={event => setRecipeForm({ ...recipeForm, displayName: event.target.value })} required /></div>
           <div className={styles.fieldGroup}><label className={styles.label} htmlFor="recipe-yield-live">Base yield · grams</label><input id="recipe-yield-live" className={styles.input} inputMode="decimal" value={recipeForm.baseYieldGrams} onChange={event => setRecipeForm({ ...recipeForm, baseYieldGrams: event.target.value })} required /></div>
-          {recipeForm.ingredients.map((ingredient, index) => <div key={index} className={styles.fieldGroup}><label className={styles.label} htmlFor={`ingredient-${index}`}>Ingredient {index + 1}</label><select id={`ingredient-${index}`} className={styles.select} value={ingredient.itemId} required onChange={event => setRecipeForm({ ...recipeForm, ingredients: recipeForm.ingredients.map((item, i) => i === index ? { ...item, itemId: event.target.value } : item) })}><option value="">Choose botanical item</option>{items.filter(item => item.active).map(item => <option key={item.id} value={item.id}>{item.code} · {item.displayName}</option>)}</select><label className={styles.label} htmlFor={`ingredient-grams-${index}`}>Base quantity · grams</label><input id={`ingredient-grams-${index}`} className={styles.input} inputMode="decimal" value={ingredient.quantityGrams} onChange={event => setRecipeForm({ ...recipeForm, ingredients: recipeForm.ingredients.map((item, i) => i === index ? { ...item, quantityGrams: event.target.value } : item) })} required /></div>)}
+          {recipeForm.ingredients.map((ingredient, index) => <div key={index} className={styles.fieldGroup}><label className={styles.label} htmlFor={`ingredient-${index}`}>Ingredient {index + 1}</label><select id={`ingredient-${index}`} className={styles.select} value={ingredient.itemId} required onChange={event => setRecipeForm({ ...recipeForm, ingredients: recipeForm.ingredients.map((item, i) => i === index ? { ...item, itemId: event.target.value } : item) })}><option value="">Choose botanical item</option>{items.filter(item => item.active).map(item => <option key={item.id} value={item.id}>{item.code} · {item.displayName}</option>)}</select><label className={styles.label} htmlFor={`ingredient-grams-${index}`}>Base quantity · grams</label><input id={`ingredient-grams-${index}`} className={styles.input} inputMode="decimal" value={ingredient.quantityGrams} onChange={event => setRecipeForm({ ...recipeForm, ingredients: recipeForm.ingredients.map((item, i) => i === index ? { ...item, quantityGrams: event.target.value } : item) })} required />{recipeForm.ingredients.length > 1 && <button type="button" className={styles.secondaryBtn} onClick={() => setRecipeForm({ ...recipeForm, ingredients: recipeForm.ingredients.filter((_, i) => i !== index) })}>Remove ingredient {index + 1}</button>}</div>)}
           <div className={styles.actions}><button type="button" className={styles.secondaryBtn} onClick={() => setRecipeForm({ ...recipeForm, ingredients: [...recipeForm.ingredients, { itemId: "", quantityGrams: "" }] })}>Add ingredient</button><button className={styles.primaryBtn} disabled={busy}>{editingRecipe ? "Save recipe version" : "Create recipe"}</button></div>
         </form>
       </section>
@@ -136,6 +145,21 @@ export default function InventoryLiveWorkflows({ tab, items, batches, refreshBat
           <div className={styles.fieldGroup}><label className={styles.label} htmlFor="prep-session">Session ID</label><input id="prep-session" className={styles.input} value={sessionID} onChange={event => setSessionID(event.target.value)} required /></div>
           <div className={styles.fieldGroup}><label className={styles.label} htmlFor="prep-recipe">Recipe</label><select id="prep-recipe" className={styles.select} value={recipeID} onChange={event => setRecipeID(event.target.value)} required><option value="">Choose recipe</option>{recipes.map(recipe => <option key={recipe.id} value={recipe.id}>{recipe.code} · {recipe.displayName}</option>)}</select></div>
           <div className={styles.fieldGroup}><label className={styles.label} htmlFor="prep-yield">Target yield · grams</label><input id="prep-yield" className={styles.input} inputMode="decimal" value={yieldGrams} onChange={event => setYieldGrams(event.target.value)} required /></div>
+          {selectedRecipe && scaledPreview.length > 0 && <>
+            <p className={styles.hint}>Scaled preview ({selectedRecipe.baseYieldGrams} g base → {yieldGrams.trim()} g target · Round Half Up at 0.001 g):</p>
+            <TableRegion label="Scaled ingredient preview">
+              <table className={styles.table}>
+                <thead><tr><th scope="col">Ingredient</th><th scope="col">Base</th><th scope="col">Scaled required</th></tr></thead>
+                <tbody>
+                  {scaledPreview.map(row => <tr key={row.itemId}>
+                    <td>{row.itemCode} · {row.itemDisplayName}</td>
+                    <td>{row.quantityGrams} g</td>
+                    <td>{row.scaledGrams ? `${row.scaledGrams} g` : "Invalid yield"}</td>
+                  </tr>)}
+                </tbody>
+              </table>
+            </TableRegion>
+          </>}
           <button className={styles.primaryBtn} disabled={busy}>Save immutable snapshot</button>
         </form>
       </section>

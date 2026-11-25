@@ -252,3 +252,257 @@ func TestInventoryHTTPRoutes(t *testing.T) {
 		}
 	})
 }
+
+type mockPreparationService struct {
+	createRecipeFunc func(ctx context.Context, actor string, req inventory.RecipeRequest) (inventory.Recipe, error)
+	updateRecipeFunc func(ctx context.Context, actor, id string, req inventory.RecipeRequest) (inventory.Recipe, error)
+	listRecipesFunc  func(ctx context.Context, actor string) ([]inventory.Recipe, error)
+	getRecipeFunc    func(ctx context.Context, actor, id string) (inventory.Recipe, error)
+}
+
+func (m *mockPreparationService) CreateRecipe(ctx context.Context, actor string, req inventory.RecipeRequest) (inventory.Recipe, error) {
+	if m.createRecipeFunc != nil {
+		return m.createRecipeFunc(ctx, actor, req)
+	}
+	return inventory.Recipe{}, nil
+}
+
+func (m *mockPreparationService) UpdateRecipe(ctx context.Context, actor, id string, req inventory.RecipeRequest) (inventory.Recipe, error) {
+	if m.updateRecipeFunc != nil {
+		return m.updateRecipeFunc(ctx, actor, id, req)
+	}
+	return inventory.Recipe{}, nil
+}
+
+func (m *mockPreparationService) ListRecipes(ctx context.Context, actor string) ([]inventory.Recipe, error) {
+	if m.listRecipesFunc != nil {
+		return m.listRecipesFunc(ctx, actor)
+	}
+	return []inventory.Recipe{}, nil
+}
+
+func (m *mockPreparationService) GetRecipe(ctx context.Context, actor, id string) (inventory.Recipe, error) {
+	if m.getRecipeFunc != nil {
+		return m.getRecipeFunc(ctx, actor, id)
+	}
+	return inventory.Recipe{}, nil
+}
+
+func (m *mockPreparationService) SavePreparation(context.Context, string, inventory.SavePreparationRequest) (inventory.Preparation, error) {
+	return inventory.Preparation{}, nil
+}
+
+func (m *mockPreparationService) ListPreparations(context.Context, string, string) ([]inventory.Preparation, error) {
+	return []inventory.Preparation{}, nil
+}
+
+func (m *mockPreparationService) GetPreparation(context.Context, string, string) (inventory.Preparation, error) {
+	return inventory.Preparation{}, nil
+}
+
+func (m *mockPreparationService) ConfirmConsumption(context.Context, string, string, inventory.ConfirmConsumptionRequest) (inventory.Preparation, bool, error) {
+	return inventory.Preparation{}, false, nil
+}
+
+func (m *mockPreparationService) TraceBatch(context.Context, string, string) ([]inventory.TraceRow, error) {
+	return []inventory.TraceRow{}, nil
+}
+
+func (m *mockPreparationService) TracePatient(context.Context, string, string) ([]inventory.TraceRow, error) {
+	return []inventory.TraceRow{}, nil
+}
+
+func TestRecipeHTTPRoutes(t *testing.T) {
+	recipeID := "55123910-1293-4819-9182-192837465099"
+	itemA := "10938471-2938-4819-9182-736451928374"
+	itemB := "20938471-2938-4819-9182-736451928375"
+
+	mockSvc := &mockPreparationService{
+		createRecipeFunc: func(ctx context.Context, actor string, req inventory.RecipeRequest) (inventory.Recipe, error) {
+			if len(req.Ingredients) == 0 {
+				return inventory.Recipe{}, inventory.ErrValidation
+			}
+			if req.Code == "REC-INACTIVE" {
+				return inventory.Recipe{}, inventory.ErrConflict
+			}
+			return inventory.Recipe{
+				ID:             recipeID,
+				Code:           req.Code,
+				DisplayName:    req.DisplayName,
+				BaseYieldGrams: req.BaseYieldGrams,
+				Version:        1,
+				Active:         true,
+				Ingredients: []inventory.RecipeIngredient{
+					{ItemID: itemA, ItemCode: "BOT-ASHWA-001", ItemDisplayName: "Ashwagandha Root", QuantityGrams: "20.000"},
+					{ItemID: itemB, ItemCode: "BOT-GUDU-002", ItemDisplayName: "Guduchi Stem", QuantityGrams: "15.000"},
+				},
+			}, nil
+		},
+		updateRecipeFunc: func(ctx context.Context, actor, id string, req inventory.RecipeRequest) (inventory.Recipe, error) {
+			if req.Version != 1 {
+				return inventory.Recipe{}, inventory.ErrConflict
+			}
+			return inventory.Recipe{
+				ID:             id,
+				Code:           req.Code,
+				DisplayName:    req.DisplayName,
+				BaseYieldGrams: req.BaseYieldGrams,
+				Version:        2,
+				Active:         true,
+				Ingredients: []inventory.RecipeIngredient{
+					{ItemID: itemA, ItemCode: "BOT-ASHWA-001", ItemDisplayName: "Ashwagandha Root", QuantityGrams: "25.000"},
+				},
+			}, nil
+		},
+		listRecipesFunc: func(ctx context.Context, actor string) ([]inventory.Recipe, error) {
+			return []inventory.Recipe{{ID: recipeID, Code: "REC-ASHWA-GUDU-01", DisplayName: "Synthetic Mix", BaseYieldGrams: "100.000", Version: 1, Active: true}}, nil
+		},
+		getRecipeFunc: func(ctx context.Context, actor, id string) (inventory.Recipe, error) {
+			if id != recipeID {
+				return inventory.Recipe{}, inventory.ErrNotFound
+			}
+			return inventory.Recipe{ID: recipeID, Code: "REC-ASHWA-GUDU-01", DisplayName: "Synthetic Mix", BaseYieldGrams: "100.000", Version: 1, Active: true}, nil
+		},
+	}
+
+	gin.SetMode(gin.TestMode)
+	router := NewRouter(nil, AuthRoutes{
+		Service:       mockSessionAuth{},
+		AllowedOrigin: "https://clinic.example",
+		Preparations:  mockSvc,
+	})
+
+	t.Run("POST /api/v1/recipes requires CSRF and returns 201 Created", func(t *testing.T) {
+		body, _ := json.Marshal(map[string]any{
+			"code":           "REC-ASHWA-GUDU-01",
+			"displayName":    "Synthetic Ashwagandha-Guduchi Mix",
+			"baseYieldGrams": "100.000",
+			"ingredients": []map[string]any{
+				{"itemId": itemA, "quantityGrams": "20.000"},
+				{"itemId": itemB, "quantityGrams": "15.000"},
+			},
+		})
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/recipes", bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Origin", "https://clinic.example")
+		req.Header.Set("X-CSRF-Token", "valid-csrf-token")
+		req.AddCookie(&http.Cookie{Name: sessionCookie, Value: "valid-session"})
+
+		rec := httptest.NewRecorder()
+		router.ServeHTTP(rec, req)
+		if rec.Code != http.StatusCreated {
+			t.Fatalf("status = %d, want 201 (%s)", rec.Code, rec.Body.String())
+		}
+	})
+
+	t.Run("POST /api/v1/recipes without CSRF returns 403 Forbidden", func(t *testing.T) {
+		body, _ := json.Marshal(map[string]any{
+			"code":           "REC-ASHWA-GUDU-01",
+			"displayName":    "Synthetic Ashwagandha-Guduchi Mix",
+			"baseYieldGrams": "100.000",
+			"ingredients":    []map[string]any{{"itemId": itemA, "quantityGrams": "20.000"}},
+		})
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/recipes", bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Origin", "https://clinic.example")
+		req.AddCookie(&http.Cookie{Name: sessionCookie, Value: "valid-session"})
+
+		rec := httptest.NewRecorder()
+		router.ServeHTTP(rec, req)
+		if rec.Code != http.StatusForbidden {
+			t.Fatalf("status = %d, want 403", rec.Code)
+		}
+	})
+
+	t.Run("POST /api/v1/recipes returns 422 on validation failure and 409 on deactivated item", func(t *testing.T) {
+		invalidBody, _ := json.Marshal(map[string]any{
+			"code":           "REC-EMPTY",
+			"displayName":    "Empty",
+			"baseYieldGrams": "100.000",
+			"ingredients":    []map[string]any{},
+		})
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/recipes", bytes.NewReader(invalidBody))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Origin", "https://clinic.example")
+		req.Header.Set("X-CSRF-Token", "valid-csrf-token")
+		req.AddCookie(&http.Cookie{Name: sessionCookie, Value: "valid-session"})
+		rec := httptest.NewRecorder()
+		router.ServeHTTP(rec, req)
+		if rec.Code != http.StatusUnprocessableEntity {
+			t.Fatalf("status = %d, want 422 (%s)", rec.Code, rec.Body.String())
+		}
+
+		conflictBody, _ := json.Marshal(map[string]any{
+			"code":           "REC-INACTIVE",
+			"displayName":    "Inactive item recipe",
+			"baseYieldGrams": "100.000",
+			"ingredients":    []map[string]any{{"itemId": itemA, "quantityGrams": "20.000"}},
+		})
+		conflictReq := httptest.NewRequest(http.MethodPost, "/api/v1/recipes", bytes.NewReader(conflictBody))
+		conflictReq.Header.Set("Content-Type", "application/json")
+		conflictReq.Header.Set("Origin", "https://clinic.example")
+		conflictReq.Header.Set("X-CSRF-Token", "valid-csrf-token")
+		conflictReq.AddCookie(&http.Cookie{Name: sessionCookie, Value: "valid-session"})
+		conflictRec := httptest.NewRecorder()
+		router.ServeHTTP(conflictRec, conflictReq)
+		if conflictRec.Code != http.StatusConflict {
+			t.Fatalf("status = %d, want 409 (%s)", conflictRec.Code, conflictRec.Body.String())
+		}
+	})
+
+	t.Run("PATCH /api/v1/recipes/:id returns 200 OK and 409 Conflict on stale version", func(t *testing.T) {
+		okBody, _ := json.Marshal(map[string]any{
+			"code":           "REC-ASHWA-GUDU-01",
+			"displayName":    "Updated Mix",
+			"baseYieldGrams": "100.000",
+			"version":        1,
+			"ingredients":    []map[string]any{{"itemId": itemA, "quantityGrams": "25.000"}},
+		})
+		req := httptest.NewRequest(http.MethodPatch, "/api/v1/recipes/"+recipeID, bytes.NewReader(okBody))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Origin", "https://clinic.example")
+		req.Header.Set("X-CSRF-Token", "valid-csrf-token")
+		req.AddCookie(&http.Cookie{Name: sessionCookie, Value: "valid-session"})
+		rec := httptest.NewRecorder()
+		router.ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200 (%s)", rec.Code, rec.Body.String())
+		}
+
+		staleBody, _ := json.Marshal(map[string]any{
+			"code":           "REC-ASHWA-GUDU-01",
+			"displayName":    "Stale Mix",
+			"baseYieldGrams": "100.000",
+			"version":        99,
+			"ingredients":    []map[string]any{{"itemId": itemA, "quantityGrams": "25.000"}},
+		})
+		staleReq := httptest.NewRequest(http.MethodPatch, "/api/v1/recipes/"+recipeID, bytes.NewReader(staleBody))
+		staleReq.Header.Set("Content-Type", "application/json")
+		staleReq.Header.Set("Origin", "https://clinic.example")
+		staleReq.Header.Set("X-CSRF-Token", "valid-csrf-token")
+		staleReq.AddCookie(&http.Cookie{Name: sessionCookie, Value: "valid-session"})
+		staleRec := httptest.NewRecorder()
+		router.ServeHTTP(staleRec, staleReq)
+		if staleRec.Code != http.StatusConflict {
+			t.Fatalf("status = %d, want 409 (%s)", staleRec.Code, staleRec.Body.String())
+		}
+	})
+
+	t.Run("GET /api/v1/recipes and GET /api/v1/recipes/:id return 200 OK", func(t *testing.T) {
+		listReq := httptest.NewRequest(http.MethodGet, "/api/v1/recipes", nil)
+		listReq.AddCookie(&http.Cookie{Name: sessionCookie, Value: "valid-session"})
+		listRec := httptest.NewRecorder()
+		router.ServeHTTP(listRec, listReq)
+		if listRec.Code != http.StatusOK {
+			t.Fatalf("GET /recipes status = %d, want 200 (%s)", listRec.Code, listRec.Body.String())
+		}
+
+		getReq := httptest.NewRequest(http.MethodGet, "/api/v1/recipes/"+recipeID, nil)
+		getReq.AddCookie(&http.Cookie{Name: sessionCookie, Value: "valid-session"})
+		getRec := httptest.NewRecorder()
+		router.ServeHTTP(getRec, getReq)
+		if getRec.Code != http.StatusOK {
+			t.Fatalf("GET /recipes/:id status = %d, want 200 (%s)", getRec.Code, getRec.Body.String())
+		}
+	})
+}
