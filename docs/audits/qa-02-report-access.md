@@ -50,3 +50,7 @@ Initial [CI run 44045591552](https://github.com/thimira20011/AyurFlow/actions/ru
 - D: trace results are capped at the newest 100 rows with no cursor. These checks prove exact record filtering at the tested size, not exhaustive large-history export. Confirm the accepted completeness/pagination contract before closing AT11.
 - E/F: the current outstanding report is global for its permitted roles and has no server-side patient/date filter or export contract. Do not present client-side filtering or an added URL parameter as a narrower backend permission boundary. A bounded/paginated report remains a shared contract/performance review item.
 - A/F/D/E: review the recorded fields, clinician assignment behavior and report-reader identity exposure. This implementation-level verification is not clinic approval or DEC05 real-data authorization.
+
+## 26 November inventory report verification
+
+The [full-stack job](https://github.com/thimira20011/AyurFlow/actions/runs/45685744952/job/139457778581) passed all 25 cases on `e731b2c` using the real HTTPS proxy, Next.js, Go and disposable PostgreSQL 17.11. It verified both single- and mixed-role navigation, dispensary-only access to `/inventory`, and read-only report access after reload. A report reader saw the newly received synthetic batch at 15.125 g and received an empty confirmed-use result for that batch. Simulated-response UI tests additionally check server-side pagination and filtering, display of confirmed trace rows, and omission of the stock block reason.

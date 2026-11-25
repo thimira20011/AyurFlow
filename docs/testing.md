@@ -124,7 +124,7 @@ The [TASK-CON-03 branch workflow](https://github.com/thimira20011/AyurFlow/actio
 | AT11 | Bidirectional actual traceability and report permissions | D/F | Pending |
 | AT12 | Locked invoice, deposit, balance, receipt retries/races and retention | E | Pending |
 | AT13 | Reference/report access, critical audit and failed-audit rollback | A/all | Pending |
-| AT14 | 10 minutes, 5 users, 500 patients, 1000 sessions, 200 batches; p95 <2s on three queries | F | Pending |
+| AT14 | 10 minutes, 5 users, 500 patients, 1000 sessions, 200 batches; p95 <2s on three queries | F | [Isolated baseline passed](evidence/member-a-at14-2026-11-26.md); pilot run and review pending |
 | AT15 | 1366×768 and 1024×768, keyboard, labels, Unicode, errors | F/all | Pending |
 | AT16 | Outage re-entry and encrypted isolated restore of four record categories | A/F | Pending |
 | AT17 | Clean startup, migrations, seed, restart persistence, docs and handover | A/F | Pending |

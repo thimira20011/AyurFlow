@@ -75,15 +75,15 @@ export default function InventoryTrace() {
     {loading && <StateMessage>Loading confirmed use…</StateMessage>}
     {error && <Notice tone="error">{error}</Notice>}
     {rows?.length === 0 && <StateMessage>No confirmed use found for this record.</StateMessage>}
-    {!!rows?.length && <TableRegion label="Traceability results">
+    <TableRegion label="Traceability results">
       <table className={styles.table}>
         <thead><tr><th scope="col">Patient</th><th scope="col">Batch</th><th scope="col">Actual quantity</th><th scope="col">Session</th><th scope="col">Confirmed (Colombo)</th></tr></thead>
-        <tbody>{rows.map(row => <tr key={`${row.preparationId}-${row.batchId}`}>
+        <tbody>{rows?.map(row => <tr key={`${row.preparationId}-${row.batchId}`}>
           <td>{row.patientDisplayName}<div className={styles.hint}>{row.patientId}</div></td>
           <td>{row.batchReference}</td><td>{row.quantityGrams} g</td><td>{row.sessionId}</td>
           <td>{colomboDateTime.format(new Date(row.confirmedAt))}</td>
         </tr>)}</tbody>
       </table>
-    </TableRegion>}
+    </TableRegion>
   </section>;
 }
