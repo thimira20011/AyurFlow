@@ -118,7 +118,7 @@ Status values: **Pending** = not started; **In progress** = work underway but co
 | TASK-QA-02 | Authorized report navigation | F with D/E; A checks access | A | In progress | Merged F report navigation; A adds real HTTP/browser role checks and PostgreSQL trace/filter regressions on `codex/qa-02-report-access`. [Review, evidence and D/E/F handoffs](audits/qa-02-report-access.md); independent review and full AT11/13 acceptance remain. |
 | TASK-QA-03 | Patient-to-receipt walkthrough | F; owners fix modules | A | In progress | The linked synthetic journey passed over the real API and disposable PostgreSQL. F coordinates the staff walkthrough. [Execution evidence](evidence/member-a-acceptance-review-2026-11-22.md#qa-03-automated-journey) |
 | TASK-QA-04 | Critical audit and permission sweep | A with F | F | In progress | `codex/qa-04-permissions-audit` restricts reception observation access and adds PostgreSQL audit-failure regressions. [Review findings and evidence](audits/qa-04-permissions.md). F and module-owner review, open findings and full AT13 remain. |
-| TASK-QA-05 | Performance and viewport/keyboard evidence | F; A supports host | A | Pending | — |
+| TASK-QA-05 | Performance and viewport/keyboard evidence | F; A supports host | A | In progress | [Isolated AT14 baseline and pilot follow-up](evidence/member-a-at14-2026-11-26.md) |
 | TASK-QA-06 | Clinic UAT, triage and acceptance record | F; owners attend | A; clinic review | Pending | — |
 
 ## 10. Deployment and handover (weeks 1–10)

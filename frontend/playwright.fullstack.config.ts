@@ -1,5 +1,14 @@
 import { defineConfig } from "@playwright/test";
 
+export const fullstackServer = {
+  command: "node tests/fullstack/start.mjs",
+  url: "https://localhost:3443/api/v1/ready",
+  ignoreHTTPSErrors: true,
+  timeout: 180_000,
+  reuseExistingServer: false,
+  gracefulShutdown: { signal: "SIGTERM" as const, timeout: 10_000 },
+};
+
 export default defineConfig({
   testDir: "./tests/fullstack",
   testMatch: "*.spec.ts",
@@ -16,12 +25,5 @@ export default defineConfig({
     screenshot: "off",
     video: "off",
   },
-  webServer: {
-    command: "node tests/fullstack/start.mjs",
-    url: "https://localhost:3443/api/v1/ready",
-    ignoreHTTPSErrors: true,
-    timeout: 180_000,
-    reuseExistingServer: false,
-    gracefulShutdown: { signal: "SIGTERM", timeout: 10_000 },
-  },
+  webServer: fullstackServer,
 });
