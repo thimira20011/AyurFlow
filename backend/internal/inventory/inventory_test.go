@@ -200,3 +200,73 @@ func TestScaleIngredientGrams(t *testing.T) {
 		t.Fatalf("zero baseYield error = %v, want ErrValidation", err)
 	}
 }
+
+func TestCanonicalizeConsumptionAllocations(t *testing.T) {
+	prepID := "99123910-1293-4819-9182-192837465111"
+	opID := "7C4A1B9E-2001-4C9A-8A11-111111111111"
+	batchLow := "b1111111-2222-4333-8444-555555555555"
+	batchHigh := "b2222222-2222-4333-8444-555555555556"
+
+	op1, allocs1, hash1, err := inventory.CanonicalizeConsumptionAllocations(prepID, inventory.ConfirmConsumptionRequest{
+		OperationID: opID,
+		Allocations: []inventory.Allocation{
+			{BatchID: batchHigh, QuantityGrams: "20"},
+			{BatchID: batchLow, QuantityGrams: "30.0"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("canonicalize order 1: %v", err)
+	}
+	if op1 != "7c4a1b9e-2001-4c9a-8a11-111111111111" {
+		t.Fatalf("canonical op = %q", op1)
+	}
+	if len(allocs1) != 2 || allocs1[0].BatchID != batchLow || allocs1[0].QuantityGrams != "30.000" || allocs1[1].BatchID != batchHigh || allocs1[1].QuantityGrams != "20.000" {
+		t.Fatalf("allocations not sorted ascending by batch_id: %+v", allocs1)
+	}
+
+	_, _, hash2, err := inventory.CanonicalizeConsumptionAllocations(prepID, inventory.ConfirmConsumptionRequest{
+		OperationID: op1,
+		Allocations: []inventory.Allocation{
+			{BatchID: batchLow, QuantityGrams: "30.000"},
+			{BatchID: batchHigh, QuantityGrams: "20.000"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("canonicalize order 2: %v", err)
+	}
+	if hash1 != hash2 {
+		t.Fatalf("payload fingerprint depends on allocation order or trailing decimals: %q != %q", hash1, hash2)
+	}
+
+	_, _, hashChanged, err := inventory.CanonicalizeConsumptionAllocations(prepID, inventory.ConfirmConsumptionRequest{
+		OperationID: op1,
+		Allocations: []inventory.Allocation{
+			{BatchID: batchLow, QuantityGrams: "25.000"},
+			{BatchID: batchHigh, QuantityGrams: "25.000"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("canonicalize modified quantities: %v", err)
+	}
+	if hash1 == hashChanged {
+		t.Fatalf("modified quantities produced identical fingerprint %q", hash1)
+	}
+
+	// Reject empty allocations, duplicate batchId, zero grams, or >3 decimal places.
+	for _, tc := range []struct {
+		name string
+		req  inventory.ConfirmConsumptionRequest
+	}{
+		{name: "empty allocations", req: inventory.ConfirmConsumptionRequest{OperationID: op1, Allocations: nil}},
+		{name: "duplicate batchId", req: inventory.ConfirmConsumptionRequest{OperationID: op1, Allocations: []inventory.Allocation{{BatchID: batchLow, QuantityGrams: "10.000"}, {BatchID: batchLow, QuantityGrams: "20.000"}}}},
+		{name: "zero grams", req: inventory.ConfirmConsumptionRequest{OperationID: op1, Allocations: []inventory.Allocation{{BatchID: batchLow, QuantityGrams: "0.000"}}}},
+		{name: "four decimals", req: inventory.ConfirmConsumptionRequest{OperationID: op1, Allocations: []inventory.Allocation{{BatchID: batchLow, QuantityGrams: "10.0001"}}}},
+		{name: "invalid operationId", req: inventory.ConfirmConsumptionRequest{OperationID: "not-a-uuid", Allocations: []inventory.Allocation{{BatchID: batchLow, QuantityGrams: "10.000"}}}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if _, _, _, err := inventory.CanonicalizeConsumptionAllocations(prepID, tc.req); !errors.Is(err, inventory.ErrValidation) {
+				t.Fatalf("%s error = %v, want ErrValidation", tc.name, err)
+			}
+		})
+	}
+}

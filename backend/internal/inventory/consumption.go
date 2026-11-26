@@ -83,6 +83,28 @@ func payloadHash(preparationID string, allocations []selectedAllocation) string 
 	return hex.EncodeToString(sum[:])
 }
 
+// CanonicalizeConsumptionAllocations validates manual batch allocations,
+// sorts them in ascending batch_id order for deadlock-free locking (PRE-04, NFR-02),
+// and computes the canonical SHA-256 payload fingerprint for retry checks (PRE-05).
+func CanonicalizeConsumptionAllocations(preparationID string, req ConfirmConsumptionRequest) (string, []Allocation, string, error) {
+	id, err := canonicalUUID(preparationID, "preparationId")
+	if err != nil {
+		return "", nil, "", err
+	}
+	operation, selected, err := canonicalAllocations(req)
+	if err != nil {
+		return "", nil, "", err
+	}
+	normalized := make([]Allocation, len(selected))
+	for i, item := range selected {
+		normalized[i] = Allocation{
+			BatchID:       item.id,
+			QuantityGrams: FormatMilligramsToGrams(item.milligrams),
+		}
+	}
+	return operation, normalized, payloadHash(id, selected), nil
+}
+
 // ConfirmConsumption locks the operation, preparation, and selected batches in
 // that order. Same-payload retries return the committed preparation unchanged.
 func (s *Service) ConfirmConsumption(ctx context.Context, actor, preparationID string, req ConfirmConsumptionRequest) (Preparation, bool, error) {
