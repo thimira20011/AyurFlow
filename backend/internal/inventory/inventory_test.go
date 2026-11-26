@@ -98,3 +98,175 @@ func TestColomboDateStringBoundary(t *testing.T) {
 		t.Fatalf("ColomboDateString(%v) = %q, want %q", utcInstant, got, "2026-10-31")
 	}
 }
+
+func TestScaleIngredientGrams(t *testing.T) {
+	tests := []struct {
+		name      string
+		base      string
+		target    string
+		baseYield string
+		want      string
+		wantErr   bool
+	}{
+		{
+			name:      "D-PRE-01 AT09 Ashwagandha 20g x 250g / 100g = 50.000g",
+			base:      "20.000",
+			target:    "250.000",
+			baseYield: "100.000",
+			want:      "50.000",
+		},
+		{
+			name:      "D-PRE-01 AT09 Guduchi 15g x 250g / 100g = 37.500g",
+			base:      "15.000",
+			target:    "250.000",
+			baseYield: "100.000",
+			want:      "37.500",
+		},
+		{
+			name:      "D-PRE-02 DEC03 repeating decimal 10g x 100g / 300g = 3.333g",
+			base:      "10.000",
+			target:    "100.000",
+			baseYield: "300.000",
+			want:      "3.333",
+		},
+		{
+			name:      "Round Half Up exact 0.0005g tie rounds up to 0.001g",
+			base:      "1.000",
+			target:    "1.000",
+			baseYield: "2000.000",
+			want:      "0.001",
+		},
+		{
+			name:      "Round Half Up exact half-way tie with odd denominator",
+			base:      "0.003",
+			target:    "0.005",
+			baseYield: "0.002",
+			want:      "0.008",
+		},
+		{
+			name:      "Round Half Up two-thirds rounds up",
+			base:      "20.000",
+			target:    "100.000",
+			baseYield: "300.000",
+			want:      "6.667",
+		},
+		{
+			name:      "Sub-milligram result rounding to 0.000g rejected",
+			base:      "0.001",
+			target:    "0.001",
+			baseYield: "10.000",
+			wantErr:   true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			baseMg, err := inventory.ParseGramsToMilligrams(tc.base, false)
+			if err != nil {
+				t.Fatalf("parse base: %v", err)
+			}
+			targetMg, err := inventory.ParseGramsToMilligrams(tc.target, false)
+			if err != nil {
+				t.Fatalf("parse target: %v", err)
+			}
+			yieldMg, err := inventory.ParseGramsToMilligrams(tc.baseYield, false)
+			if err != nil {
+				t.Fatalf("parse yield: %v", err)
+			}
+
+			gotMg, err := inventory.ScaleIngredientGrams(baseMg, targetMg, yieldMg)
+			if tc.wantErr {
+				if !errors.Is(err, inventory.ErrValidation) {
+					t.Fatalf("ScaleIngredientGrams error = %v, want ErrValidation", err)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("ScaleIngredientGrams unexpected error: %v", err)
+			}
+			if got := inventory.FormatMilligramsToGrams(gotMg); got != tc.want {
+				t.Fatalf("ScaleIngredientGrams(%s * %s / %s) = %s, want %s", tc.base, tc.target, tc.baseYield, got, tc.want)
+			}
+		})
+	}
+
+	if _, err := inventory.ScaleIngredientGrams(0, 1000, 1000); !errors.Is(err, inventory.ErrValidation) {
+		t.Fatalf("zero base error = %v, want ErrValidation", err)
+	}
+	if _, err := inventory.ScaleIngredientGrams(1000, 0, 1000); !errors.Is(err, inventory.ErrValidation) {
+		t.Fatalf("zero target error = %v, want ErrValidation", err)
+	}
+	if _, err := inventory.ScaleIngredientGrams(1000, 1000, 0); !errors.Is(err, inventory.ErrValidation) {
+		t.Fatalf("zero baseYield error = %v, want ErrValidation", err)
+	}
+}
+
+func TestCanonicalizeConsumptionAllocations(t *testing.T) {
+	prepID := "99123910-1293-4819-9182-192837465111"
+	opID := "7C4A1B9E-2001-4C9A-8A11-111111111111"
+	batchLow := "b1111111-2222-4333-8444-555555555555"
+	batchHigh := "b2222222-2222-4333-8444-555555555556"
+
+	op1, allocs1, hash1, err := inventory.CanonicalizeConsumptionAllocations(prepID, inventory.ConfirmConsumptionRequest{
+		OperationID: opID,
+		Allocations: []inventory.Allocation{
+			{BatchID: batchHigh, QuantityGrams: "20"},
+			{BatchID: batchLow, QuantityGrams: "30.0"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("canonicalize order 1: %v", err)
+	}
+	if op1 != "7c4a1b9e-2001-4c9a-8a11-111111111111" {
+		t.Fatalf("canonical op = %q", op1)
+	}
+	if len(allocs1) != 2 || allocs1[0].BatchID != batchLow || allocs1[0].QuantityGrams != "30.000" || allocs1[1].BatchID != batchHigh || allocs1[1].QuantityGrams != "20.000" {
+		t.Fatalf("allocations not sorted ascending by batch_id: %+v", allocs1)
+	}
+
+	_, _, hash2, err := inventory.CanonicalizeConsumptionAllocations(prepID, inventory.ConfirmConsumptionRequest{
+		OperationID: op1,
+		Allocations: []inventory.Allocation{
+			{BatchID: batchLow, QuantityGrams: "30.000"},
+			{BatchID: batchHigh, QuantityGrams: "20.000"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("canonicalize order 2: %v", err)
+	}
+	if hash1 != hash2 {
+		t.Fatalf("payload fingerprint depends on allocation order or trailing decimals: %q != %q", hash1, hash2)
+	}
+
+	_, _, hashChanged, err := inventory.CanonicalizeConsumptionAllocations(prepID, inventory.ConfirmConsumptionRequest{
+		OperationID: op1,
+		Allocations: []inventory.Allocation{
+			{BatchID: batchLow, QuantityGrams: "25.000"},
+			{BatchID: batchHigh, QuantityGrams: "25.000"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("canonicalize modified quantities: %v", err)
+	}
+	if hash1 == hashChanged {
+		t.Fatalf("modified quantities produced identical fingerprint %q", hash1)
+	}
+
+	// Reject empty allocations, duplicate batchId, zero grams, or >3 decimal places.
+	for _, tc := range []struct {
+		name string
+		req  inventory.ConfirmConsumptionRequest
+	}{
+		{name: "empty allocations", req: inventory.ConfirmConsumptionRequest{OperationID: op1, Allocations: nil}},
+		{name: "duplicate batchId", req: inventory.ConfirmConsumptionRequest{OperationID: op1, Allocations: []inventory.Allocation{{BatchID: batchLow, QuantityGrams: "10.000"}, {BatchID: batchLow, QuantityGrams: "20.000"}}}},
+		{name: "zero grams", req: inventory.ConfirmConsumptionRequest{OperationID: op1, Allocations: []inventory.Allocation{{BatchID: batchLow, QuantityGrams: "0.000"}}}},
+		{name: "four decimals", req: inventory.ConfirmConsumptionRequest{OperationID: op1, Allocations: []inventory.Allocation{{BatchID: batchLow, QuantityGrams: "10.0001"}}}},
+		{name: "invalid operationId", req: inventory.ConfirmConsumptionRequest{OperationID: "not-a-uuid", Allocations: []inventory.Allocation{{BatchID: batchLow, QuantityGrams: "10.000"}}}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if _, _, _, err := inventory.CanonicalizeConsumptionAllocations(prepID, tc.req); !errors.Is(err, inventory.ErrValidation) {
+				t.Fatalf("%s error = %v, want ErrValidation", tc.name, err)
+			}
+		})
+	}
+}
