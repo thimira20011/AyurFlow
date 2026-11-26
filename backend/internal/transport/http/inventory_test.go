@@ -261,6 +261,7 @@ type mockPreparationService struct {
 	savePreparationFunc          func(ctx context.Context, actor string, req inventory.SavePreparationRequest) (inventory.Preparation, error)
 	listPreparationsFilteredFunc func(ctx context.Context, actor string, filter inventory.ListPreparationsFilter) ([]inventory.Preparation, error)
 	getPreparationFunc           func(ctx context.Context, actor, id string) (inventory.Preparation, error)
+	confirmConsumptionFunc       func(ctx context.Context, actor, id string, req inventory.ConfirmConsumptionRequest) (inventory.Preparation, bool, error)
 }
 
 func (m *mockPreparationService) CreateRecipe(ctx context.Context, actor string, req inventory.RecipeRequest) (inventory.Recipe, error) {
@@ -316,7 +317,10 @@ func (m *mockPreparationService) GetPreparation(ctx context.Context, actor, id s
 	return inventory.Preparation{}, nil
 }
 
-func (m *mockPreparationService) ConfirmConsumption(context.Context, string, string, inventory.ConfirmConsumptionRequest) (inventory.Preparation, bool, error) {
+func (m *mockPreparationService) ConfirmConsumption(ctx context.Context, actor, id string, req inventory.ConfirmConsumptionRequest) (inventory.Preparation, bool, error) {
+	if m.confirmConsumptionFunc != nil {
+		return m.confirmConsumptionFunc(ctx, actor, id, req)
+	}
 	return inventory.Preparation{}, false, nil
 }
 
@@ -685,6 +689,133 @@ func TestPreparationSnapshotHTTPRoutes(t *testing.T) {
 		router.ServeHTTP(missingRec, missingReq)
 		if missingRec.Code != http.StatusNotFound {
 			t.Fatalf("missing preparation status = %d, want 404", missingRec.Code)
+		}
+	})
+}
+
+func TestConfirmConsumptionHTTPRoutes(t *testing.T) {
+	prepID := "99123910-1293-4819-9182-192837465111"
+	opID := "7c4a1b9e-2001-4c9a-8a11-111111111111"
+	batchA := "b1111111-2222-4333-8444-555555555555"
+	batchB := "b2222222-2222-4333-8444-555555555556"
+	itemA := "10938471-2938-4819-9182-736451928374"
+	consumedAt := time.Date(2026, 10, 31, 8, 45, 0, 0, time.UTC)
+	consumedBy := "d02c1c97-7588-4455-a045-127158e311f6"
+
+	mockSvc := &mockPreparationService{
+		confirmConsumptionFunc: func(ctx context.Context, actor, id string, req inventory.ConfirmConsumptionRequest) (inventory.Preparation, bool, error) {
+			if id != prepID {
+				return inventory.Preparation{}, false, inventory.ErrNotFound
+			}
+			if len(req.Allocations) == 0 {
+				return inventory.Preparation{}, false, inventory.ErrValidation
+			}
+			if req.Allocations[0].BatchID == "blocked-batch" {
+				return inventory.Preparation{}, false, inventory.ErrConflict
+			}
+			return inventory.Preparation{
+				ID:               prepID,
+				Status:           "consumed",
+				TargetYieldGrams: "250.000",
+				ConsumedBy:       &consumedBy,
+				ConsumedAt:       &consumedAt,
+				OperationID:      &opID,
+				Consumptions: []inventory.Consumption{
+					{BatchID: batchA, ItemID: itemA, QuantityGrams: "30.000", ConfirmedAt: consumedAt},
+					{BatchID: batchB, ItemID: itemA, QuantityGrams: "20.000", ConfirmedAt: consumedAt},
+				},
+			}, false, nil
+		},
+	}
+
+	gin.SetMode(gin.TestMode)
+	router := NewRouter(nil, AuthRoutes{
+		Service:       mockSessionAuth{},
+		AllowedOrigin: "https://clinic.example",
+		Preparations:  mockSvc,
+	})
+
+	t.Run("POST /api/v1/preparations/:id/confirm-consumption enforces CSRF and returns 200 OK", func(t *testing.T) {
+		body, _ := json.Marshal(map[string]any{
+			"operationId": opID,
+			"allocations": []map[string]any{
+				{"batchId": batchA, "quantityGrams": "30.000"},
+				{"batchId": batchB, "quantityGrams": "20.000"},
+			},
+		})
+
+		noCSRF := httptest.NewRequest(http.MethodPost, "/api/v1/preparations/"+prepID+"/confirm-consumption", bytes.NewReader(body))
+		noCSRF.Header.Set("Content-Type", "application/json")
+		noCSRF.Header.Set("Origin", "https://clinic.example")
+		noCSRF.AddCookie(&http.Cookie{Name: sessionCookie, Value: "valid-session"})
+		noCSRFRec := httptest.NewRecorder()
+		router.ServeHTTP(noCSRFRec, noCSRF)
+		if noCSRFRec.Code != http.StatusForbidden {
+			t.Fatalf("without CSRF status = %d, want 403", noCSRFRec.Code)
+		}
+
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/preparations/"+prepID+"/confirm-consumption", bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		req.Header.Set("Origin", "https://clinic.example")
+		req.Header.Set("X-CSRF-Token", "valid-csrf-token")
+		req.AddCookie(&http.Cookie{Name: sessionCookie, Value: "valid-session"})
+		rec := httptest.NewRecorder()
+		router.ServeHTTP(rec, req)
+		if rec.Code != http.StatusOK {
+			t.Fatalf("status = %d, want 200 (%s)", rec.Code, rec.Body.String())
+		}
+		var got inventory.Preparation
+		if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
+			t.Fatalf("decode response: %v", err)
+		}
+		if got.Status != "consumed" || got.OperationID == nil || *got.OperationID != opID || len(got.Consumptions) != 2 {
+			t.Fatalf("unexpected confirmed preparation: %+v", got)
+		}
+	})
+
+	t.Run("POST /confirm-consumption maps 422 validation, 409 conflict, and 404 not found", func(t *testing.T) {
+		for _, tc := range []struct {
+			name     string
+			path     string
+			payload  map[string]any
+			wantCode int
+		}{
+			{
+				name:     "empty allocations -> 422",
+				path:     "/api/v1/preparations/" + prepID + "/confirm-consumption",
+				payload:  map[string]any{"operationId": opID, "allocations": []map[string]any{}},
+				wantCode: http.StatusUnprocessableEntity,
+			},
+			{
+				name: "blocked batch -> 409",
+				path: "/api/v1/preparations/" + prepID + "/confirm-consumption",
+				payload: map[string]any{
+					"operationId": opID,
+					"allocations": []map[string]any{{"batchId": "blocked-batch", "quantityGrams": "50.000"}},
+				},
+				wantCode: http.StatusConflict,
+			},
+			{
+				name: "unknown preparation -> 404",
+				path: "/api/v1/preparations/00000000-0000-4000-8000-000000000000/confirm-consumption",
+				payload: map[string]any{
+					"operationId": opID,
+					"allocations": []map[string]any{{"batchId": batchA, "quantityGrams": "50.000"}},
+				},
+				wantCode: http.StatusNotFound,
+			},
+		} {
+			body, _ := json.Marshal(tc.payload)
+			req := httptest.NewRequest(http.MethodPost, tc.path, bytes.NewReader(body))
+			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set("Origin", "https://clinic.example")
+			req.Header.Set("X-CSRF-Token", "valid-csrf-token")
+			req.AddCookie(&http.Cookie{Name: sessionCookie, Value: "valid-session"})
+			rec := httptest.NewRecorder()
+			router.ServeHTTP(rec, req)
+			if rec.Code != tc.wantCode {
+				t.Fatalf("%s status = %d, want %d (%s)", tc.name, rec.Code, tc.wantCode, rec.Body.String())
+			}
 		}
 	})
 }

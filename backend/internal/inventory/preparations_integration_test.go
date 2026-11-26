@@ -641,3 +641,366 @@ func TestTaskINV03ImmutablePreparationSnapshots(t *testing.T) {
 		t.Fatalf("cancelled session SavePreparation err = %v, want ErrConflict", err)
 	}
 }
+
+func TestTaskINV04ManualAllocationAndAtomicConsumption(t *testing.T) {
+	pool := testutil.Postgres(t)
+	svc := inventory.NewService(pool).WithClock(func() time.Time {
+		return time.Date(2026, 10, 31, 8, 0, 0, 0, time.UTC)
+	})
+
+	dispensary := seedStaff(t, pool, "synthetic-inv04-dispensary", "dispensary")
+	reception := seedStaff(t, pool, "synthetic-inv04-reception", "receptionist")
+	therapist := seedStaff(t, pool, "synthetic-inv04-therapist", "therapist")
+	clinician := seedStaff(t, pool, "synthetic-inv04-clinician", "clinician")
+	admin := seedStaff(t, pool, "synthetic-inv04-admin", "administrator")
+
+	patient, session := syntheticSession(t, pool, reception, therapist)
+
+	itemAshwa, err := svc.CreateItem(t.Context(), dispensary, inventory.CreateItemRequest{
+		Code:        "INV04-ASHWA",
+		DisplayName: "Synthetic Ashwagandha Root",
+	})
+	if err != nil {
+		t.Fatalf("create Ashwagandha: %v", err)
+	}
+	itemGudu, err := svc.CreateItem(t.Context(), dispensary, inventory.CreateItemRequest{
+		Code:        "INV04-GUDU",
+		DisplayName: "Synthetic Guduchi Stem",
+	})
+	if err != nil {
+		t.Fatalf("create Guduchi: %v", err)
+	}
+	itemBala, err := svc.CreateItem(t.Context(), dispensary, inventory.CreateItemRequest{
+		Code:        "INV04-BALA",
+		DisplayName: "Synthetic Bala Root",
+	})
+	if err != nil {
+		t.Fatalf("create Bala: %v", err)
+	}
+
+	futureExp := "2027-06-30"
+	expiredExp := "2026-10-30"
+	batchAshwaA, err := svc.ReceiveBatch(t.Context(), dispensary, inventory.ReceiveBatchRequest{
+		ItemID: itemAshwa.ID, BatchReference: "INV04-ASHWA-A", ReceivedGrams: "1000.000", ExpiresAt: &futureExp,
+	})
+	if err != nil {
+		t.Fatalf("receive batchAshwaA: %v", err)
+	}
+	batchAshwaB, err := svc.ReceiveBatch(t.Context(), dispensary, inventory.ReceiveBatchRequest{
+		ItemID: itemAshwa.ID, BatchReference: "INV04-ASHWA-B", ReceivedGrams: "500.000", ExpiresAt: &futureExp,
+	})
+	if err != nil {
+		t.Fatalf("receive batchAshwaB: %v", err)
+	}
+	batchGuduA, err := svc.ReceiveBatch(t.Context(), dispensary, inventory.ReceiveBatchRequest{
+		ItemID: itemGudu.ID, BatchReference: "INV04-GUDU-A", ReceivedGrams: "400.000", ExpiresAt: &futureExp,
+	})
+	if err != nil {
+		t.Fatalf("receive batchGuduA: %v", err)
+	}
+	batchGuduSmall, err := svc.ReceiveBatch(t.Context(), dispensary, inventory.ReceiveBatchRequest{
+		ItemID: itemGudu.ID, BatchReference: "INV04-GUDU-SMALL", ReceivedGrams: "10.000", ExpiresAt: &futureExp,
+	})
+	if err != nil {
+		t.Fatalf("receive batchGuduSmall: %v", err)
+	}
+	batchGuduBlocked, err := svc.ReceiveBatch(t.Context(), dispensary, inventory.ReceiveBatchRequest{
+		ItemID: itemGudu.ID, BatchReference: "INV04-GUDU-BLK", ReceivedGrams: "100.000", ExpiresAt: &futureExp,
+	})
+	if err != nil {
+		t.Fatalf("receive batchGuduBlocked: %v", err)
+	}
+	if _, err := svc.BlockBatch(t.Context(), dispensary, batchGuduBlocked.ID, inventory.BlockBatchRequest{
+		Reason: "Packaging seal damaged during transit",
+	}); err != nil {
+		t.Fatalf("block batchGuduBlocked: %v", err)
+	}
+	batchGuduExpired, err := svc.ReceiveBatch(t.Context(), dispensary, inventory.ReceiveBatchRequest{
+		ItemID: itemGudu.ID, BatchReference: "INV04-GUDU-EXP", ReceivedGrams: "100.000", ExpiresAt: &expiredExp,
+	})
+	if err != nil {
+		t.Fatalf("receive batchGuduExpired: %v", err)
+	}
+	batchGuduUnknown, err := svc.ReceiveBatch(t.Context(), dispensary, inventory.ReceiveBatchRequest{
+		ItemID: itemGudu.ID, BatchReference: "INV04-GUDU-UNK", ReceivedGrams: "100.000", ExpiresAt: nil,
+	})
+	if err != nil {
+		t.Fatalf("receive batchGuduUnknown: %v", err)
+	}
+	batchBalaWrongItem, err := svc.ReceiveBatch(t.Context(), dispensary, inventory.ReceiveBatchRequest{
+		ItemID: itemBala.ID, BatchReference: "INV04-BALA-WRONG", ReceivedGrams: "100.000", ExpiresAt: &futureExp,
+	})
+	if err != nil {
+		t.Fatalf("receive batchBalaWrongItem: %v", err)
+	}
+
+	recipe, err := svc.CreateRecipe(t.Context(), dispensary, inventory.RecipeRequest{
+		Code:           "INV04-RECIPE",
+		DisplayName:    "Synthetic Ashwagandha-Guduchi Decoction Mix",
+		BaseYieldGrams: "100.000",
+		Ingredients: []inventory.RecipeIngredientInput{
+			{ItemID: itemAshwa.ID, QuantityGrams: "20.000"},
+			{ItemID: itemGudu.ID, QuantityGrams: "15.000"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("create recipe: %v", err)
+	}
+	prep, err := svc.SavePreparation(t.Context(), dispensary, inventory.SavePreparationRequest{
+		PatientID:        patient,
+		SessionID:        session,
+		RecipeID:         recipe.ID,
+		TargetYieldGrams: "250.000",
+	})
+	if err != nil {
+		t.Fatalf("save prep: %v", err)
+	}
+
+	// Non-dispensary roles cannot confirm consumption.
+	for _, actor := range []string{reception, clinician, admin} {
+		if _, _, err := svc.ConfirmConsumption(t.Context(), actor, prep.ID, inventory.ConfirmConsumptionRequest{
+			OperationID: "7c4a1b9e-2004-4c9a-8a11-000000000001",
+			Allocations: []inventory.Allocation{
+				{BatchID: batchAshwaA.ID, QuantityGrams: "50.000"},
+				{BatchID: batchGuduA.ID, QuantityGrams: "37.500"},
+			},
+		}); !errors.Is(err, inventory.ErrForbidden) {
+			t.Fatalf("actor %s ConfirmConsumption err = %v, want ErrForbidden", actor, err)
+		}
+	}
+
+	// D-CON-03 (a–f): Batch A is valid & sufficient, Batch B fails; entire transaction rolls back cleanly.
+	assertBatchAUnchanged := func(label string) {
+		t.Helper()
+		var rem, status string
+		var cnt int
+		if err := pool.QueryRow(t.Context(), `SELECT remaining_grams::text FROM stock_batches WHERE id=$1`, batchAshwaA.ID).Scan(&rem); err != nil || rem != "1000.000" {
+			t.Fatalf("%s: batchAshwaA remaining = %q err=%v, want 1000.000", label, rem, err)
+		}
+		if err := pool.QueryRow(t.Context(), `SELECT status FROM preparations WHERE id=$1`, prep.ID).Scan(&status); err != nil || status != "prepared" {
+			t.Fatalf("%s: preparation status = %q err=%v, want prepared", label, status, err)
+		}
+		if err := pool.QueryRow(t.Context(), `SELECT count(*) FROM batch_consumptions WHERE preparation_id=$1`, prep.ID).Scan(&cnt); err != nil || cnt != 0 {
+			t.Fatalf("%s: batch_consumptions count = %d err=%v, want 0", label, cnt, err)
+		}
+	}
+
+	for _, tc := range []struct {
+		name        string
+		opID        string
+		allocations []inventory.Allocation
+		wantErr     error
+	}{
+		{
+			name: "D-CON-03a insufficient second batch",
+			opID: "7c4a1b9e-2004-4c9a-8a11-000000000011",
+			allocations: []inventory.Allocation{
+				{BatchID: batchAshwaA.ID, QuantityGrams: "50.000"},
+				{BatchID: batchGuduSmall.ID, QuantityGrams: "37.500"},
+			},
+			wantErr: inventory.ErrConflict,
+		},
+		{
+			name: "D-CON-03b blocked second batch",
+			opID: "7c4a1b9e-2004-4c9a-8a11-000000000012",
+			allocations: []inventory.Allocation{
+				{BatchID: batchAshwaA.ID, QuantityGrams: "50.000"},
+				{BatchID: batchGuduBlocked.ID, QuantityGrams: "37.500"},
+			},
+			wantErr: inventory.ErrConflict,
+		},
+		{
+			name: "D-CON-03c expired second batch",
+			opID: "7c4a1b9e-2004-4c9a-8a11-000000000013",
+			allocations: []inventory.Allocation{
+				{BatchID: batchAshwaA.ID, QuantityGrams: "50.000"},
+				{BatchID: batchGuduExpired.ID, QuantityGrams: "37.500"},
+			},
+			wantErr: inventory.ErrConflict,
+		},
+		{
+			name: "D-CON-03c unknown expiry second batch",
+			opID: "7c4a1b9e-2004-4c9a-8a11-000000000014",
+			allocations: []inventory.Allocation{
+				{BatchID: batchAshwaA.ID, QuantityGrams: "50.000"},
+				{BatchID: batchGuduUnknown.ID, QuantityGrams: "37.500"},
+			},
+			wantErr: inventory.ErrConflict,
+		},
+		{
+			name: "D-CON-03d wrong botanical item batch",
+			opID: "7c4a1b9e-2004-4c9a-8a11-000000000015",
+			allocations: []inventory.Allocation{
+				{BatchID: batchAshwaA.ID, QuantityGrams: "50.000"},
+				{BatchID: batchBalaWrongItem.ID, QuantityGrams: "37.500"},
+			},
+			wantErr: inventory.ErrValidation,
+		},
+		{
+			name: "D-CON-03e under-allocated total",
+			opID: "7c4a1b9e-2004-4c9a-8a11-000000000016",
+			allocations: []inventory.Allocation{
+				{BatchID: batchAshwaA.ID, QuantityGrams: "49.000"},
+				{BatchID: batchGuduA.ID, QuantityGrams: "37.500"},
+			},
+			wantErr: inventory.ErrValidation,
+		},
+		{
+			name: "D-CON-03e over-allocated total",
+			opID: "7c4a1b9e-2004-4c9a-8a11-000000000017",
+			allocations: []inventory.Allocation{
+				{BatchID: batchAshwaA.ID, QuantityGrams: "51.000"},
+				{BatchID: batchGuduA.ID, QuantityGrams: "37.500"},
+			},
+			wantErr: inventory.ErrValidation,
+		},
+	} {
+		if _, _, err := svc.ConfirmConsumption(t.Context(), dispensary, prep.ID, inventory.ConfirmConsumptionRequest{
+			OperationID: tc.opID,
+			Allocations: tc.allocations,
+		}); !errors.Is(err, tc.wantErr) {
+			t.Fatalf("%s err = %v, want %v", tc.name, err, tc.wantErr)
+		}
+		assertBatchAUnchanged(tc.name)
+	}
+
+	// D-CON-01: Manual split allocation across 3 batches commits atomically.
+	opConfirm := "7c4a1b9e-2004-4c9a-8a11-111111111111"
+	confirmed, replay, err := svc.ConfirmConsumption(t.Context(), dispensary, prep.ID, inventory.ConfirmConsumptionRequest{
+		OperationID: opConfirm,
+		Allocations: []inventory.Allocation{
+			{BatchID: batchAshwaA.ID, QuantityGrams: "30.000"},
+			{BatchID: batchAshwaB.ID, QuantityGrams: "20.000"},
+			{BatchID: batchGuduA.ID, QuantityGrams: "37.500"},
+		},
+	})
+	if err != nil || replay || confirmed.Status != "consumed" || len(confirmed.Consumptions) != 3 {
+		t.Fatalf("D-CON-01 confirm = %+v replay=%v err=%v", confirmed, replay, err)
+	}
+	for id, want := range map[string]string{
+		batchAshwaA.ID: "970.000",
+		batchAshwaB.ID: "480.000",
+		batchGuduA.ID:  "362.500",
+	} {
+		var rem string
+		if err := pool.QueryRow(t.Context(), `SELECT remaining_grams::text FROM stock_batches WHERE id=$1`, id).Scan(&rem); err != nil || rem != want {
+			t.Fatalf("batch %s remaining = %q err=%v, want %s", id, rem, err, want)
+		}
+	}
+	var auditCount int
+	if err := pool.QueryRow(t.Context(), `SELECT count(*) FROM audit_events WHERE object_type='preparation' AND object_id=$1 AND action='preparation.consumed'`, prep.ID).Scan(&auditCount); err != nil || auditCount != 1 {
+		t.Fatalf("preparation.consumed audit count = %d err=%v, want 1", auditCount, err)
+	}
+
+	// D-CON-06: Referenced batch deletion and consumed history mutation are blocked by PostgreSQL.
+	for _, tc := range []struct {
+		name string
+		sql  string
+		arg  string
+	}{
+		{"delete consumed batch", `DELETE FROM stock_batches WHERE id=$1`, batchAshwaA.ID},
+		{"mutate batch_consumptions", `UPDATE batch_consumptions SET quantity_grams=1.000 WHERE preparation_id=$1`, prep.ID},
+		{"delete batch_consumptions", `DELETE FROM batch_consumptions WHERE preparation_id=$1`, prep.ID},
+		{"mutate consumed preparation status", `UPDATE preparations SET status='prepared', consumed_by=NULL, consumed_at=NULL, operation_id=NULL WHERE id=$1`, prep.ID},
+	} {
+		if _, err := pool.Exec(t.Context(), tc.sql, tc.arg); err == nil {
+			t.Fatalf("%s unexpectedly succeeded", tc.name)
+		}
+	}
+
+	// D-CON-05: Reverse-order multi-batch concurrent confirmation cannot deadlock or overdraw.
+	raceItem1, err := svc.CreateItem(t.Context(), dispensary, inventory.CreateItemRequest{
+		Code: "INV04-RACE-1", DisplayName: "Synthetic race herb 1",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	raceItem2, err := svc.CreateItem(t.Context(), dispensary, inventory.CreateItemRequest{
+		Code: "INV04-RACE-2", DisplayName: "Synthetic race herb 2",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	raceBatchX, err := svc.ReceiveBatch(t.Context(), dispensary, inventory.ReceiveBatchRequest{
+		ItemID: raceItem1.ID, BatchReference: "INV04-RACE-X", ReceivedGrams: "40.000", ExpiresAt: &futureExp,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	raceBatchY, err := svc.ReceiveBatch(t.Context(), dispensary, inventory.ReceiveBatchRequest{
+		ItemID: raceItem2.ID, BatchReference: "INV04-RACE-Y", ReceivedGrams: "100.000", ExpiresAt: &futureExp,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	raceRecipe, err := svc.CreateRecipe(t.Context(), dispensary, inventory.RecipeRequest{
+		Code: "INV04-RACE-REC", DisplayName: "Synthetic two-batch race recipe", BaseYieldGrams: "100.000",
+		Ingredients: []inventory.RecipeIngredientInput{
+			{ItemID: raceItem1.ID, QuantityGrams: "30.000"},
+			{ItemID: raceItem2.ID, QuantityGrams: "20.000"},
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	racePrep1, err := svc.SavePreparation(t.Context(), dispensary, inventory.SavePreparationRequest{
+		PatientID: patient, SessionID: session, RecipeID: raceRecipe.ID, TargetYieldGrams: "100.000",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	racePrep2, err := svc.SavePreparation(t.Context(), dispensary, inventory.SavePreparationRequest{
+		PatientID: patient, SessionID: session, RecipeID: raceRecipe.ID, TargetYieldGrams: "100.000",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var wg sync.WaitGroup
+	raceErrs := make(chan error, 2)
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		_, _, err := svc.ConfirmConsumption(t.Context(), dispensary, racePrep1.ID, inventory.ConfirmConsumptionRequest{
+			OperationID: "7c4a1b9e-2004-4c9a-8a11-222222222221",
+			Allocations: []inventory.Allocation{
+				{BatchID: raceBatchX.ID, QuantityGrams: "30.000"},
+				{BatchID: raceBatchY.ID, QuantityGrams: "20.000"},
+			},
+		})
+		raceErrs <- err
+	}()
+	go func() {
+		defer wg.Done()
+		_, _, err := svc.ConfirmConsumption(t.Context(), dispensary, racePrep2.ID, inventory.ConfirmConsumptionRequest{
+			OperationID: "7c4a1b9e-2004-4c9a-8a11-222222222222",
+			Allocations: []inventory.Allocation{
+				{BatchID: raceBatchY.ID, QuantityGrams: "20.000"},
+				{BatchID: raceBatchX.ID, QuantityGrams: "30.000"},
+			},
+		})
+		raceErrs <- err
+	}()
+	wg.Wait()
+	close(raceErrs)
+	raceOK, raceConflict := 0, 0
+	for err := range raceErrs {
+		if err == nil {
+			raceOK++
+		} else if errors.Is(err, inventory.ErrConflict) {
+			raceConflict++
+		} else {
+			t.Fatalf("unexpected reverse-order race error: %v", err)
+		}
+	}
+	if raceOK != 1 || raceConflict != 1 {
+		t.Fatalf("D-CON-05 race results: ok=%d conflict=%d, want 1 and 1", raceOK, raceConflict)
+	}
+	var remX, remY string
+	if err := pool.QueryRow(t.Context(), `SELECT remaining_grams::text FROM stock_batches WHERE id=$1`, raceBatchX.ID).Scan(&remX); err != nil || remX != "10.000" {
+		t.Fatalf("D-CON-05 batchX remaining = %q err=%v, want 10.000", remX, err)
+	}
+	if err := pool.QueryRow(t.Context(), `SELECT remaining_grams::text FROM stock_batches WHERE id=$1`, raceBatchY.ID).Scan(&remY); err != nil || remY != "80.000" {
+		t.Fatalf("D-CON-05 batchY remaining = %q err=%v, want 80.000", remY, err)
+	}
+}

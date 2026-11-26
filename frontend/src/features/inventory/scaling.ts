@@ -47,3 +47,50 @@ export function scaleIngredientGrams(
   }
   return formatMilligramsToGrams(scaled);
 }
+
+export type AllocationReconciliation = {
+  itemId: string;
+  itemDisplayName: string;
+  requiredGrams: string;
+  allocatedGrams: string;
+  deltaGrams: string;
+  status: "matched" | "under" | "over";
+};
+
+/**
+ * Reconciles manually selected batch allocations against saved preparation snapshot requirements
+ * using exact BigInt milligrams (zero floating-point drift; no FEFO or auto-selection).
+ */
+export function reconcileAllocations(
+  snapshot: { itemId: string; itemDisplayName: string; requiredGrams: string }[],
+  allocations: { batchId: string; quantityGrams: string }[],
+  batches: { id: string; itemId: string }[],
+): AllocationReconciliation[] {
+  const zero = BigInt(0);
+  const batchItemById = new Map(batches.map((b) => [b.id, b.itemId]));
+  const totalsByItem = new Map<string, bigint>();
+
+  for (const row of allocations) {
+    if (!row.batchId) continue;
+    const itemId = batchItemById.get(row.batchId);
+    const gramsMg = parseGramsToMilligrams(row.quantityGrams);
+    if (!itemId || gramsMg === null) continue;
+    totalsByItem.set(itemId, (totalsByItem.get(itemId) ?? zero) + gramsMg);
+  }
+
+  return snapshot.map((item) => {
+    const requiredMg = parseGramsToMilligrams(item.requiredGrams) ?? zero;
+    const allocatedMg = totalsByItem.get(item.itemId) ?? zero;
+    const diff = requiredMg - allocatedMg;
+    const status = diff === zero ? "matched" : diff > zero ? "under" : "over";
+    const absDiff = diff < zero ? -diff : diff;
+    return {
+      itemId: item.itemId,
+      itemDisplayName: item.itemDisplayName,
+      requiredGrams: formatMilligramsToGrams(requiredMg),
+      allocatedGrams: formatMilligramsToGrams(allocatedMg),
+      deltaGrams: formatMilligramsToGrams(absDiff),
+      status,
+    };
+  });
+}
