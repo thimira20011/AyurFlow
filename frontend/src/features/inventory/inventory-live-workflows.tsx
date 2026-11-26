@@ -8,6 +8,7 @@ import {
   confirmConsumption, createRecipe, listPreparations, listRecipes, savePreparation, traceBatch, tracePatient,
   updateRecipe, type BotanicalItem, type Preparation, type Recipe, type RecipeInput, type StockBatch, type TraceRow,
 } from "./api";
+import { reconcileAllocations, scaleIngredientGrams } from "./scaling";
 import styles from "./inventory-workspace.module.css";
 
 const emptyRecipe: RecipeInput = { code: "", displayName: "", baseYieldGrams: "", ingredients: [{ itemId: "", quantityGrams: "" }] };
@@ -115,6 +116,17 @@ export default function InventoryLiveWorkflows({ tab, items, batches, refreshBat
     void run(async () => { const result = traceType === "batch" ? await traceBatch(traceID.trim()) : await tracePatient(traceID.trim()); setTraceRows(result.items ?? []); }, "Confirmed consumption history loaded.");
   }
 
+  const selectedRecipe = recipes.find(recipe => recipe.id === recipeID) ?? null;
+  const scaledPreview = selectedRecipe && yieldGrams.trim()
+    ? selectedRecipe.ingredients.map(ingredient => ({
+      ...ingredient,
+      scaledGrams: scaleIngredientGrams(ingredient.quantityGrams, yieldGrams, selectedRecipe.baseYieldGrams),
+    }))
+    : [];
+  const allocationSummary = selectedPreparation?.status === "prepared"
+    ? reconcileAllocations(selectedPreparation.snapshot, allocations, batches)
+    : [];
+
   return <div className={styles.splitGrid}>
     {notice && <div className={styles.fullWidth}><Notice tone={isError ? "error" : "success"}>{notice}</Notice></div>}
     {tab === "recipes" && <>
@@ -126,7 +138,7 @@ export default function InventoryLiveWorkflows({ tab, items, batches, refreshBat
           <div className={styles.fieldGroup}><label className={styles.label} htmlFor="recipe-code-live">Recipe code</label><input id="recipe-code-live" className={styles.input} value={recipeForm.code} disabled={Boolean(editingRecipe)} onChange={event => setRecipeForm({ ...recipeForm, code: event.target.value })} required /></div>
           <div className={styles.fieldGroup}><label className={styles.label} htmlFor="recipe-name-live">Display name</label><input id="recipe-name-live" className={styles.input} value={recipeForm.displayName} onChange={event => setRecipeForm({ ...recipeForm, displayName: event.target.value })} required /></div>
           <div className={styles.fieldGroup}><label className={styles.label} htmlFor="recipe-yield-live">Base yield · grams</label><input id="recipe-yield-live" className={styles.input} inputMode="decimal" value={recipeForm.baseYieldGrams} onChange={event => setRecipeForm({ ...recipeForm, baseYieldGrams: event.target.value })} required /></div>
-          {recipeForm.ingredients.map((ingredient, index) => <div key={index} className={styles.fieldGroup}><label className={styles.label} htmlFor={`ingredient-${index}`}>Ingredient {index + 1}</label><select id={`ingredient-${index}`} className={styles.select} value={ingredient.itemId} required onChange={event => setRecipeForm({ ...recipeForm, ingredients: recipeForm.ingredients.map((item, i) => i === index ? { ...item, itemId: event.target.value } : item) })}><option value="">Choose botanical item</option>{items.filter(item => item.active).map(item => <option key={item.id} value={item.id}>{item.code} · {item.displayName}</option>)}</select><label className={styles.label} htmlFor={`ingredient-grams-${index}`}>Base quantity · grams</label><input id={`ingredient-grams-${index}`} className={styles.input} inputMode="decimal" value={ingredient.quantityGrams} onChange={event => setRecipeForm({ ...recipeForm, ingredients: recipeForm.ingredients.map((item, i) => i === index ? { ...item, quantityGrams: event.target.value } : item) })} required /></div>)}
+          {recipeForm.ingredients.map((ingredient, index) => <div key={index} className={styles.fieldGroup}><label className={styles.label} htmlFor={`ingredient-${index}`}>Ingredient {index + 1}</label><select id={`ingredient-${index}`} className={styles.select} value={ingredient.itemId} required onChange={event => setRecipeForm({ ...recipeForm, ingredients: recipeForm.ingredients.map((item, i) => i === index ? { ...item, itemId: event.target.value } : item) })}><option value="">Choose botanical item</option>{items.filter(item => item.active).map(item => <option key={item.id} value={item.id}>{item.code} · {item.displayName}</option>)}</select><label className={styles.label} htmlFor={`ingredient-grams-${index}`}>Base quantity · grams</label><input id={`ingredient-grams-${index}`} className={styles.input} inputMode="decimal" value={ingredient.quantityGrams} onChange={event => setRecipeForm({ ...recipeForm, ingredients: recipeForm.ingredients.map((item, i) => i === index ? { ...item, quantityGrams: event.target.value } : item) })} required />{recipeForm.ingredients.length > 1 && <button type="button" className={styles.secondaryBtn} onClick={() => setRecipeForm({ ...recipeForm, ingredients: recipeForm.ingredients.filter((_, i) => i !== index) })}>Remove ingredient {index + 1}</button>}</div>)}
           <div className={styles.actions}><button type="button" className={styles.secondaryBtn} onClick={() => setRecipeForm({ ...recipeForm, ingredients: [...recipeForm.ingredients, { itemId: "", quantityGrams: "" }] })}>Add ingredient</button><button className={styles.primaryBtn} disabled={busy}>{editingRecipe ? "Save recipe version" : "Create recipe"}</button></div>
         </form>
       </section>
@@ -136,8 +148,43 @@ export default function InventoryLiveWorkflows({ tab, items, batches, refreshBat
           <div className={styles.fieldGroup}><label className={styles.label} htmlFor="prep-session">Session ID</label><input id="prep-session" className={styles.input} value={sessionID} onChange={event => setSessionID(event.target.value)} required /></div>
           <div className={styles.fieldGroup}><label className={styles.label} htmlFor="prep-recipe">Recipe</label><select id="prep-recipe" className={styles.select} value={recipeID} onChange={event => setRecipeID(event.target.value)} required><option value="">Choose recipe</option>{recipes.map(recipe => <option key={recipe.id} value={recipe.id}>{recipe.code} · {recipe.displayName}</option>)}</select></div>
           <div className={styles.fieldGroup}><label className={styles.label} htmlFor="prep-yield">Target yield · grams</label><input id="prep-yield" className={styles.input} inputMode="decimal" value={yieldGrams} onChange={event => setYieldGrams(event.target.value)} required /></div>
+          {selectedRecipe && scaledPreview.length > 0 && <>
+            <p className={styles.hint}>Scaled preview ({selectedRecipe.baseYieldGrams} g base → {yieldGrams.trim()} g target · Round Half Up at 0.001 g):</p>
+            <TableRegion label="Scaled ingredient preview">
+              <table className={styles.table}>
+                <thead><tr><th scope="col">Ingredient</th><th scope="col">Base</th><th scope="col">Scaled required</th></tr></thead>
+                <tbody>
+                  {scaledPreview.map(row => <tr key={row.itemId}>
+                    <td>{row.itemCode} · {row.itemDisplayName}</td>
+                    <td>{row.quantityGrams} g</td>
+                    <td>{row.scaledGrams ? `${row.scaledGrams} g` : "Invalid yield"}</td>
+                  </tr>)}
+                </tbody>
+              </table>
+            </TableRegion>
+          </>}
           <button className={styles.primaryBtn} disabled={busy}>Save immutable snapshot</button>
         </form>
+        {selectedPreparation && <div className={styles.fieldGroup} aria-label="Saved preparation snapshot summary">
+          <p className={styles.hint}>
+            Saved snapshot <strong>{selectedPreparation.id}</strong> ·{" "}
+            <strong>{selectedPreparation.status === "prepared" ? "Prepared · No Stock Deducted" : "Consumed · Stock Deducted"}</strong>{" "}
+            · Recipe v{selectedPreparation.recipeVersion} · Target {selectedPreparation.targetYieldGrams} g ·{" "}
+            {new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Colombo", dateStyle: "medium", timeStyle: "short" }).format(new Date(selectedPreparation.preparedAt))}
+          </p>
+          <TableRegion label="Saved preparation snapshot">
+            <table className={styles.table}>
+              <thead><tr><th scope="col">Ingredient</th><th scope="col">Base</th><th scope="col">Snapshot required</th></tr></thead>
+              <tbody>
+                {selectedPreparation.snapshot.map(item => <tr key={item.itemId}>
+                  <td>{item.itemCode} · {item.itemDisplayName}</td>
+                  <td>{item.baseQuantityGrams} g</td>
+                  <td>{item.requiredGrams} g</td>
+                </tr>)}
+              </tbody>
+            </table>
+          </TableRegion>
+        </div>}
       </section>
     </>}
     {tab === "consumption" && <>
@@ -146,12 +193,38 @@ export default function InventoryLiveWorkflows({ tab, items, batches, refreshBat
         <label className={styles.label} htmlFor="live-preparation-select">Preparation</label><select id="live-preparation-select" className={styles.select} value={selectedPreparation?.id ?? ""} onChange={event => choosePreparation(event.target.value)}><option value="">Choose saved preparation</option>{preparations.map(item => <option key={item.id} value={item.id}>{item.id} · {item.status}</option>)}</select>
         {selectedPreparation && <><p className={styles.hint}>Status: <strong>{selectedPreparation.status}</strong> · Recipe version {selectedPreparation.recipeVersion} · Target {selectedPreparation.targetYieldGrams} g</p>
           <TableRegion label="Preparation snapshot"><table className={styles.table}><thead><tr><th scope="col">Snapshot ingredient</th><th scope="col">Required</th></tr></thead><tbody>{selectedPreparation.snapshot.map(item => <tr key={item.itemId}><td>{item.itemDisplayName}</td><td>{item.requiredGrams} g</td></tr>)}</tbody></table></TableRegion>
-          {selectedPreparation.status === "consumed" && <Notice>Confirmed consumption is immutable. {selectedPreparation.consumptions.length} batch allocation(s) recorded.</Notice>}</>}
+          {selectedPreparation.status === "consumed" && <>
+            <Notice>Confirmed consumption is immutable. {selectedPreparation.consumptions.length} batch allocation(s) recorded.</Notice>
+            <TableRegion label="Recorded batch consumptions">
+              <table className={styles.table}>
+                <thead><tr><th scope="col">Batch ID</th><th scope="col">Consumed</th><th scope="col">Confirmed</th></tr></thead>
+                <tbody>
+                  {selectedPreparation.consumptions.map(row => <tr key={row.batchId}>
+                    <td>{batches.find(b => b.id === row.batchId)?.batchReference ?? row.batchId}</td>
+                    <td>{row.quantityGrams} g</td>
+                    <td>{new Intl.DateTimeFormat("en-GB", { timeZone: "Asia/Colombo", dateStyle: "medium", timeStyle: "short" }).format(new Date(row.confirmedAt))}</td>
+                  </tr>)}
+                </tbody>
+              </table>
+            </TableRegion>
+          </>}</>}
       </section>
       <section className={styles.panel} aria-labelledby="confirm-consumption-title"><h2 id="confirm-consumption-title" className={styles.panelTitle}>Manual batch allocation</h2><p className={styles.hint}>Choose eligible batches. Quantities for each ingredient must exactly equal its saved snapshot requirement. Keep the operation ID for a safe retry.</p>
         {selectedPreparation?.status === "prepared" ? <form onSubmit={submitConsumption}>
           <div className={styles.fieldGroup}><label className={styles.label} htmlFor="consumption-operation">Operation ID</label><input id="consumption-operation" className={styles.input} value={operationID} readOnly /></div>
-          {allocations.map((allocation, index) => <div className={styles.fieldGroup} key={index}><label className={styles.label} htmlFor={`allocation-batch-${index}`}>Eligible batch {index + 1}</label><select id={`allocation-batch-${index}`} className={styles.select} value={allocation.batchId} required onChange={event => setAllocations(allocations.map((item, i) => i === index ? { ...item, batchId: event.target.value } : item))}><option value="">Choose batch</option>{batches.filter(batch => batch.eligibility === "eligible").map(batch => <option key={batch.id} value={batch.id}>{batch.batchReference} · {batch.itemDisplayName} · {batch.remainingGrams} g</option>)}</select><label className={styles.label} htmlFor={`allocation-grams-${index}`}>Quantity · grams</label><input id={`allocation-grams-${index}`} className={styles.input} inputMode="decimal" value={allocation.quantityGrams} required onChange={event => setAllocations(allocations.map((item, i) => i === index ? { ...item, quantityGrams: event.target.value } : item))} /></div>)}
+          {allocationSummary.length > 0 && <TableRegion label="Allocation reconciliation">
+            <table className={styles.table}>
+              <thead><tr><th scope="col">Ingredient</th><th scope="col">Allocated / Required</th><th scope="col">Status</th></tr></thead>
+              <tbody>
+                {allocationSummary.map(row => <tr key={row.itemId}>
+                  <td>{row.itemDisplayName}</td>
+                  <td>{row.allocatedGrams} g / {row.requiredGrams} g</td>
+                  <td>{row.status === "matched" ? "Matched" : row.status === "under" ? `${row.deltaGrams} g remaining` : `${row.deltaGrams} g over`}</td>
+                </tr>)}
+              </tbody>
+            </table>
+          </TableRegion>}
+          {allocations.map((allocation, index) => <div className={styles.fieldGroup} key={index}><label className={styles.label} htmlFor={`allocation-batch-${index}`}>Eligible batch {index + 1}</label><select id={`allocation-batch-${index}`} className={styles.select} value={allocation.batchId} required onChange={event => setAllocations(allocations.map((item, i) => i === index ? { ...item, batchId: event.target.value } : item))}><option value="">Choose batch</option>{batches.filter(batch => batch.eligibility === "eligible").map(batch => <option key={batch.id} value={batch.id}>{batch.batchReference} · {batch.itemDisplayName} · {batch.remainingGrams} g</option>)}</select><label className={styles.label} htmlFor={`allocation-grams-${index}`}>Quantity · grams</label><input id={`allocation-grams-${index}`} className={styles.input} inputMode="decimal" value={allocation.quantityGrams} required onChange={event => setAllocations(allocations.map((item, i) => i === index ? { ...item, quantityGrams: event.target.value } : item))} />{allocations.length > 1 && <button type="button" className={styles.secondaryBtn} onClick={() => setAllocations(allocations.filter((_, i) => i !== index))}>Remove batch {index + 1}</button>}</div>)}
           <div className={styles.actions}><button type="button" className={styles.secondaryBtn} onClick={() => setAllocations([...allocations, { batchId: "", quantityGrams: "" }])}>Add batch</button><button className={styles.primaryBtn} disabled={busy}>Confirm actual consumption</button></div>
         </form> : <p className={styles.hint}>Select a prepared record to confirm consumption.</p>}
       </section>
