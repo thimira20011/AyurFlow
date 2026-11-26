@@ -702,6 +702,7 @@ func TestConfirmConsumptionHTTPRoutes(t *testing.T) {
 	consumedAt := time.Date(2026, 10, 31, 8, 45, 0, 0, time.UTC)
 	consumedBy := "d02c1c97-7588-4455-a045-127158e311f6"
 
+	seenOp := false
 	mockSvc := &mockPreparationService{
 		confirmConsumptionFunc: func(ctx context.Context, actor, id string, req inventory.ConfirmConsumptionRequest) (inventory.Preparation, bool, error) {
 			if id != prepID {
@@ -712,6 +713,10 @@ func TestConfirmConsumptionHTTPRoutes(t *testing.T) {
 			}
 			if req.Allocations[0].BatchID == "blocked-batch" {
 				return inventory.Preparation{}, false, inventory.ErrConflict
+			}
+			replay := seenOp && req.OperationID == opID
+			if req.OperationID == opID {
+				seenOp = true
 			}
 			return inventory.Preparation{
 				ID:               prepID,
@@ -724,7 +729,7 @@ func TestConfirmConsumptionHTTPRoutes(t *testing.T) {
 					{BatchID: batchA, ItemID: itemA, QuantityGrams: "30.000", ConfirmedAt: consumedAt},
 					{BatchID: batchB, ItemID: itemA, QuantityGrams: "20.000", ConfirmedAt: consumedAt},
 				},
-			}, false, nil
+			}, replay, nil
 		},
 	}
 
@@ -770,6 +775,27 @@ func TestConfirmConsumptionHTTPRoutes(t *testing.T) {
 		}
 		if got.Status != "consumed" || got.OperationID == nil || *got.OperationID != opID || len(got.Consumptions) != 2 {
 			t.Fatalf("unexpected confirmed preparation: %+v", got)
+		}
+		if rec.Header().Get("X-Idempotent-Replay") != "" {
+			t.Fatalf("initial confirmation should not set X-Idempotent-Replay, got %q", rec.Header().Get("X-Idempotent-Replay"))
+		}
+
+		// Identical retry returns 200 OK with X-Idempotent-Replay: true and Cache-Control: no-store.
+		retryReq := httptest.NewRequest(http.MethodPost, "/api/v1/preparations/"+prepID+"/confirm-consumption", bytes.NewReader(body))
+		retryReq.Header.Set("Content-Type", "application/json")
+		retryReq.Header.Set("Origin", "https://clinic.example")
+		retryReq.Header.Set("X-CSRF-Token", "valid-csrf-token")
+		retryReq.AddCookie(&http.Cookie{Name: sessionCookie, Value: "valid-session"})
+		retryRec := httptest.NewRecorder()
+		router.ServeHTTP(retryRec, retryReq)
+		if retryRec.Code != http.StatusOK {
+			t.Fatalf("retry status = %d, want 200 (%s)", retryRec.Code, retryRec.Body.String())
+		}
+		if retryRec.Header().Get("X-Idempotent-Replay") != "true" {
+			t.Fatalf("retry X-Idempotent-Replay = %q, want true", retryRec.Header().Get("X-Idempotent-Replay"))
+		}
+		if retryRec.Header().Get("Cache-Control") != "no-store" {
+			t.Fatalf("retry Cache-Control = %q, want no-store", retryRec.Header().Get("Cache-Control"))
 		}
 	})
 
