@@ -33,6 +33,9 @@ This is an execution checklist, not an acceptance claim. Unchecked items require
 
 - [x] Implement Figma-referenced loading/empty/error/retry states, stale-date protection, disabled mutation controls and preserved drafts on `codex/member-c-scheduling-recovery-ui` (SCH-05; contribution to UI-07).
 - [x] Pass local lint, type/build, 23 unit tests and 53 browser tests, including seven new recovery cases and visual checks at both viewports. See [setup/results and CI attachment](evidence/member-c-scheduling-recovery-ui-2026-11-27.md). B/F review and full AT06/07/15 acceptance remain open.
+## Progress — 27 November 2026
+
+- [x] Author protected delivery API checks on `codex/member-c-delivery-api-verification`: therapist role/record access, active account and CSRF enforcement, invalid/repeated transitions, Unicode observations, read projections and audit privacy. See [setup and PR execution attachment](evidence/member-c-delivery-api-2026-11-27.md). B review and full AT07 acceptance remain open.
 
 ## Read first and understand the starting point
 

@@ -169,3 +169,6 @@ TASK-SCH-03/SCH-06; C owner, B reviewer pending. [Setup, expected outcomes and e
 ## Member C scheduling recovery UI (27 November 2026)
 
 TASK-SCH-05 and C contribution to TASK-UI-07; C owner, B reviewer with F/A shared UI review pending. [Setup, expected/actual local results and PR CI attachment](evidence/member-c-scheduling-recovery-ui-2026-11-27.md) records the Figma references, date-safe loading/failure/empty states, preserved drafts, honest mutation outcomes and read-only retry. Local lint/type/build, 23 unit and 31 mocked-API browser regressions passed, including seven new cases and both target viewport screenshots. This is partial AT15 support, not full Go/PostgreSQL AT06/07 or clinic acceptance.
+## Member C protected delivery API (27 November 2026)
+
+TASK-SCH-04/SCH-06; C owner, B reviewer pending. [Reproduction, expected outcomes and PR execution attachment](evidence/member-c-delivery-api-2026-11-27.md) covers real authenticated Gin/PostgreSQL delivery permissions, CSRF, inactive accounts, lifecycle/history, Unicode observations, protected read projections and audit identity/privacy. Supports AT07/13; full acceptance remains open.
