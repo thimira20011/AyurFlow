@@ -5,6 +5,7 @@ const startsAt = "2026-11-10T03:30:00Z";
 const endsAt = "2026-11-10T09:30:00Z";
 const patientId = "synthetic-patient";
 const invoiceId = "18333333-152d-4602-8b7b-c33413727ba1";
+const batchId = "91111111-1111-4111-8111-111111111111";
 const longReference = "AYUR-" + "B".repeat(145);
 
 async function openAs(page: Page, role: string, path: string) {
@@ -110,7 +111,7 @@ for (const width of [1366, 1024]) {
       const traceability = page.getByRole("button", { name: /Traceability/ });
       await traceability.press("Enter");
       await expect(traceability).toHaveAttribute("aria-pressed", "true");
-      await page.getByRole("textbox", { name: "Batch ID" }).fill("synthetic-batch");
+      await page.getByRole("textbox", { name: "Batch ID" }).fill(batchId);
       const trace = page.getByRole("button", { name: "Trace confirmed use" });
       await trace.press("Enter");
       const results = page.getByRole("region", { name: "Traceability results" });
@@ -139,6 +140,23 @@ for (const width of [1366, 1024]) {
       await expect.poll(() => results.evaluate(node => node.scrollWidth - node.clientWidth)).toBeGreaterThan(0);
       await page.keyboard.press("ArrowRight");
       await expect.poll(() => results.evaluate(node => node.scrollLeft)).toBeGreaterThan(0);
+    });
+
+    test("inventory reports keep validation, Unicode trace and keyboard focus visible", async ({ page }) => {
+      await openAs(page, "report_reader", "/reports/inventory");
+      const batch = page.getByRole("textbox", { name: "Batch ID" });
+      const trace = page.getByRole("button", { name: "Trace confirmed use" });
+      await batch.fill("invalid");
+      await trace.press("Enter");
+      const tracePanel = page.getByRole("region", { name: "Confirmed batch traceability" });
+      await expect(tracePanel.getByRole("alert")).toHaveText("Enter a valid batch ID.");
+      await batch.fill(batchId);
+      await trace.press("Enter");
+      const results = page.getByRole("region", { name: "Traceability results" });
+      await expect(results.getByRole("cell").filter({ hasText: name })).toBeVisible();
+      await trace.press("Tab");
+      await expectVisibleFocus(results);
+      await expectPageFits(page);
     });
 
     test("billing draft dialog fits, keeps Tab inside and returns focus on Escape", async ({ page }, testInfo) => {

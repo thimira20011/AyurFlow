@@ -25,7 +25,7 @@ See the [manual billing walkthrough](../../../../docs/guides/member-e-billing.md
 ## TASK-QA-02 report navigation (Member F)
 
 The shared billing entry permits `billing` and `report_reader`. Report readers have a
-Billing reports workspace with an **Outstanding invoices** link, including on multi-role
+Reports workspace with an **Outstanding invoices** link, including on multi-role
 accounts. The existing billing component restricts report-only users to the report;
 invoice creation, issue and receipt mutations retain their existing billing-only
 checks. Reception access is unchanged. Backend role checks remain authoritative.

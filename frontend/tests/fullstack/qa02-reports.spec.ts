@@ -107,9 +107,9 @@ for (const mixed of [false, true]) {
     const response = await context.request.post("/api/v1/auth/login", { headers: { Origin: origin }, data: { loginIdentifier: identifier, password: fixture.password } });
     expect(response.status()).toBe(200);
     await page.goto("/workspace");
-    await page.getByRole("region", { name: "Billing reports workspace" }).getByRole("link", { name: "Outstanding invoices", exact: true }).click();
+    await page.getByRole("region", { name: "Reports workspace" }).getByRole("link", { name: "Outstanding invoices", exact: true }).click();
     await expect(page).toHaveURL(`${origin}/billing`);
-    await expect(page.getByRole("navigation", { name: "Billing reports navigation" })).toBeVisible();
+    await expect(page.getByRole("navigation", { name: "Reports navigation" })).toBeVisible();
     for (const reload of [false, true]) {
       if (reload) await page.reload();
       const loaded = page.waitForResponse(r => r.url() === `${origin}${reportPath}` && r.request().method() === "GET");
@@ -118,5 +118,43 @@ for (const mixed of [false, true]) {
       await expect(page.getByRole("button", { name: /Open Draft Invoice|Record Payment|Post Payment|Issue Invoice/i })).toHaveCount(0);
       await expect(page.getByLabel("Patient code or UUID to load invoices")).toHaveCount(0);
     }
+    await page.getByRole("navigation", { name: "Reports navigation" }).getByRole("link", { name: "Stock and traceability report" }).click();
+    await expect(page.getByRole("heading", { name: "Stock and traceability report" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Confirmed batch traceability" })).toBeVisible();
+    await page.goto("/inventory");
+    await expect(page.getByRole("heading", { name: "This record is not available to you." })).toBeVisible();
   });
 }
+
+test("QA-02: a report reader can see received stock and trace it through the read-only screen", async ({ page, context, playwright }) => {
+  const dispenser = await playwright.request.newContext({ baseURL: origin, ignoreHTTPSErrors: true });
+  const reference = `${fixture.prefix}-qa02-batch`;
+  let batchId: string;
+  try {
+    await login(dispenser, "dispensary");
+    const item = await dispenser.post("/api/v1/inventory/items", {
+      headers: await csrf(dispenser), data: { code: `${fixture.prefix}-qa02`, displayName: "Synthetic QA02 botanical" },
+    });
+    expect(item.status()).toBe(201);
+    const batch = await dispenser.post("/api/v1/inventory/batches", {
+      headers: await csrf(dispenser), data: {
+        itemId: (await item.json()).id, batchReference: reference, receivedGrams: "15.125", expiresAt: "2099-01-01",
+      },
+    });
+    expect(batch.status()).toBe(201);
+    batchId = (await batch.json()).id;
+  } finally {
+    await dispenser.dispose();
+  }
+  await login(context.request, "report_reader");
+  await page.goto("/reports/inventory");
+  await expect(page.getByRole("row").filter({ hasText: reference })).toContainText("15.125 g");
+  await page.getByLabel("Batch ID", { exact: true }).fill(batchId);
+  const traced = page.waitForResponse(r => r.url().endsWith(`/traceability/batches/${batchId}`) && r.request().method() === "GET");
+  await page.getByRole("button", { name: "Trace confirmed use" }).click();
+  expect((await traced).status()).toBe(200);
+  await expect(page.getByText("No confirmed use found for this record.")).toBeVisible();
+  await expect(page.getByRole("button", { name: /Receive batch|Block batch|Confirm.*consumption/i })).toHaveCount(0);
+  await page.reload();
+  await expect(page.getByRole("row").filter({ hasText: reference })).toBeVisible();
+});
