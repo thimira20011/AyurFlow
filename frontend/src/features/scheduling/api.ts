@@ -14,13 +14,13 @@ function range(start: string, end: string) {
   return params.toString();
 }
 
-export const listRooms = () => apiGet<{ items: Room[] }>("/rooms");
+export const listRooms = (signal?: AbortSignal) => apiGet<{ items: Room[] }>("/rooms", signal);
 export const createRoom = (code: string, name: string) => apiMutation<Room>("/rooms", { code, name });
-export const listAvailability = (start: string, end: string) => apiGet<{ items: Availability[] }>(`/availability?${range(start, end)}`);
+export const listAvailability = (start: string, end: string, signal?: AbortSignal) => apiGet<{ items: Availability[] }>(`/availability?${range(start, end)}`, signal);
 export const addAvailability = (input: Omit<Availability, "id">) => apiMutation<Availability>("/availability", input);
 export const changeAvailability = (id: string, startsAt: string, endsAt: string) =>
   apiMutation<Availability>(`/availability/${encodeURIComponent(id)}/change`, { startsAt, endsAt });
-export const listSessions = (start: string, end: string) => apiGet<{ items: Session[] }>(`/sessions?${range(start, end)}`);
+export const listSessions = (start: string, end: string, signal?: AbortSignal) => apiGet<{ items: Session[] }>(`/sessions?${range(start, end)}`, signal);
 export const bookSession = (input: Booking) => apiMutation<Session>("/sessions", input);
 export const rescheduleSession = (id: string, input: Pick<Session, "roomId" | "therapistId" | "startsAt" | "endsAt" | "version">) =>
   apiMutation<Session>(`/sessions/${encodeURIComponent(id)}/reschedule`, input);

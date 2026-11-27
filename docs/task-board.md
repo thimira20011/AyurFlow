@@ -85,7 +85,7 @@ Status values: **Pending** = not started; **In progress** = work underway but co
 | TASK-SCH-04 | Start, observations, completion and cancellation | C with B | B | In progress | [Controlled start/hold/cancel and rollback cases](evidence/member-c-session-clearance-2026-11-24.md) on `codex/member-c-session-clearance-races`, using real scheduling/clinical services and the production cancellation adapter. Execution attached in PR; B review and full AT07 remain open. |
 | TASK-SCH-03 | Booking and atomic rescheduling | C | B | In progress | [Atomic reschedule verification](evidence/member-c-reschedule-integrity-2026-11-24.md) on `codex/member-c-reschedule-integrity`: independent resource conflicts, unavailable slots and competing same-version edits; B review and full AT06 remain open. |
 | TASK-SCH-04 | Start, observations, completion and cancellation | C with B | B | Pending | — |
-| TASK-SCH-05 | Booking/availability/therapist screens | C | B | Pending | — |
+| TASK-SCH-05 | Booking/availability/therapist screens | C | B | In progress | [Figma-referenced recovery interface and browser evidence](evidence/member-c-scheduling-recovery-ui-2026-11-27.md): loading/empty/error states, stale-date rejection, preserved drafts and read-only retry. B/F review, usable record selection and full AT06/07/15 remain open. |
 | TASK-SCH-06 | AT06–07 overlap and clearance verification | C | B | In progress | [Independent resource booking cases](evidence/member-c-booking-resources-2026-11-12.md) on `codex/member-c-booking-race-tests` cover room-only/therapist-only races, separate-resource concurrency, adjacent boundaries and booking/audit consistency. CI results, remaining integrated AT06–07 cases and B review required |
 
 ## 7. Inventory and preparation (weeks 2–6)

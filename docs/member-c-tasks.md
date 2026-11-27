@@ -29,6 +29,11 @@ This is an execution checklist, not an acceptance claim. Unchecked items require
 
 - [x] Author atomic reschedule regression coverage on `codex/member-c-reschedule-integrity`: successful allocation changes, independent room/therapist conflicts, unavailable slots and controlled same-version concurrency. See [setup and results](evidence/member-c-reschedule-integrity-2026-11-24.md). CI execution and B review are recorded separately; SCH-03/SCH-06 and full AT06 remain open.
 
+## Progress — 27 November 2026: scheduling recovery interface
+
+- [x] Implement Figma-referenced loading/empty/error/retry states, stale-date protection, disabled mutation controls and preserved drafts on `codex/member-c-scheduling-recovery-ui` (SCH-05; contribution to UI-07).
+- [x] Pass local lint, type/build, 15 unit tests and 31 browser tests, including seven new recovery cases and visual checks at both viewports. See [setup/results and CI attachment](evidence/member-c-scheduling-recovery-ui-2026-11-27.md). B/F review and full AT06/07/15 acceptance remain open.
+
 ## Read first and understand the starting point
 
 Read [implementation plan](implementation-plan.md), [decisions](decisions.md), [team plan](team-plan.md), [task board](task-board.md), [testing](testing.md), [backend scheduling README](../backend/internal/scheduling/README.md) and [frontend scheduling README](../frontend/src/features/scheduling/README.md). Read the applicable nested AGENTS.md before implementation.

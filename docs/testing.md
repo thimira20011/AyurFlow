@@ -165,3 +165,7 @@ TASK-SCH-04/SCH-06; owner C with B, reviewer B pending. [Setup, expected outcome
 ## Member C reschedule integrity (24 November 2026)
 
 TASK-SCH-03/SCH-06; C owner, B reviewer pending. [Setup, expected outcomes and execution record](evidence/member-c-reschedule-integrity-2026-11-24.md) covers independent resource conflicts, unavailable targets and controlled same-version edits with complete-row retention and audit assertions. This supports AT06; full acceptance remains open.
+
+## Member C scheduling recovery UI (27 November 2026)
+
+TASK-SCH-05 and C contribution to TASK-UI-07; C owner, B reviewer with F/A shared UI review pending. [Setup, expected/actual local results and PR CI attachment](evidence/member-c-scheduling-recovery-ui-2026-11-27.md) records the Figma references, date-safe loading/failure/empty states, preserved drafts, honest mutation outcomes and read-only retry. Local lint/type/build, 15 unit and 31 mocked-API browser regressions passed, including seven new cases and both target viewport screenshots. This is partial AT15 support, not full Go/PostgreSQL AT06/07 or clinic acceptance.
