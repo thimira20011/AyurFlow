@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
-import { Notice, StateMessage, StatusBadge } from "@/components/staff-feedback";
+import { Notice, StatusBadge } from "@/components/staff-feedback";
 import { Field } from "@/components/staff-field";
 import { useStaffSession } from "@/features/administration/session";
 import { APIRequestError } from "@/lib/api-client";
@@ -47,6 +47,18 @@ const emptyBooking = { patientId: "", planId: "", stageId: "", roomId: "", thera
 const windowError = "Enter an end time after the start time.";
 const sessionLabels = { booked: "Booked", in_progress: "In progress", completed: "Completed", cancelled: "Cancelled" };
 
+function ScheduleState({ kind, message, unconfirmed, onRetry, onChooseDate, busy }: {
+  kind: "loading" | "error" | "empty"; message?: string; unconfirmed: boolean;
+  onRetry: () => void; onChooseDate: () => void; busy: boolean;
+}) {
+  return <div className={styles.scheduleState} role={kind === "error" ? "alert" : "status"}>
+    <h3>{kind === "loading" ? "Loading this date’s schedule…" : kind === "error" ? "We couldn’t load this date" : "No sessions yet"}</h3>
+    <p>{kind === "loading" ? "Checking recorded room and therapist availability for the selected clinic date." : kind === "error" ? message : "There are no booked sessions for this date. Choose a room and therapist within their recorded availability."}</p>
+    <p className={styles.stateHint}>{unconfirmed ? "The action may have completed. Reload before trying again." : kind === "empty" ? "An empty schedule does not mean every resource is available." : "Previous slots are hidden until this date is ready."}</p>
+    <button type="button" className={kind === "empty" ? styles.secondaryStateAction : undefined} disabled={busy || kind === "loading"} onClick={kind === "empty" ? onChooseDate : onRetry}>{kind === "loading" ? "Loading schedule…" : kind === "error" ? "Retry loading schedule" : "Choose another date"}</button>
+  </div>;
+}
+
 export default function SchedulingWorkspace() {
   const { session } = useStaffSession();
   const receptionist = session?.roles.includes("receptionist") ?? false;
@@ -56,7 +68,13 @@ export default function SchedulingWorkspace() {
   const [availability, setAvailability] = useState<Availability[]>([]);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [loading, setLoading] = useState(true);
-  const [loadFailed, setLoadFailed] = useState(false);
+  const [loadedDate, setLoadedDate] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState("");
+  const [unconfirmed, setUnconfirmed] = useState(false);
+  const requestVersion = useRef(0);
+  const pendingLoad = useRef<AbortController | null>(null);
+  const mounted = useRef(false);
+  const dateInput = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
   const [noticeError, setNoticeError] = useState(false);
@@ -74,36 +92,74 @@ export default function SchedulingWorkspace() {
   const [invalidBookingWindow, setInvalidBookingWindow] = useState(false);
   const [invalidAvailabilityWindow, setInvalidAvailabilityWindow] = useState(false);
 
+  const ready = !loading && !loadError && loadedDate === date;
+  const blocked = busy || !ready;
+
   const load = useCallback(async () => {
+    if (!mounted.current) return false;
+    const current = ++requestVersion.current;
+    pendingLoad.current?.abort();
+    const controller = new AbortController();
+    pendingLoad.current = controller;
+    setLoading(true); setLoadError("");
     const start = new Date(`${date}T00:00:00+05:30`);
-    if (Number.isNaN(start.getTime())) return false;
-    setLoading(true);
+    if (!date || Number.isNaN(start.getTime())) {
+      setLoadError("Choose a valid clinic date, then retry loading the schedule.");
+      setLoading(false);
+      return false;
+    }
     try {
       const windowStart = start.toISOString();
       const windowEnd = new Date(start.getTime() + 86_400_000).toISOString();
       const [roomResult, availabilityResult, sessionResult] = await Promise.all([
-        listRooms(), listAvailability(windowStart, windowEnd), listSessions(windowStart, windowEnd),
+        listRooms(controller.signal), listAvailability(windowStart, windowEnd, controller.signal), listSessions(windowStart, windowEnd, controller.signal),
       ]);
+      if (current !== requestVersion.current) return false;
       setRooms(roomResult.items ?? []);
       setAvailability(availabilityResult.items ?? []);
       setSessions(sessionResult.items ?? []);
-      setLoadFailed(false);
-      setNotice("");
+      setLoadedDate(date); setUnconfirmed(false); setNotice("");
       return true;
-    } catch (error) { setLoadFailed(true); setNoticeError(true); setNotice(errorText(error)); return false; }
-    finally { setLoading(false); }
+    } catch (error) {
+      if (current !== requestVersion.current) return false;
+      setLoadError(error instanceof APIRequestError && error.status < 500 ? errorText(error) : "Your selections are kept. Refresh the schedule before checking room and therapist availability.");
+      return false;
+    } finally { if (current === requestVersion.current) setLoading(false); }
   }, [date]);
 
-  useEffect(() => { Promise.resolve().then(() => { void load(); }); }, [load]);
+  const cancelLoad = useCallback(() => {
+    requestVersion.current++; pendingLoad.current?.abort();
+  }, []);
+
+  useEffect(() => {
+    mounted.current = true;
+    let active = true;
+    Promise.resolve().then(() => { if (active) void load(); });
+    return () => { active = false; mounted.current = false; cancelLoad(); };
+  }, [load, cancelLoad]);
+
+  function chooseDate(value: string) {
+    cancelLoad();
+    setLoading(true); setLoadError(""); setNotice(""); setDate(value);
+  }
 
   async function perform(action: () => Promise<unknown>, success: string) {
+    if (blocked) return false;
     setBusy(true); setNotice("");
     try {
       await action();
       if (await load()) { setNoticeError(false); setNotice(success); return true; }
+      setUnconfirmed(true);
       setNoticeError(true); setNotice("The action may have completed, but the updated schedule could not be loaded. Reload before trying again.");
       return false;
-    } catch (error) { setNoticeError(true); setNotice(errorText(error)); return false; }
+    } catch (error) {
+      setNoticeError(true); setNotice(errorText(error));
+      if (!(error instanceof APIRequestError) || error.status >= 500 || error.status === 409) {
+        setLoadedDate(null); setLoadError("Reload the schedule before making another change.");
+        setUnconfirmed(!(error instanceof APIRequestError) || error.status >= 500);
+      }
+      return false;
+    }
     finally { setBusy(false); }
   }
 
@@ -166,14 +222,12 @@ export default function SchedulingWorkspace() {
         <p>{receptionist ? "Book only within recorded room and therapist availability. Clinical clearance is rechecked at session start." : "Review your assigned sessions and record delivery after clinical clearance."}</p></div>
       {receptionist && <Link className={styles.linkButton} href="/patients">Find a patient</Link>}
     </header>
-    <div className={styles.toolbar}><label htmlFor="schedule-date">Clinic date</label><input id="schedule-date" type="date" value={date} onChange={event => setDate(event.target.value)} />
+    <div className={styles.toolbar}><label htmlFor="schedule-date">Clinic date</label><input ref={dateInput} id="schedule-date" type="date" value={date} onChange={event => chooseDate(event.target.value)} disabled={busy} />
       <button type="button" onClick={() => void load()} disabled={busy || loading}>Refresh schedule</button><span>Asia/Colombo</span></div>
     {notice && <Notice tone={noticeError ? "error" : "success"}>{notice}</Notice>}
     <div className={styles.columns}>
-      <section className={styles.panel} aria-labelledby="sessions-title"><div className={styles.panelHead}><h2 id="sessions-title">{receptionist ? "Booked sessions" : "My sessions"}</h2><span>{sessions.length} shown</span></div>
-        {loading ? <StateMessage>Loading the schedule…</StateMessage> : sessions.length === 0 ? (
-          !loadFailed && <StateMessage>No sessions are recorded for this date.</StateMessage>
-        ) : <ul className={styles.sessionList}>{sessions.map(item =>
+      <section className={styles.panel} aria-labelledby="sessions-title" aria-busy={loading}><div className={styles.panelHead}><h2 id="sessions-title">{receptionist ? "Booked sessions" : "My sessions"}</h2><span>{ready ? `${sessions.length} shown` : loading ? "Loading…" : "Not refreshed"}</span></div>
+        {!ready || sessions.length === 0 ? <ScheduleState kind={loading ? "loading" : loadError ? "error" : "empty"} message={loadError} unconfirmed={unconfirmed} busy={busy} onRetry={() => void load()} onChooseDate={() => dateInput.current?.focus()} /> : <ul className={styles.sessionList}>{sessions.map(item =>
           <li key={item.id}><div className={styles.sessionTop}><strong>{timeFormat.format(new Date(item.startsAt))} – {timeFormat.format(new Date(item.endsAt))}</strong><StatusBadge tone={item.status === "completed" ? "positive" : item.status === "cancelled" ? "negative" : "neutral"}>{sessionLabels[item.status]}</StatusBadge></div>
             <p>Patient {item.patientId}</p><p>Room {rooms.find(room => room.id === item.roomId)?.name ?? item.roomId}</p>
             {receptionist && <p>Therapist {item.therapistId}</p>}
@@ -191,10 +245,11 @@ export default function SchedulingWorkspace() {
       <aside className={styles.side}>
         <section className={styles.panel} aria-labelledby="availability-title"><h2 id="availability-title">Availability</h2>
           <p>Recorded windows for the selected clinic date. A booking needs both room and therapist coverage.</p>
-          {availability.length ? <ul className={styles.simpleList}>{availability.map(item => <li key={item.id}><strong>{item.roomId ? rooms.find(room => room.id === item.roomId)?.name ?? "Room" : "Therapist"}</strong><span>{item.therapistId ?? item.roomId}</span><span>{timeFormat.format(new Date(item.startsAt))} – {timeFormat.format(new Date(item.endsAt))}</span>{receptionist && <button type="button" disabled={busy} onClick={() => { setInvalidAvailabilityWindow(false); setEditingAvailability(item); setResourceType(item.roomId ? "room" : "therapist"); setResourceID(item.roomId ?? item.therapistId ?? ""); setAvailableStart(clinicInput(item.startsAt)); setAvailableEnd(clinicInput(item.endsAt)); }}>Change window</button>}</li>)}</ul> : <p>No availability windows are recorded.</p>}
+          {!ready ? <p>{loading ? "Checking availability…" : "Availability is unavailable until this date is refreshed."}</p> : availability.length ? <ul className={styles.simpleList}>{availability.map(item => <li key={item.id}><strong>{item.roomId ? rooms.find(room => room.id === item.roomId)?.name ?? "Room" : "Therapist"}</strong><span>{item.therapistId ?? item.roomId}</span><span>{timeFormat.format(new Date(item.startsAt))} – {timeFormat.format(new Date(item.endsAt))}</span>{receptionist && <button type="button" disabled={busy} onClick={() => { setInvalidAvailabilityWindow(false); setEditingAvailability(item); setResourceType(item.roomId ? "room" : "therapist"); setResourceID(item.roomId ?? item.therapistId ?? ""); setAvailableStart(clinicInput(item.startsAt)); setAvailableEnd(clinicInput(item.endsAt)); }}>Change window</button>}</li>)}</ul> : <p>No availability windows are recorded.</p>}
         </section>
         {receptionist && <><section className={styles.panel} aria-labelledby="booking-title"><h2 id="booking-title">{editing?.status === "booked" ? "Reschedule session" : "Book a session"}</h2><p>Use the patient&apos;s active, approved plan and current stage IDs.</p>
           <form className={styles.form} onSubmit={submitBooking}>
+            <fieldset className={styles.formFields} disabled={blocked} aria-label="Session booking">
             {(["patientId", "planId", "stageId"] as const).map(key =>
               <Field key={key} label={key === "patientId" ? "Patient ID" : key === "planId" ? "Plan ID" : "Stage ID"}>
                 {control => <input {...control} value={booking[key]} onChange={event => setBooking({ ...booking, [key]: event.target.value })} required disabled={Boolean(editing)} />}
@@ -218,10 +273,12 @@ export default function SchedulingWorkspace() {
             <Field id="booking-end" label="End · Asia/Colombo" error={invalidBookingWindow ? windowError : undefined}>
               {control => <input {...control} type="datetime-local" value={booking.endsAt} onChange={event => { setBooking({ ...booking, endsAt: event.target.value }); setInvalidBookingWindow(false); }} required />}
             </Field>
-            <div className={styles.actions}><button disabled={busy}>{busy ? "Saving…" : editing?.status === "booked" ? "Save new slot" : "Book session"}</button>{editing?.status === "booked" && <button type="button" onClick={() => { setInvalidBookingWindow(false); setEditing(null); setBooking(emptyBooking); }}>Discard changes</button>}</div>
+            <div className={styles.actions}><button disabled={blocked}>{busy ? "Saving…" : !ready ? "Load availability first" : editing?.status === "booked" ? "Save new slot" : "Book session"}</button>{editing?.status === "booked" && <button type="button" onClick={() => { setInvalidBookingWindow(false); setEditing(null); setBooking(emptyBooking); }}>Discard changes</button>}</div>
+            </fieldset>
           </form></section>
-          <details className={styles.panel} open={editingAvailability !== null || undefined}><summary>Manage rooms and availability</summary><form className={styles.form} onSubmit={submitRoom}><label>Room code<input value={roomCode} onChange={event => setRoomCode(event.target.value)} required maxLength={64} /></label><label>Room name<input value={roomName} onChange={event => setRoomName(event.target.value)} required maxLength={120} /></label><button disabled={busy}>Add room</button></form>
+          <details className={styles.panel} open={editingAvailability !== null || undefined}><summary>Manage rooms and availability</summary><form className={styles.form} onSubmit={submitRoom}><fieldset className={styles.formFields} disabled={blocked} aria-label="Create room"><label>Room code<input value={roomCode} onChange={event => setRoomCode(event.target.value)} required maxLength={64} /></label><label>Room name<input value={roomName} onChange={event => setRoomName(event.target.value)} required maxLength={120} /></label><button disabled={blocked}>Add room</button></fieldset></form>
             <form className={styles.form} onSubmit={submitAvailability}>
+              <fieldset className={styles.formFields} disabled={blocked} aria-label="Resource availability">
               <div className={styles.field}><label htmlFor="availability-resource-type">Resource type</label><select id="availability-resource-type" value={resourceType} disabled={Boolean(editingAvailability)} onChange={event => { setResourceType(event.target.value as "room" | "therapist"); setResourceID(""); }}><option value="room">Room</option><option value="therapist">Therapist</option></select></div>
               <div className={styles.field}><label htmlFor="availability-resource">{resourceType === "room" ? "Room" : "Therapist staff ID"}</label>{resourceType === "room" ? <select id="availability-resource" value={resourceID} onChange={event => setResourceID(event.target.value)} required disabled={Boolean(editingAvailability)}><option value="">Choose a room</option>{rooms.map(room => <option key={room.id} value={room.id}>{room.name}</option>)}</select> : <input id="availability-resource" value={resourceID} onChange={event => setResourceID(event.target.value)} required disabled={Boolean(editingAvailability)} />}</div>
               <label>Available from · Asia/Colombo<input type="datetime-local" value={availableStart} onChange={event => { setAvailableStart(event.target.value); setInvalidAvailabilityWindow(false); }} required /></label>
@@ -233,6 +290,7 @@ export default function SchedulingWorkspace() {
                 {invalidAvailabilityWindow && <p id="availability-end-error" role="alert" className={styles.fieldError}>{windowError}</p>}
               </div>
               <button disabled={busy}>{editingAvailability ? "Save availability change" : "Record availability"}</button>{editingAvailability && <button type="button" onClick={() => { setEditingAvailability(null); setAvailableStart(""); setAvailableEnd(""); setInvalidAvailabilityWindow(false); }}>Discard change</button>}
+              </fieldset>
             </form></details></>}
       </aside>
     </div>

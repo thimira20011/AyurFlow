@@ -29,6 +29,10 @@ This is an execution checklist, not an acceptance claim. Unchecked items require
 
 - [x] Author atomic reschedule regression coverage on `codex/member-c-reschedule-integrity`: successful allocation changes, independent room/therapist conflicts, unavailable slots and controlled same-version concurrency. See [setup and results](evidence/member-c-reschedule-integrity-2026-11-24.md). CI execution and B review are recorded separately; SCH-03/SCH-06 and full AT06 remain open.
 
+## Progress — 27 November 2026: scheduling recovery interface
+
+- [x] Implement Figma-referenced loading/empty/error/retry states, stale-date protection, disabled mutation controls and preserved drafts on `codex/member-c-scheduling-recovery-ui` (SCH-05; contribution to UI-07).
+- [x] Pass local lint, type/build, 23 unit tests and 53 browser tests, including seven new recovery cases and visual checks at both viewports. See [setup/results and CI attachment](evidence/member-c-scheduling-recovery-ui-2026-11-27.md). B/F review and full AT06/07/15 acceptance remain open.
 ## Progress — 27 November 2026
 
 - [x] Author protected delivery API checks on `codex/member-c-delivery-api-verification`: therapist role/record access, active account and CSRF enforcement, invalid/repeated transitions, Unicode observations, read projections and audit privacy. See [setup and PR execution attachment](evidence/member-c-delivery-api-2026-11-27.md). B review and full AT07 acceptance remain open.
