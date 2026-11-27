@@ -18,12 +18,12 @@ Tester: Codex automation, 27 November 2026. Environment: Windows, Node 22.23.2 a
 
 - [x] ESLint passed with zero warnings on final source.
 - [x] Type check and production build passed.
-- [x] All 15 unit tests passed.
-- [x] All 31 browser regressions passed, including seven new scheduling cases (14.0 s full-suite run).
+- [x] All 23 unit tests passed.
+- [x] All 53 browser regressions passed, including seven new scheduling cases (24.5 s full-suite run).
 - [x] Visually review recovery screenshots at 1366×768 and 1024×768; no horizontal overflow or state-card wrapping defects. Existing page scrolling/form layout remains.
 - [ ] B/F independent review and complete AT15 acceptance.
 
-The first browser fixture incorrectly delayed room requests and then used a label selector that included native select option text. Those test-harness issues were corrected (explicit delay predicate and accessible combobox roles); the final run passed. No failed run was counted as success.
+The first browser fixture incorrectly delayed room requests and then used a label selector that included native select option text. Those test-harness issues were corrected (explicit delay predicate and accessible combobox roles); the final run passed. The first published frontend run also exposed that the local checkout lacked newer shared frontend work. The final source was reapplied on the current dev scheduling file, preserving shared Field/Notice/StatusBadge use, inline time errors and focus handling; current dev frontend files and fixtures were synchronized for the 23-unit/53-browser verification. The existing loading-state regression assertions were updated only for the intentionally changed messages. No failed run was counted as success.
 
 ## Reproduction and expected/actual outcomes
 

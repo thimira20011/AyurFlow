@@ -68,12 +68,12 @@ test("schedule distinguishes loading, an empty response and a failed refresh", a
   });
   await page.goto("/scheduling");
   const panel = page.getByRole("region", { name: "Booked sessions" });
-  await expect(panel.getByRole("status")).toHaveText("Loading the schedule…");
+  await expect(panel.getByRole("status").getByRole("heading", { name: "Loading this date’s schedule…" })).toBeVisible();
   release();
-  await expect(panel.getByRole("status")).toHaveText("No sessions are recorded for this date.");
+  await expect(panel.getByRole("status").getByRole("heading", { name: "No sessions yet" })).toBeVisible();
   failed = true;
   await page.getByRole("button", { name: "Refresh schedule" }).click();
-  await expect(page.getByRole("alert").filter({ hasText: "The scheduling service could not confirm this action." })).toBeVisible();
+  await expect(panel.getByRole("alert").getByRole("heading", { name: "We couldn’t load this date" })).toBeVisible();
   await expect(panel.getByRole("status")).toHaveCount(0);
 });
 
