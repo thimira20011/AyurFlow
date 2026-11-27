@@ -165,3 +165,7 @@ TASK-SCH-04/SCH-06; owner C with B, reviewer B pending. [Setup, expected outcome
 ## Member C reschedule integrity (24 November 2026)
 
 TASK-SCH-03/SCH-06; C owner, B reviewer pending. [Setup, expected outcomes and execution record](evidence/member-c-reschedule-integrity-2026-11-24.md) covers independent resource conflicts, unavailable targets and controlled same-version edits with complete-row retention and audit assertions. This supports AT06; full acceptance remains open.
+
+## Member C protected delivery API (27 November 2026)
+
+TASK-SCH-04/SCH-06; C owner, B reviewer pending. [Reproduction, expected outcomes and PR execution attachment](evidence/member-c-delivery-api-2026-11-27.md) covers real authenticated Gin/PostgreSQL delivery permissions, CSRF, inactive accounts, lifecycle/history, Unicode observations, protected read projections and audit identity/privacy. Supports AT07/13; full acceptance remains open.
