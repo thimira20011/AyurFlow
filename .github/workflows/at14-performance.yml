@@ -1,0 +1,71 @@
+name: AT14 performance baseline
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/at14-performance.yml
+      - frontend/playwright.performance.config.ts
+      - frontend/tests/performance/**
+
+permissions:
+  contents: read
+
+jobs:
+  at14:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:17.11-alpine
+        env:
+          POSTGRES_DB: ayurflow_auth_e2e
+          POSTGRES_USER: ayurflow_test
+          POSTGRES_PASSWORD: synthetic-ci-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ayurflow_test -d ayurflow_auth_e2e"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      AUTH_E2E_DATABASE_URL: postgres://ayurflow_test:synthetic-ci-only@127.0.0.1:5432/ayurflow_auth_e2e?sslmode=disable
+      NEXT_TELEMETRY_DISABLED: '1'
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-go@v7
+        with:
+          go-version: '1.27.4'
+          cache-dependency-path: backend/go.sum
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm install --global npm@10.9.8 --no-audit --no-fund
+      - run: npm ci --no-audit --no-fund
+      - name: Ensure PostgreSQL and TLS clients are available
+        run: |
+          if ! command -v psql || ! command -v openssl; then
+            sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=15 -o Acquire::https::Timeout=15 update
+            sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=15 -o Acquire::https::Timeout=15 install --yes postgresql-client openssl
+          fi
+      - run: npm run build
+        env:
+          BACKEND_URL: http://127.0.0.1:8080
+      - name: Measure authenticated reads for ten minutes
+        run: npx playwright test --config playwright.performance.config.ts
+      - name: Preserve aggregate measurements
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: at14-performance-results
+          path: .cache/auth-e2e/at14-results.json
+          if-no-files-found: ignore
+      - name: Remove ephemeral fixture credentials and TLS key
+        if: always()
+        run: rm -f ../.cache/auth-e2e/fixture.json ../.cache/auth-e2e/tls.key ../.cache/auth-e2e/tls.pem
