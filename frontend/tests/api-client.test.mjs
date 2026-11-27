@@ -76,12 +76,17 @@ test("role updates use PUT and send only the explicit role payload with session 
   await apiMutation("/admin/staff/synthetic-id/roles", { roles: ["billing"] }, "PUT");
 });
 
-test("report readers can enter billing reports without gaining other work areas", () => {
+test("report readers can enter reports while other work areas stay restricted", () => {
   assert.equal(canOpenArea("/billing", ["report_reader"]), true);
+  assert.equal(canOpenArea("/reports/inventory", ["report_reader"]), true);
+  assert.equal(canOpenArea("/reports/inventory", ["dispensary"]), true);
   for (const path of ["/patients", "/clinical", "/inventory", "/administration", "/scheduling"]) {
     assert.equal(canOpenArea(path, ["report_reader"]), false);
   }
   for (const role of ["administrator", "receptionist", "clinician", "therapist", "dispensary"]) {
     assert.equal(canOpenArea("/billing", [role]), false);
+  }
+  for (const role of ["administrator", "receptionist", "clinician", "therapist", "billing"]) {
+    assert.equal(canOpenArea("/reports/inventory", [role]), false);
   }
 });

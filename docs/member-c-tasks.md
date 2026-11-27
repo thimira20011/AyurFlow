@@ -22,6 +22,9 @@ This is an execution checklist, not an acceptance claim. Unchecked items require
 
 - [x] Implement controlled room/therapist availability-versus-booking cases in both lock orderings on `codex/member-c-availability-booking-races`; [setup and expected outcomes](evidence/member-c-availability-booking-2026-11-23.md). This checks off authored verification work only; CI results and B review are required before parent SCH-02/SCH-06 closure.
 
+## Progress — 24 November 2026: session clearance
+
+- [x] Author controlled start-versus-hold/cancel cases in both orderings, completion during hold and real-adapter cancellation audit rollback/retry on `codex/member-c-session-clearance-races`. See [setup and execution attachment](evidence/member-c-session-clearance-2026-11-24.md). B review and full AT04–07 acceptance remain open.
 ## Progress — 24 November 2026
 
 - [x] Author atomic reschedule regression coverage on `codex/member-c-reschedule-integrity`: successful allocation changes, independent room/therapist conflicts, unavailable slots and controlled same-version concurrency. See [setup and results](evidence/member-c-reschedule-integrity-2026-11-24.md). CI execution and B review are recorded separately; SCH-03/SCH-06 and full AT06 remain open.

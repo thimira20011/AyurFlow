@@ -2,7 +2,7 @@
 
 **Task:** TASK-OPS-03, Member A's portion · **Owner:** A · **Reviewer:** F · **Requirements:** IAM-01–05, ADM-01 and AUD-01–02 support · **Acceptance:** AT16 outage procedure and AT17 setup/documentation support
 
-This runbook covers the current synthetic-development application. The [staff administration guide](guides/member-a-administration.md) covers account operations; the [patient/clinical guide](guides/member-b-staff.md) covers B's workflows. F assembles the other owners' guides. Live deployment, clinic review and full AT acceptance remain open. Real-data use requires DEC05 regardless of technical checks.
+This runbook covers the synthetic application and the operator's part of the staff handover. The [walkthrough](#ops-03-walkthrough-and-handover) links the module guides and identifies the evidence to collect. Real-data use requires DEC05.
 
 ## Setup and first synthetic sign-in
 
@@ -30,7 +30,7 @@ Use [the pilot operator procedure](../deploy/README.md) for the standalone `depl
 
 For an authorized schema update:
 
-1. Record the selected commit/version and review the new migration filenames with affected owners. Obtain a verified backup/recovery plan before a pilot schema change; OPS-02 remains unimplemented, so this is still a deployment gate.
+1. Record the selected commit/version and review the new migration filenames with affected owners. Before a pilot schema change, verify a fresh encrypted backup and confirm the [recovery procedure](../deploy/backups/README.md) applies to the selected environment.
 2. Stop application traffic and writers for the maintenance window. Build the chosen release before running its migrations. For separate local development, stop the Go/Next.js processes; from `backend/`, run `go run ./cmd/migrate` with the intended environment. Check a zero exit status and **Migrations applied** before starting the API.
 3. For the pilot, run the explicit maintenance-profile migration service and the reviewed runtime-grant script as described in [deploy/README.md](../deploy/README.md#configure-and-start). Do not start the API if either fails. New tables need an explicit grant-script review.
 4. The runner applies pending filenames in order and records complete paths in `schema_migrations`. The pending batch shares a transaction; failures roll it back. Re-running skips committed filenames. Keep both existing `000004` filenames; never rename or edit an applied migration or manually mark a failed one applied.
@@ -69,7 +69,7 @@ For TASK-OPS-04, follow the [isolated clean-start verification](../deploy/verifi
 
 1. Record the outage start time/timezone, affected functions, operator and version. Tell the responsible clinic/team contact which actions are unavailable. Restrict traffic if access or data integrity is in doubt.
 2. Staff use the clinic-approved paper workflow only after that process and custody are agreed. Keep paper records in the approved secure location. There is no offline synchronization or approved paper template supplied by this application.
-3. Diagnose and repair using redacted status/logs, preserving the last committed state. Database restoration must follow a tested, approved recovery procedure; none is implemented yet under OPS-02. Do not improvise a restore or reverse applied migrations.
+3. Diagnose and repair using redacted status/logs, preserving the last committed state. If a restore is required, follow the [isolated recovery procedure](../deploy/backups/README.md) and verify the recovered records before seeking approval to resume. Keep the interrupted database available for the operator's investigation.
 4. Before resuming, the operator and relevant module owner check health, readiness, migrations/grants, sign-in and an authorized synthetic smoke journey. Record service return time and obtain the responsible workflow owner's agreement to resume.
 5. The designated staff member reconciles paper entries against current saved records before re-entry, including writes whose original result was uncertain. Use normal authorized, validated and audited forms. Receipts and consumption must use their supported operation-ID retry rules; do not invent a second operation to bypass an uncertain result.
 6. Preserve the original event time/reference through the owning module's supported fields and the approved paper record. If no field supports it, record the gap for the module owner and follow the agreed external reconciliation process; do not change system timestamps, signed/issued history or database rows directly.
@@ -77,13 +77,24 @@ For TASK-OPS-04, follow the [isolated clean-start verification](../deploy/verifi
 
 ## Deferred operational decisions
 
-On 5 November 2026 the user selected private GitHub backup storage, seven daily encrypted copies capped at 48 MiB, and personal key custody/restore operation. Follow the [backup and isolated recovery procedure](../deploy/backups/README.md). Full OPS-02/AT16 remains pending actual four-category recovery, independent key copy, notification receipt and review evidence.
+The synthetic deployment uses private GitHub backup storage, seven daily encrypted copies capped at 48 MiB, and THIMIRA as key holder and restore operator. On 15 November an off-host restore verified all four required record categories. The operator reported the separate key copy and notification receipt. Budget confirmation, independent review and the staff walkthrough remain open. See the [recovery evidence](evidence/member-a-ops-02-recovery-2026-11-15.md).
 
-Before pilot/handover, record DEC06 host/funding, backup/key custody, restore operator, monitoring and support contacts; DEC07 production bootstrap/recovery; and DEC05 real-data authorization/retention/export responsibility. Keep unresolved items open in [the decision register](decisions.md). No host, backup target or recovery promise is selected by this runbook.
+Before pilot/handover, record DEC06 pilot host/funding, monitoring and support contacts, DEC07 production bootstrap/recovery, and DEC05 real-data authorization/retention/export responsibility in [the decision register](decisions.md).
 
 ## OPS-03 walkthrough and handover
 
 Member F or another named member must follow setup/migrations, synthetic sign-in, account creation/role change/disable, failure handling and the outage/re-entry procedure in a disposable environment. Use a rehearsal for steps needing a clinic paper process; mark unavailable steps pending. Do not interrupt a shared deployment to create an outage test. The broader AT17 clean-start/restart evidence belongs to OPS-04, and the isolated restore belongs to OPS-02/AT16.
+
+For OPS-03/06 and the QA-03 walkthrough, use separate synthetic staff sessions and carry the IDs returned by each step into the next role. Start with the [linked journey fixture](qa/patient-to-receipt-fixture.md). Record the release commit and the expected and observed outcome for each handoff.
+
+| Staff handoff | Guide and result to demonstrate |
+| --- | --- |
+| Administrator to reception | Create the role accounts and confirm the administrator cannot open clinical records. [Staff administration](guides/member-a-administration.md) |
+| Reception to clinician | Register and find the synthetic patient, then sign the consultation and approve the first stage as the assigned clinician. [Patient and clinical workflows](guides/member-b-staff.md) |
+| Reception to therapist | Use the approved stage to book within room and therapist availability. The assigned therapist starts and completes delivery. [Scheduling and delivery](../frontend/src/features/scheduling/README.md) |
+| Therapist to dispensary | Save the snapshot, verify stock is unchanged, confirm actual use, then match batch-to-patient and patient-to-batch results. [Inventory and preparation](../frontend/src/features/inventory/README.md) |
+| Billing and report reader | Issue the invoice and record the synthetic deposit. Reopen the balance and receipt history. As report reader, open outstanding invoices and stock traceability from Reports. [Billing and receipts](guides/member-e-billing.md) · [Inventory reports](../frontend/src/features/inventory/README.md#task-qa-02-read-only-inventory-report) |
+| Operator to handover recipient | Rehearse an uncertain write or outage. Show the last backup and isolated restore evidence, explain re-entry and retry handling, and record the agreed support contact. [Recovery procedure](../deploy/backups/README.md) |
 
 Copy this record into [testing.md](testing.md) when executing the walkthrough:
 

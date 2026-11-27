@@ -12,12 +12,14 @@ export const workspaces = [
   ] },
   { role: "dispensary", title: "Dispensary", home: "/inventory", links: [
     { label: "Overview", href: "/workspace" }, { label: "Stock & batches", href: "/inventory" },
+    { label: "Stock and traceability report", href: "/reports/inventory" },
   ] },
   { role: "billing", title: "Billing", home: "/billing", links: [
     { label: "Overview", href: "/workspace" }, { label: "Invoices", href: "/billing" },
   ] },
-  { role: "report_reader", title: "Billing reports", home: "/billing", links: [
+  { role: "report_reader", title: "Reports", home: "/billing", links: [
     { label: "Overview", href: "/workspace" }, { label: "Outstanding invoices", href: "/billing" },
+    { label: "Stock and traceability report", href: "/reports/inventory" },
   ] },
   { role: "administrator", title: "Administration", home: "/administration", links: [
     { label: "Overview", href: "/workspace" }, { label: "Staff & roles", href: "/administration" },
@@ -27,5 +29,8 @@ export const workspaces = [
 
 export function workspaceFor(roles: string[], section?: string) {
   const available = workspaces.filter(workspace => roles.includes(workspace.role));
-  return available.find(workspace => workspace.title === section || (section === "Billing" && workspace.role === "report_reader")) ?? available[0];
+  return available.find(workspace => workspace.title === section)
+    ?? (section === "Billing" ? available.find(workspace => workspace.role === "report_reader") : undefined)
+    ?? (section === "Reports" ? available.find(workspace => workspace.role === "dispensary") : undefined)
+    ?? available[0];
 }

@@ -48,3 +48,7 @@ Matched the five exact run identifiers to their staff records, then joined their
 | No unrevoked test session within its absolute lifetime | 0 |
 
 The eleven inspected events satisfy the staff audit metadata check. This follow-up checked stored events for the original synthetic run. The Render dashboard could not be opened to verify hosting and proxy logs or identify the frontend and backend release revisions. Deployed absolute expiry despite keepalive, current deployed browser and module checks, final DEC07 policy, and independent reviewer acceptance also remain open. The isolated CI tests provide separate clock, audit and browser evidence.
+
+## 26 November follow-up
+
+The [deployed runner](../../frontend/tests/deployed/README.md) can now check the configured absolute lifetime while keeping the session active. It verifies a constant expiry timestamp through repeated refreshes, then sends the original token while still within the idle interval and requires HTTP 401. Local verification covered the runner's configuration guard. The initial Render frontend request returned 429. The later certificate-verified frontend requests returned 200 for readiness and 401 for an anonymous session. A dedicated synthetic administrator credential file was unavailable for this run, so the one-hour hosted test remains pending.

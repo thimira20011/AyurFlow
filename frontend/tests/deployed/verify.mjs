@@ -1,21 +1,26 @@
 import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { randomBytes } from 'node:crypto';
+import { setTimeout as delay } from 'node:timers/promises';
 import { pathToFileURL } from 'node:url';
 import { request } from '@playwright/test';
 
 export function settings(env) {
   const url = new URL(env.AUTH_VERIFY_ORIGIN);
   const idle = Number(env.AUTH_VERIFY_IDLE_SECONDS);
+  const absolute = env.AUTH_VERIFY_ABSOLUTE_SECONDS === undefined ? undefined : Number(env.AUTH_VERIFY_ABSOLUTE_SECONDS);
   if (env.AUTH_VERIFY_SYNTHETIC !== 'yes' || url.protocol !== 'https:' ||
       url.username || url.password || url.pathname !== '/' || url.search || url.hash ||
       !env.AUTH_VERIFY_CREDENTIALS || !Number.isInteger(idle) || idle < 1 || idle > 3600) {
     throw new Error('Explicit synthetic HTTPS origin, private credentials file and idle seconds (1–3600) required.');
   }
-  return { origin: url.origin, idle };
+  if (absolute !== undefined && (!Number.isSafeInteger(absolute) || absolute <= idle || absolute > 86_400)) {
+    throw new Error('Absolute seconds must exceed idle seconds and fit within one day.');
+  }
+  return { origin: url.origin, idle, ...(absolute === undefined ? {} : { absolute }) };
 }
 
 async function main() {
-  const { origin, idle } = settings(process.env);
+  const { origin, idle, absolute } = settings(process.env);
   const fixture = JSON.parse(readFileSync(process.env.AUTH_VERIFY_CREDENTIALS, 'utf8'));
   if (!fixture.administrator || !fixture.password) throw new Error('Missing synthetic administrator credentials.');
   const prefix = `synthetic-auth06-${randomBytes(6).toString('hex')}`;
@@ -24,6 +29,7 @@ async function main() {
   const contexts = [];
   const created = [];
   let admin;
+  let absoluteVerified = false;
   let stage = 'trusted HTTPS readiness';
   const check = (ok) => { if (!ok) throw new Error('Check failed.'); };
   const pass = () => { results.push({ check: stage, status: 'passed' }); console.log(`PASS: ${stage}`); };
@@ -133,6 +139,41 @@ async function main() {
     stage = 'identifier login succeeds after the configured cooldown';
     check((await login(attacker, throttle.loginIdentifier)).status() === 200);
     pass();
+    if (absolute !== undefined) {
+      stage = 'configured absolute expiry rejects an active session';
+      const target = await create('absolute');
+      const active = await context();
+      const loginStartedAt = Date.now();
+      const signedIn = await login(active, target.loginIdentifier);
+      check(signedIn.status() === 200);
+      const expiresAt = Date.parse((await signedIn.json()).expiresAt);
+      check(expiresAt >= loginStartedAt + absolute * 1000 - 5000 &&
+        expiresAt <= Date.now() + absolute * 1000 + 5000);
+      const cookie = (await active.storageState()).cookies.find(item => item.name === '__Host-ayurflow_session');
+      check(Boolean(cookie));
+      const interval = Math.min(30_000, Math.floor(idle * 1000 / 3));
+      const lastProbe = expiresAt - interval;
+      let lastActive = Date.now();
+      let keepalives = 0;
+      console.log(`Checking absolute expiry after about ${absolute} seconds, with regular activity.`);
+      while (Date.now() < lastProbe) {
+        await delay(Math.min(interval, lastProbe - Date.now()));
+        const response = await active.get('/api/v1/auth/session');
+        check(response.status() === 200 && Date.parse((await response.json()).expiresAt) === expiresAt);
+        await response.dispose();
+        lastActive = Date.now();
+        keepalives++;
+      }
+      check(keepalives > 0);
+      const replay = await context({ Cookie: `${cookie.name}=${cookie.value}` });
+      await delay(Math.max(0, expiresAt - Date.now() + Math.min(interval, 1000)));
+      check(Date.now() - lastActive < idle * 1000);
+      // Send the original token even if the cookie jar would drop it at expiry.
+      check((await replay.get('/api/v1/auth/session')).status() === 401);
+      results.push({ check: stage, status: 'passed', keepalives });
+      absoluteVerified = true;
+      console.log(`PASS: ${stage} after ${keepalives} successful keepalives`);
+    }
   } catch {
     results.push({ check: stage, status: 'failed' });
     console.error(`FAIL: ${stage}; private responses and credentials omitted.`);
@@ -153,8 +194,9 @@ async function main() {
     for (const api of contexts) await api.dispose();
     mkdirSync('.cache/auth-deployed', { recursive: true });
     writeFileSync('.cache/auth-deployed/results.json', JSON.stringify({
-      date: new Date().toISOString(), origin, idleSeconds: idle, prefix, results,
-      pending: ['absolute expiry with keepalive', 'hosting log and database audit inspection', 'independent review and final DEC07 policy'],
+      date: new Date().toISOString(), origin, idleSeconds: idle, absoluteSeconds: absolute, prefix, results,
+      pending: [...(absoluteVerified ? [] : ['absolute expiry with keepalive']),
+        'hosting and proxy log inspection', 'independent review and final DEC07 policy'],
     }, null, 2));
   }
 }

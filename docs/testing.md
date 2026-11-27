@@ -124,7 +124,7 @@ The [TASK-CON-03 branch workflow](https://github.com/thimira20011/AyurFlow/actio
 | AT11 | Bidirectional actual traceability and report permissions | D/F | Pending |
 | AT12 | Locked invoice, deposit, balance, receipt retries/races and retention | E | Pending |
 | AT13 | Reference/report access, critical audit and failed-audit rollback | A/all | Pending |
-| AT14 | 10 minutes, 5 users, 500 patients, 1000 sessions, 200 batches; p95 <2s on three queries | F | Pending |
+| AT14 | 10 minutes, 5 users, 500 patients, 1000 sessions, 200 batches; p95 <2s on three queries | F | [Isolated baseline passed](evidence/member-a-at14-2026-11-26.md); pilot run and review pending |
 | AT15 | 1366×768 and 1024×768, keyboard, labels, Unicode, errors | F/all | Pending |
 | AT16 | Outage re-entry and encrypted isolated restore of four record categories | A/F | Pending |
 | AT17 | Clean startup, migrations, seed, restart persistence, docs and handover | A/F | Pending |
@@ -159,6 +159,9 @@ TASK-CLN-01 schema implementation check (29 October 2026; commit `58ed674`, `mem
 - Automated outcome: Go unit, vet and build checks passed. All checkout PostgreSQL integration packages passed, followed by a focused rerun of billing and HTTP after enforcing a reference for new direct deposits. The Webpack build, 15 frontend unit checks, lint, typecheck and all 22 mocked browser cases passed. The final full-stack run passed all 19 browser cases with the real Go API and PostgreSQL.
 - Manual follow-up: [Member E walkthrough](guides/member-e-billing.md). Record results with the tested revision and give them to D. DEC04 remains open. Migration 000017 preserves existing orphan rows for reviewed reconciliation and enforces new references.
 
+## Member C session clearance (24 November 2026)
+
+TASK-SCH-04/SCH-06; owner C with B, reviewer B pending. [Setup, expected outcomes and PR execution attachment](evidence/member-c-session-clearance-2026-11-24.md) covers controlled start-versus-hold/cancel in both orderings, completion during hold, real-adapter cancellation rollback and retry, and retained completed history. This contributes to AT04/05/07; full acceptance remains open.
 ## Member C reschedule integrity (24 November 2026)
 
 TASK-SCH-03/SCH-06; C owner, B reviewer pending. [Setup, expected outcomes and execution record](evidence/member-c-reschedule-integrity-2026-11-24.md) covers independent resource conflicts, unavailable targets and controlled same-version edits with complete-row retention and audit assertions. This supports AT06; full acceptance remains open.

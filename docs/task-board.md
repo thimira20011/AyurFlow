@@ -81,6 +81,8 @@ Status values: **Pending** = not started; **In progress** = work underway but co
 | --- | --- | --- | --- | --- | --- |
 | TASK-SCH-01 | Rooms, availability, sessions and allocation schema | C | B | Pending | — |
 | TASK-SCH-02 | Availability changes with conflict protection | C | B | In progress | [Controlled availability-versus-booking cases](evidence/member-c-availability-booking-2026-11-23.md) on `codex/member-c-availability-booking-races` exercise room/therapist edits in both lock orderings, retained coverage and mutation audit counts. Existing implementation is under verification; integrated AT06 and B review remain open |
+| TASK-SCH-03 | Booking and atomic rescheduling | C | B | Pending | — |
+| TASK-SCH-04 | Start, observations, completion and cancellation | C with B | B | In progress | [Controlled start/hold/cancel and rollback cases](evidence/member-c-session-clearance-2026-11-24.md) on `codex/member-c-session-clearance-races`, using real scheduling/clinical services and the production cancellation adapter. Execution attached in PR; B review and full AT07 remain open. |
 | TASK-SCH-03 | Booking and atomic rescheduling | C | B | In progress | [Atomic reschedule verification](evidence/member-c-reschedule-integrity-2026-11-24.md) on `codex/member-c-reschedule-integrity`: independent resource conflicts, unavailable slots and competing same-version edits; B review and full AT06 remain open. |
 | TASK-SCH-04 | Start, observations, completion and cancellation | C with B | B | Pending | — |
 | TASK-SCH-05 | Booking/availability/therapist screens | C | B | Pending | — |
@@ -118,7 +120,7 @@ Status values: **Pending** = not started; **In progress** = work underway but co
 | TASK-QA-02 | Authorized report navigation | F with D/E; A checks access | A | In progress | Merged F report navigation; A adds real HTTP/browser role checks and PostgreSQL trace/filter regressions on `codex/qa-02-report-access`. [Review, evidence and D/E/F handoffs](audits/qa-02-report-access.md); independent review and full AT11/13 acceptance remain. |
 | TASK-QA-03 | Patient-to-receipt walkthrough | F; owners fix modules | A | In progress | The linked synthetic journey passed over the real API and disposable PostgreSQL. F coordinates the staff walkthrough. [Execution evidence](evidence/member-a-acceptance-review-2026-11-22.md#qa-03-automated-journey) |
 | TASK-QA-04 | Critical audit and permission sweep | A with F | F | In progress | `codex/qa-04-permissions-audit` restricts reception observation access and adds PostgreSQL audit-failure regressions. [Review findings and evidence](audits/qa-04-permissions.md). F and module-owner review, open findings and full AT13 remain. |
-| TASK-QA-05 | Performance and viewport/keyboard evidence | F; A supports host | A | Pending | — |
+| TASK-QA-05 | Performance and viewport/keyboard evidence | F; A supports host | A | In progress | [Isolated AT14 baseline and pilot follow-up](evidence/member-a-at14-2026-11-26.md) |
 | TASK-QA-06 | Clinic UAT, triage and acceptance record | F; owners attend | A; clinic review | Pending | — |
 
 ## 10. Deployment and handover (weeks 1–10)
@@ -127,7 +129,7 @@ Status values: **Pending** = not started; **In progress** = work underway but co
 | --- | --- | --- | --- | --- | --- |
 | TASK-OPS-01 | Compose, configuration, HTTPS and pilot deployment | A | F | Pending | — |
 | TASK-OPS-02 | Encrypted daily backup and isolated restore | A | F; clinic operations review | In progress | Actual off-host four-category recovery verified on 15 November. Private backup helpers synchronized and tested on 20 November. Operator confirmations, budget, independent review and staff walkthrough remain open. [Evidence](evidence/member-a-ops-02-recovery-2026-11-15.md) |
-| TASK-OPS-03 | Usage, outage, API/setup and migration guides | F assembles; each owner writes module | A | In progress | B's [patient/clinical guide](guides/member-b-staff.md) reflects the current guarded plan actions, with [author check and verifier handoff](evidence/member-b-ops-03-guide-2026-11-07.md); A's [administration guide](guides/member-a-administration.md)/[operations runbook](operations.md), A slice on `codex/ops-03-admin-runbook`. Named-member walkthroughs and F/A assembly/review pending |
+| TASK-OPS-03 | Usage, outage, API/setup and migration guides | F assembles; each owner writes module | A | In progress | [Assembled staff and operator walkthrough](operations.md#ops-03-walkthrough-and-handover) and [administration guide](guides/member-a-administration.md) available. Named-member rehearsal and independent review pending. |
 | TASK-OPS-04 | Clean startup, migrations, seed and restart | A with F | F | In progress | `codex/ops-04-clean-start`; [isolated pilot-image verification](../deploy/verification/README.md) and [execution record](testing.md#task-ops-04-clean-startup-and-persistence-7-november-2026). Independent walkthrough/review and full AT17 remain open. |
 | TASK-OPS-05 | Data authorization, custody and support decisions | Team lead; A handles operations | Clinic/institution | Pending | — |
 | TASK-OPS-06 | Training, release and handover | F; all owners teach modules | A; clinic recipient | Pending | — |

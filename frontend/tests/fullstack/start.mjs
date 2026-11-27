@@ -17,11 +17,13 @@ if (!["postgres:", "postgresql:"].includes(database.protocol) ||
 mkdirSync(cache, { recursive: true, mode: 0o700 });
 const log = path.join(cache, "services.log");
 writeFileSync(log, "", { mode: 0o600 });
+const performanceRun = process.env.AUTH_E2E_PERFORMANCE === "yes";
 const env = {
   ...process.env, APP_ENV: "development", DATABASE_URL: database.href, DATABASE_URL_FILE: "",
   HTTP_ADDR: "127.0.0.1:8080", AUTH_ENABLED: "true", AUTH_ALLOWED_ORIGIN: "https://localhost:3443",
   // Short explicit test values, never DEC07 production defaults.
-  AUTH_IDLE_TIMEOUT: "20s", AUTH_ABSOLUTE_TIMEOUT: "60s", AUTH_ATTEMPT_LIMIT: "3",
+  AUTH_IDLE_TIMEOUT: performanceRun ? "15m" : "20s",
+  AUTH_ABSOLUTE_TIMEOUT: performanceRun ? "20m" : "60s", AUTH_ATTEMPT_LIMIT: "3",
   AUTH_ATTEMPT_WINDOW: "30s", AUTH_BLOCK_DURATION: "5s",
 };
 function run(command, args, extra = {}) {
@@ -30,11 +32,12 @@ function run(command, args, extra = {}) {
   if (result.status !== 0) throw new Error(`${path.basename(command)} fixture step failed; inspect private local logs.`);
 }
 const executable = name => path.join(cache, name + (process.platform === "win32" ? ".exe" : ""));
+const pgEnv = { ...process.env, PGHOST: database.hostname, PGPORT: database.port || "5432",
+  PGDATABASE: decodeURIComponent(database.pathname.slice(1)), PGUSER: decodeURIComponent(database.username),
+  PGPASSWORD: decodeURIComponent(database.password), PGSSLMODE: database.searchParams.get("sslmode") ?? "prefer" };
 const tables = spawnSync("psql", ["-X", "-A", "-t", "-v", "ON_ERROR_STOP=1", "-c",
   "SELECT count(*) FROM information_schema.tables WHERE table_schema NOT IN ('pg_catalog', 'information_schema')"],
-{ env: { ...process.env, PGHOST: database.hostname, PGPORT: database.port || "5432",
-  PGDATABASE: decodeURIComponent(database.pathname.slice(1)), PGUSER: decodeURIComponent(database.username),
-  PGPASSWORD: decodeURIComponent(database.password), PGSSLMODE: database.searchParams.get("sslmode") ?? "prefer" }, encoding: "utf8" });
+{ env: pgEnv, encoding: "utf8" });
 if (tables.error) throw new Error(`Cannot start psql (${tables.error.code}); install the PostgreSQL client.`);
 if (tables.status !== 0) throw new Error("Disposable database connection/inspection failed; check local client and database settings.");
 if (tables.stdout.trim() !== "0") throw new Error("AUTH-06 requires an empty disposable database; no existing records are changed.");
@@ -47,6 +50,23 @@ const accounts = Object.fromEntries(roles.map(role => [role, `${prefix}-${role}`
 for (const role of roles) run(executable("seedstaff"), [], {
   SEED_STAFF_LOGIN: accounts[role], SEED_STAFF_PASSWORD: password, SEED_STAFF_ROLES: role,
 });
+if (performanceRun) {
+  for (const role of ["receptionist", "billing"]) {
+    const key = `${role}_second`;
+    accounts[key] = `${prefix}-${role}-second`;
+    run(executable("seedstaff"), [], {
+      SEED_STAFF_LOGIN: accounts[key], SEED_STAFF_PASSWORD: password, SEED_STAFF_ROLES: role,
+    });
+  }
+  const seed = spawnSync("psql", ["-X", "-qAt", "-v", "ON_ERROR_STOP=1",
+    "-v", `reception=${accounts.receptionist}`, "-v", `therapist=${accounts.therapist}`,
+    "-f", path.join(root, "frontend/tests/performance/seed.sql")], { env: pgEnv, encoding: "utf8" });
+  if (seed.status !== 0) {
+    appendFileSync(log, seed.stderr ?? "");
+    throw new Error("AT14 dataset setup failed. Inspect the private local log.");
+  }
+  writeFileSync(path.join(cache, "performance-fixture.json"), JSON.stringify(JSON.parse(seed.stdout)), { mode: 0o600 });
+}
 // A repeat seed must not replace the original administrator password or roles.
 run(executable("seedstaff"), [], { SEED_STAFF_LOGIN: accounts.administrator,
   SEED_STAFF_PASSWORD: `Synthetic-repeat-${randomBytes(24).toString("hex")}`, SEED_STAFF_ROLES: "billing" });
