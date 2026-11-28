@@ -105,10 +105,13 @@ func registerPreparations(group *gin.RouterGroup, service PreparationService) {
 			c.JSON(http.StatusBadRequest, failure("bad_request", "Invalid consumption request."))
 			return
 		}
-		item, _, err := service.ConfirmConsumption(c.Request.Context(), ActorID(c), c.Param("id"), req)
+		item, replay, err := service.ConfirmConsumption(c.Request.Context(), ActorID(c), c.Param("id"), req)
 		if err != nil {
 			inventoryError(c, err)
 			return
+		}
+		if replay {
+			c.Header("X-Idempotent-Replay", "true")
 		}
 		c.JSON(http.StatusOK, item)
 	})

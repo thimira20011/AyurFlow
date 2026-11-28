@@ -186,7 +186,7 @@ export default function InventoryLiveWorkflows({ tab, items, batches, refreshBat
         {selectedPreparation && <><p className={styles.hint}>Status: <strong>{selectedPreparation.status}</strong> · Recipe version {selectedPreparation.recipeVersion} · Target {selectedPreparation.targetYieldGrams} g</p>
           <TableRegion label="Preparation snapshot"><table className={styles.table}><thead><tr><th scope="col">Snapshot ingredient</th><th scope="col">Required</th></tr></thead><tbody>{selectedPreparation.snapshot.map(item => <tr key={item.itemId}><td>{item.itemDisplayName}</td><td>{item.requiredGrams} g</td></tr>)}</tbody></table></TableRegion>
           {selectedPreparation.status === "consumed" && <>
-            <Notice>Confirmed consumption is immutable. {selectedPreparation.consumptions.length} batch allocation(s) recorded.</Notice>
+            <Notice>Confirmed consumption is immutable. {selectedPreparation.consumptions.length} batch allocation(s) recorded{selectedPreparation.operationId ? ` · Operation ID ${selectedPreparation.operationId}` : ""}.</Notice>
             <TableRegion label="Recorded batch consumptions">
               <table className={styles.table}>
                 <thead><tr><th scope="col">Batch ID</th><th scope="col">Consumed</th><th scope="col">Confirmed</th></tr></thead>
@@ -203,7 +203,7 @@ export default function InventoryLiveWorkflows({ tab, items, batches, refreshBat
       </section>
       <section className={styles.panel} aria-labelledby="confirm-consumption-title"><h2 id="confirm-consumption-title" className={styles.panelTitle}>Manual batch allocation</h2><p className={styles.hint}>Choose eligible batches. Quantities for each ingredient must exactly equal its saved snapshot requirement. Keep the operation ID for a safe retry.</p>
         {selectedPreparation?.status === "prepared" ? <form onSubmit={submitConsumption}>
-          <div className={styles.fieldGroup}><label className={styles.label} htmlFor="consumption-operation">Operation ID</label><input id="consumption-operation" className={styles.input} value={operationID} readOnly /></div>
+          <div className={styles.fieldGroup}><label className={styles.label} htmlFor="consumption-operation">Operation ID</label><input id="consumption-operation" className={styles.input} value={operationID} readOnly /><p className={styles.hint}>This ID stays fixed for the current confirmation attempt so retrying after a network interruption never deducts stock twice.</p></div>
           {allocationSummary.length > 0 && <TableRegion label="Allocation reconciliation">
             <table className={styles.table}>
               <thead><tr><th scope="col">Ingredient</th><th scope="col">Allocated / Required</th><th scope="col">Status</th></tr></thead>

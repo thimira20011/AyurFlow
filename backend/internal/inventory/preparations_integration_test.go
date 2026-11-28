@@ -1004,3 +1004,224 @@ func TestTaskINV04ManualAllocationAndAtomicConsumption(t *testing.T) {
 		t.Fatalf("D-CON-05 batchY remaining = %q err=%v, want 80.000", remY, err)
 	}
 }
+
+func TestTaskINV05UniqueConfirmationAndSafeRetries(t *testing.T) {
+	pool := testutil.Postgres(t)
+	svc := inventory.NewService(pool).WithClock(func() time.Time {
+		return time.Date(2026, 10, 31, 8, 0, 0, 0, time.UTC)
+	})
+
+	dispensary := seedStaff(t, pool, "synthetic-inv05-dispensary", "dispensary")
+	reception := seedStaff(t, pool, "synthetic-inv05-reception", "receptionist")
+	therapist := seedStaff(t, pool, "synthetic-inv05-therapist", "therapist")
+	patient, session := syntheticSession(t, pool, reception, therapist)
+
+	itemA, err := svc.CreateItem(t.Context(), dispensary, inventory.CreateItemRequest{
+		Code: "INV05-ASHWA", DisplayName: "Synthetic Ashwagandha Retry Herb",
+	})
+	if err != nil {
+		t.Fatalf("create itemA: %v", err)
+	}
+	expiry := "2027-06-30"
+	batch1, err := svc.ReceiveBatch(t.Context(), dispensary, inventory.ReceiveBatchRequest{
+		ItemID: itemA.ID, BatchReference: "INV05-LOT-1", ReceivedGrams: "500.000", ExpiresAt: &expiry,
+	})
+	if err != nil {
+		t.Fatalf("receive batch1: %v", err)
+	}
+	batch2, err := svc.ReceiveBatch(t.Context(), dispensary, inventory.ReceiveBatchRequest{
+		ItemID: itemA.ID, BatchReference: "INV05-LOT-2", ReceivedGrams: "500.000", ExpiresAt: &expiry,
+	})
+	if err != nil {
+		t.Fatalf("receive batch2: %v", err)
+	}
+	recipe, err := svc.CreateRecipe(t.Context(), dispensary, inventory.RecipeRequest{
+		Code: "INV05-REC", DisplayName: "Synthetic Retry Recipe", BaseYieldGrams: "100.000",
+		Ingredients: []inventory.RecipeIngredientInput{{ItemID: itemA.ID, QuantityGrams: "50.000"}},
+	})
+	if err != nil {
+		t.Fatalf("create recipe: %v", err)
+	}
+
+	savePrep := func() inventory.Preparation {
+		t.Helper()
+		p, err := svc.SavePreparation(t.Context(), dispensary, inventory.SavePreparationRequest{
+			PatientID: patient, SessionID: session, RecipeID: recipe.ID, TargetYieldGrams: "100.000",
+		})
+		if err != nil {
+			t.Fatalf("save prep: %v", err)
+		}
+		return p
+	}
+
+	prep1 := savePrep()
+	prep2 := savePrep()
+	prepSameOpRace := savePrep()
+	prepDistinctOpRace := savePrep()
+
+	// 1. A failed confirmation rolls back cleanly and never burns the operationId.
+	op1 := "7c4a1b9e-2005-4c9a-8a11-111111111111"
+	if _, _, err := svc.ConfirmConsumption(t.Context(), dispensary, prep1.ID, inventory.ConfirmConsumptionRequest{
+		OperationID: op1,
+		Allocations: []inventory.Allocation{{BatchID: batch1.ID, QuantityGrams: "10.000"}},
+	}); !errors.Is(err, inventory.ErrValidation) {
+		t.Fatalf("initial under-allocated attempt err = %v, want ErrValidation", err)
+	}
+	var opRows int
+	if err := pool.QueryRow(t.Context(), `SELECT count(*) FROM consumption_operations WHERE operation_id=$1`, op1).Scan(&opRows); err != nil || opRows != 0 {
+		t.Fatalf("failed confirmation left consumption_operations rows = %d err=%v, want 0", opRows, err)
+	}
+
+	// 2. D-CON-02: Initial confirmation succeeds; identical & canonically equivalent retries return replay=true with zero extra deduction.
+	req1 := inventory.ConfirmConsumptionRequest{
+		OperationID: op1,
+		Allocations: []inventory.Allocation{
+			{BatchID: batch1.ID, QuantityGrams: "30.000"},
+			{BatchID: batch2.ID, QuantityGrams: "20.000"},
+		},
+	}
+	first, replay, err := svc.ConfirmConsumption(t.Context(), dispensary, prep1.ID, req1)
+	if err != nil || replay || first.Status != "consumed" {
+		t.Fatalf("initial confirm = %+v replay=%v err=%v", first, replay, err)
+	}
+	again, replay, err := svc.ConfirmConsumption(t.Context(), dispensary, prep1.ID, req1)
+	if err != nil || !replay || again.ID != first.ID {
+		t.Fatalf("exact retry = %+v replay=%v err=%v", again, replay, err)
+	}
+	// Reordered allocations + trimmed decimal strings normalize to identical canonical payload.
+	reordered, replay, err := svc.ConfirmConsumption(t.Context(), dispensary, prep1.ID, inventory.ConfirmConsumptionRequest{
+		OperationID: op1,
+		Allocations: []inventory.Allocation{
+			{BatchID: batch2.ID, QuantityGrams: "20"},
+			{BatchID: batch1.ID, QuantityGrams: "30.0"},
+		},
+	})
+	if err != nil || !replay || reordered.ID != first.ID {
+		t.Fatalf("canonical equivalent retry = %+v replay=%v err=%v", reordered, replay, err)
+	}
+
+	// Same operationId with changed quantities -> ErrConflict.
+	if _, _, err := svc.ConfirmConsumption(t.Context(), dispensary, prep1.ID, inventory.ConfirmConsumptionRequest{
+		OperationID: op1,
+		Allocations: []inventory.Allocation{
+			{BatchID: batch1.ID, QuantityGrams: "25.000"},
+			{BatchID: batch2.ID, QuantityGrams: "25.000"},
+		},
+	}); !errors.Is(err, inventory.ErrConflict) {
+		t.Fatalf("changed payload with same operationId err = %v, want ErrConflict", err)
+	}
+
+	// Same operationId reused against a different preparation -> ErrConflict, leaving prep2 untouched.
+	if _, _, err := svc.ConfirmConsumption(t.Context(), dispensary, prep2.ID, req1); !errors.Is(err, inventory.ErrConflict) {
+		t.Fatalf("reused operationId on second preparation err = %v, want ErrConflict", err)
+	}
+	prep2Check, err := svc.GetPreparation(t.Context(), dispensary, prep2.ID)
+	if err != nil || prep2Check.Status != "prepared" {
+		t.Fatalf("prep2 altered after operationId conflict: %+v err=%v", prep2Check, err)
+	}
+
+	// New distinct operationId on already-consumed prep1 -> ErrConflict.
+	if _, _, err := svc.ConfirmConsumption(t.Context(), dispensary, prep1.ID, inventory.ConfirmConsumptionRequest{
+		OperationID: "7c4a1b9e-2005-4c9a-8a11-111111111199",
+		Allocations: req1.Allocations,
+	}); !errors.Is(err, inventory.ErrConflict) {
+		t.Fatalf("distinct operationId on already-consumed prep1 err = %v, want ErrConflict", err)
+	}
+
+	// Verify stock deducted strictly once and audit written strictly once for prep1.
+	var rem1, rem2 string
+	if err := pool.QueryRow(t.Context(), `SELECT remaining_grams::text FROM stock_batches WHERE id=$1`, batch1.ID).Scan(&rem1); err != nil || rem1 != "470.000" {
+		t.Fatalf("batch1 after D-CON-02 = %q err=%v, want 470.000", rem1, err)
+	}
+	if err := pool.QueryRow(t.Context(), `SELECT remaining_grams::text FROM stock_batches WHERE id=$1`, batch2.ID).Scan(&rem2); err != nil || rem2 != "480.000" {
+		t.Fatalf("batch2 after D-CON-02 = %q err=%v, want 480.000", rem2, err)
+	}
+	var prep1Audits int
+	if err := pool.QueryRow(t.Context(), `SELECT count(*) FROM audit_events WHERE object_type='preparation' AND object_id=$1 AND action='preparation.consumed'`, prep1.ID).Scan(&prep1Audits); err != nil || prep1Audits != 1 {
+		t.Fatalf("prep1 consumed audits = %d err=%v, want 1", prep1Audits, err)
+	}
+
+	// 3. Concurrent same-operationId retry race: 1 commits (replay=false), 1 replays (replay=true), 1 deduction, 1 audit.
+	type outcome struct {
+		replay bool
+		err    error
+	}
+	opSameRace := "7c4a1b9e-2005-4c9a-8a11-222222222222"
+	sameRaceCh := make(chan outcome, 2)
+	var wgSame sync.WaitGroup
+	for i := 0; i < 2; i++ {
+		wgSame.Add(1)
+		go func() {
+			defer wgSame.Done()
+			_, isReplay, err := svc.ConfirmConsumption(t.Context(), dispensary, prepSameOpRace.ID, inventory.ConfirmConsumptionRequest{
+				OperationID: opSameRace,
+				Allocations: []inventory.Allocation{{BatchID: batch1.ID, QuantityGrams: "50.000"}},
+			})
+			sameRaceCh <- outcome{replay: isReplay, err: err}
+		}()
+	}
+	wgSame.Wait()
+	close(sameRaceCh)
+	freshCount, replayCount := 0, 0
+	for res := range sameRaceCh {
+		if res.err != nil {
+			t.Fatalf("concurrent same-operationId retry failed: %v", res.err)
+		}
+		if res.replay {
+			replayCount++
+		} else {
+			freshCount++
+		}
+	}
+	if freshCount != 1 || replayCount != 1 {
+		t.Fatalf("concurrent same-operationId counts: fresh=%d replay=%d, want 1 and 1", freshCount, replayCount)
+	}
+	if err := pool.QueryRow(t.Context(), `SELECT remaining_grams::text FROM stock_batches WHERE id=$1`, batch1.ID).Scan(&rem1); err != nil || rem1 != "420.000" {
+		t.Fatalf("batch1 after concurrent same-op race = %q err=%v, want 420.000", rem1, err)
+	}
+	var sameRaceAudits int
+	if err := pool.QueryRow(t.Context(), `SELECT count(*) FROM audit_events WHERE object_type='preparation' AND object_id=$1 AND action='preparation.consumed'`, prepSameOpRace.ID).Scan(&sameRaceAudits); err != nil || sameRaceAudits != 1 {
+		t.Fatalf("same-op race audits = %d err=%v, want 1", sameRaceAudits, err)
+	}
+
+	// 4. D-CON-04: Concurrent distinct-operationId race on the same preparation: 1 commits, 1 conflicts, 1 deduction, 1 audit.
+	distinctOps := []string{"7c4a1b9e-2005-4c9a-8a11-333333333331", "7c4a1b9e-2005-4c9a-8a11-333333333332"}
+	distinctCh := make(chan error, 2)
+	var wgDistinct sync.WaitGroup
+	for _, op := range distinctOps {
+		wgDistinct.Add(1)
+		go func(opID string) {
+			defer wgDistinct.Done()
+			_, _, err := svc.ConfirmConsumption(t.Context(), dispensary, prepDistinctOpRace.ID, inventory.ConfirmConsumptionRequest{
+				OperationID: opID,
+				Allocations: []inventory.Allocation{{BatchID: batch2.ID, QuantityGrams: "50.000"}},
+			})
+			distinctCh <- err
+		}(op)
+	}
+	wgDistinct.Wait()
+	close(distinctCh)
+	distinctOK, distinctConflict := 0, 0
+	for err := range distinctCh {
+		if err == nil {
+			distinctOK++
+		} else if errors.Is(err, inventory.ErrConflict) {
+			distinctConflict++
+		} else {
+			t.Fatalf("D-CON-04 unexpected error: %v", err)
+		}
+	}
+	if distinctOK != 1 || distinctConflict != 1 {
+		t.Fatalf("D-CON-04 race results: ok=%d conflict=%d, want 1 and 1", distinctOK, distinctConflict)
+	}
+	if err := pool.QueryRow(t.Context(), `SELECT remaining_grams::text FROM stock_batches WHERE id=$1`, batch2.ID).Scan(&rem2); err != nil || rem2 != "430.000" {
+		t.Fatalf("batch2 after D-CON-04 = %q err=%v, want 430.000", rem2, err)
+	}
+	var distinctOpsCount, distinctAudits int
+	if err := pool.QueryRow(t.Context(), `SELECT count(*) FROM consumption_operations WHERE preparation_id=$1`, prepDistinctOpRace.ID).Scan(&distinctOpsCount); err != nil || distinctOpsCount != 1 {
+		t.Fatalf("D-CON-04 consumption_operations count = %d err=%v, want 1", distinctOpsCount, err)
+	}
+	if err := pool.QueryRow(t.Context(), `SELECT count(*) FROM audit_events WHERE object_type='preparation' AND object_id=$1 AND action='preparation.consumed'`, prepDistinctOpRace.ID).Scan(&distinctAudits); err != nil || distinctAudits != 1 {
+		t.Fatalf("D-CON-04 audit count = %d err=%v, want 1", distinctAudits, err)
+	}
+}

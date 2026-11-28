@@ -43,7 +43,19 @@ Owner: Member D (`K. I. R. Perera`). Reviewer: Member E. SRS: `INV-01`–`04`, `
 - Frontend (`scaling.ts`, `inventory-live-workflows.tsx`): adds pure `BigInt` `reconcileAllocations` helper (zero floating-point drift, zero FEFO/auto-selection), live per-ingredient allocated vs required reconciliation table, remove-batch button, and post-confirmation recorded batch consumptions `<TableRegion>`.
 - Automated verification: unit tests (`TestCanonicalizeConsumptionAllocations`, `frontend/tests/inventory-scaling.test.mjs`), HTTP route tests (`TestConfirmConsumptionHTTPRoutes`), and real PostgreSQL integration tests (`TestTaskINV04ManualAllocationAndAtomicConsumption` covering `D-CON-01` 3-batch split commit, `D-CON-03` full rollback across 7 failure modes, `D-CON-05` reverse-order multi-batch deadlock/race safety, `D-CON-06` referenced batch & consumed-history immutability, and RBAC denial).
 
+## Implemented in `TASK-INV-05`
+
+- Unique confirmation & safe retries (`consumption.go`, `internal/transport/http/preparations.go`):
+  - `POST /api/v1/preparations/:id/confirm-consumption` returns `200 OK` on initial confirmation and on identical/canonically equivalent `operationId` retries, setting `X-Idempotent-Replay: true` when returning an already-committed replay (`PRE-05`, `DEC07`).
+  - `pg_advisory_xact_lock(operationId)` + `consumption_operations(operation_id PRIMARY KEY, preparation_id, payload_sha256)` + `preparations(operation_id UNIQUE)` + `preparations FOR UPDATE` guarantee:
+    - Identical retries (including reordered allocations and equivalent decimal formatting like `"30"` vs `"30.000"`) deduct zero additional stock and write zero duplicate audit events.
+    - Reusing an `operationId` with changed quantities or against a different preparation fails with `ErrConflict` (`409`).
+    - Submitting a new `operationId` against an already-consumed preparation fails with `ErrConflict` (`409`).
+    - Failed confirmation attempts roll back `consumption_operations` cleanly without burning the `operationId`.
+- Frontend (`inventory-live-workflows.tsx`): keeps `operationId` fixed across retries for the active confirmation attempt and displays the committed `Operation ID` in the immutable post-confirmation summary.
+- Automated verification: HTTP replay/header tests (`TestConfirmConsumptionHTTPRoutes`) and real PostgreSQL concurrency/retry tests (`TestTaskINV05UniqueConfirmationAndSafeRetries` covering `D-CON-02`, `D-CON-04`, concurrent same-`operationId` retry serialization, concurrent distinct-`operationId` serialization on one preparation, and rolled-back failed operation recovery).
+
 ## Additional implemented slices awaiting D/E review
 
-- `ConfirmConsumption` retry/idempotency edge cases (`TASK-INV-05`) and `TraceBatch` / `TracePatient` / stock reports (`TASK-INV-06`) remain under D/E slice review.
+- `TraceBatch`, `TracePatient`, and stock availability reports (`TASK-INV-06`) remain under D/E slice review.
 - Formal `AT08`–`AT11` acceptance evidence, Member E peer review, and DEC03 clinic review remain open. No production data is used in any tests.
